@@ -5,35 +5,24 @@ const navItems = document.querySelectorAll('.nav-item');
 const counter = document.querySelector('.slide-counter');
 const totalSlides = slides.length;
 
-// Build lookup: data-slide value -> first slide index with that value
-const slideIndexMap = {};
-slides.forEach((s, i) => {
-  const ds = s.dataset.slide;
-  if (ds && !(ds in slideIndexMap)) slideIndexMap[ds] = i;
-});
-
 function updateSlide() {
   slides.forEach((s, i) => {
     s.classList.remove('active');
     if (i === currentSlide) s.classList.add('active');
   });
 
-  // Highlight nav item matching current slide's data-slide
-  const activeDataSlide = slides[currentSlide].dataset.slide;
+  // Highlight nav: find nav item with largest data-slide index <= currentSlide
+  navItems.forEach(item => item.classList.remove('active'));
+  let bestNav = null;
+  let bestIdx = -1;
   navItems.forEach(item => {
-    item.classList.remove('active');
-    if (item.dataset.slide === activeDataSlide) item.classList.add('active');
+    const ns = parseInt(item.dataset.slide, 10);
+    if (!isNaN(ns) && ns <= currentSlide && ns > bestIdx) {
+      bestIdx = ns;
+      bestNav = item;
+    }
   });
-
-  // Fallback: if no exact match, highlight nearest parent nav item
-  if (!document.querySelector('.nav-item.active')) {
-    let best = null;
-    navItems.forEach(item => {
-      const idx = slideIndexMap[item.dataset.slide];
-      if (idx !== undefined && idx <= currentSlide && (!best || idx > slideIndexMap[best.dataset.slide])) best = item;
-    });
-    if (best) best.classList.add('active');
-  }
+  if (bestNav) bestNav.classList.add('active');
 
   if (counter) counter.innerHTML = `<span class="current">${currentSlide + 1}</span>/${totalSlides}`;
 
@@ -47,7 +36,6 @@ function updateSlide() {
 function nextSlide() { if (currentSlide < totalSlides - 1) { currentSlide++; updateSlide(); } }
 function prevSlide() { if (currentSlide > 0) { currentSlide--; updateSlide(); } }
 function goToSlide(i) { if (i >= 0 && i < totalSlides) { currentSlide = i; updateSlide(); } }
-function goToDataSlide(ds) { const idx = slideIndexMap[ds]; if (idx !== undefined) goToSlide(idx); }
 function toggleFullscreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
 
 // Introduction slide counter animation
@@ -133,7 +121,8 @@ function anyEggOpen() { return Array.from(eggElements).some(el => el.classList.c
 eggElements.forEach(el => el.addEventListener('click', () => el.classList.remove('visible')));
 
 function triggerEasterEgg() {
-  const ds = slides[currentSlide].dataset.slide;
+  // Match by data-slide (ecosystem) or data-chapter (offer decks)
+  const ds = slides[currentSlide].dataset.slide || slides[currentSlide].dataset.chapter;
   const egg = eggMap[ds];
   if (!egg) return;
   if (egg.dataset.confetti) launchConfetti();
@@ -153,8 +142,13 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// Nav clicks
-navItems.forEach(item => item.addEventListener('click', () => goToDataSlide(item.dataset.slide)));
+// Nav clicks: data-slide values are always slide indices
+navItems.forEach(item => {
+  item.addEventListener('click', () => {
+    const idx = parseInt(item.dataset.slide, 10);
+    if (!isNaN(idx)) goToSlide(idx);
+  });
+});
 
 // Keyboard hint buttons (conditional)
 const keyPrev = document.getElementById('key-prev');
