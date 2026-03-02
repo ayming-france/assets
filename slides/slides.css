@@ -1842,43 +1842,6 @@
     /* ECOSYSTEM-SPECIFIC SECTIONS                   */
     /* ============================================= */
 
-    /* ===== PRESENTATION ===== */
-
-    .presentation {
-      width: 100vw; height: 100vh; overflow: hidden; position: relative;
-      transition: padding-left 0.3s ease; padding-left: var(--nav-collapsed);
-    }
-    .chapter-nav:hover ~ .presentation,
-    .chapter-nav.open ~ .presentation { padding-left: var(--nav-width); }
-
-    
-    /* ===== COVER ===== */
-
-    .slide.cover { padding: 0; }
-    .cover-layout { display: grid; grid-template-columns: 1fr 1fr; width: 100%; height: 100%; }
-    .cover-left {
-      background: var(--gradient-brand-horizontal);
-      display: flex; flex-direction: column; justify-content: center;
-      padding: 80px; position: relative;
-    }
-    .cover-logo { position: absolute; top: 50px; left: 80px; height: 55px; display: flex; align-items: center; }
-    .cover-logo img { height: 100%; filter: brightness(0) invert(1); }
-    .cover-title { font-size: 48px; font-weight: 700; color: white; line-height: 1.15; }
-    .cover-subtitle { font-size: 18px; color: rgba(255,255,255,0.85); margin-top: 20px; font-weight: 400; }
-    .cover-right {
-      position: relative; overflow: hidden;
-    }
-    .cover-right img {
-      width: 100%; height: 100%; object-fit: cover;
-    }
-    .cover-right::before {
-      content: ''; position: absolute; top: 0; left: 0;
-      width: 150px; height: 100%;
-      background: linear-gradient(90deg, var(--gradient-green-end) 0%, transparent 100%);
-      z-index: 1;
-    }
-
-    
     /* ===== SOLUTIONS SAAS SLIDE ===== */
 
     .saas-layout {
@@ -2003,30 +1966,13 @@
       font-size: 14px; color: var(--text-gray); line-height: 1.6;
     }
 
-    
-    /* ===== FEATURE GRIDS ===== */
 
-    .feature-grid-3 {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 40px 60px; width: 100%; max-width: 1100px;
-    }
-    .feature-grid-4 {
-      display: grid; grid-template-columns: repeat(2, 1fr);
-      gap: 50px 80px; width: 100%; max-width: 1000px;
-    }
+    /* ===== FEATURE GRID (6 items, ecosystem-only) ===== */
+
     .feature-grid-6 {
       display: grid; grid-template-columns: repeat(3, 1fr);
       gap: 35px 50px; width: 100%; max-width: 1100px;
     }
-    .feature-item { display: flex; align-items: flex-start; gap: 20px; text-align: left; }
-    .feature-icon {
-      width: 64px; height: 64px; border-radius: 18px;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; color: white; box-shadow: var(--shadow-sm);
-    }
-    .feature-icon svg { width: 30px; height: 30px; }
-    .feature-content h4 { font-size: 18px; font-weight: 600; color: var(--text-dark); margin-bottom: 10px; }
-    .feature-content p { font-size: 14px; color: var(--text-gray); line-height: 1.6; }
     .feature-grid-6 .feature-icon { width: 52px; height: 52px; border-radius: 14px; }
     .feature-grid-6 .feature-icon svg { width: 24px; height: 24px; }
     .feature-grid-6 .feature-content h4 { font-size: 15px; margin-bottom: 6px; }
@@ -2051,77 +1997,6 @@
       -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     }
 
-    
-    /* ===== VALUE DETAIL LAYOUT (from template) ===== */
-
-    .value-detail-layout {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 80px;
-      width: 100%;
-      max-width: 1100px;
-      align-items: center;
-      transform: scale(1.15);
-      transform-origin: center center;
-    }
-    .value-detail-content {
-      text-align: left;
-    }
-    .value-detail-content h2 {
-      font-size: 38px;
-      font-weight: 700;
-      background: linear-gradient(90deg, var(--gradient-blue-start), var(--gradient-green-end));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-      margin-bottom: 32px;
-      line-height: 1.2;
-    }
-    .value-detail-list {
-      list-style: none;
-    }
-    .value-detail-list li {
-      display: flex;
-      align-items: flex-start;
-      gap: 16px;
-      font-size: 16px;
-      color: var(--text-gray);
-      margin-bottom: 20px;
-      line-height: 1.5;
-    }
-    .value-detail-list li:last-child {
-      margin-bottom: 0;
-    }
-    .value-detail-list .check-icon {
-      width: 26px;
-      height: 26px;
-      flex-shrink: 0;
-      color: var(--blue-primary);
-      margin-top: 2px;
-    }
-    .value-detail-visual {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .value-image-container {
-      width: 100%;
-      max-width: 520px;
-      aspect-ratio: 4 / 3;
-      border-radius: 20px;
-      overflow: hidden;
-      background: var(--bg-white);
-      position: relative;
-      z-index: 1;
-      box-shadow:
-        0 0 60px 20px rgba(17, 169, 230, 0.25),
-        0 0 100px 40px rgba(10, 179, 140, 0.15),
-        0 10px 40px rgba(0, 0, 0, 0.1);
-    }
-    .value-image-container img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
     /* Raw images (e.g. Acciline+) with baked-in styling: no box, use drop-shadow */
     .value-image-raw {
       width: 100%;
@@ -2604,8 +2479,3 @@
       box-shadow: 0 20px 60px rgba(0,0,0,0.5);
     }
 
-    
-    /* ===== COMPANY LOGO ===== */
-
-    .company-logo { position: absolute; bottom: 35px; right: 50px; height: 30px; }
-    .company-logo img { height: 100%; width: auto; }
