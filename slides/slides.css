@@ -988,6 +988,7 @@
       max-width: 1050px;
       margin: -10px auto 0;
       padding: 0;
+      min-height: 0;
     }
 
     /* Tighter title spacing on international map slide */
@@ -996,15 +997,17 @@
     }
 
     .implantation-na {
-      height: min(560px, calc(100vh - 220px));
+      max-height: min(520px, calc(100vh - 260px));
       width: auto;
       object-fit: contain;
+      min-height: 0;
     }
 
     .implantation-eu {
-      height: min(560px, calc(100vh - 220px));
+      max-height: min(520px, calc(100vh - 260px));
       width: auto;
       object-fit: contain;
+      min-height: 0;
     }
 
     /* ===== ANCRAGE FRANCE LAYOUT ===== */
