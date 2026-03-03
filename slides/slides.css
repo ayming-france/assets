@@ -2480,3 +2480,243 @@
       box-shadow: 0 20px 60px rgba(0,0,0,0.5);
     }
 
+/* ===== WORKFLOW SLIDE (Aides Apprentissage) ===== */
+.slide-workflow {
+  padding: 20px 56px 16px;
+}
+.slide-workflow .slide-inner {
+  display: flex; flex-direction: column; height: 100%;
+  transform: scale(1.0); justify-content: center;
+}
+.workflow-header {
+  text-align: center; margin-bottom: 100px; flex-shrink: 0;
+}
+.workflow-header h1 {
+  font-size: 2.75rem; font-weight: 700;
+  background: linear-gradient(90deg, var(--gradient-blue-start), var(--gradient-green-end));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.workflow-footer {
+  text-align: center; margin-top: 100px; flex-shrink: 0;
+}
+.workflow-footer p {
+  font-size: 0.95rem; color: var(--text-gray); line-height: 1.5;
+  max-width: 800px; margin: 0 auto;
+}
+.workflow-footer .accent {
+  color: var(--blue-primary); font-weight: 600;
+}
+.workflow-flow {
+  display: flex; align-items: center; flex: none;
+  overflow: visible; transform: scale(1.35); transform-origin: center center;
+}
+.workflow-start {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; flex-shrink: 0; width: 100px;
+}
+.start-badge {
+  background: linear-gradient(135deg, var(--gradient-blue-start), var(--gradient-green-end));
+  color: white; padding: 10px 12px; border-radius: 10px;
+  font-size: 0.68rem; font-weight: 700; text-align: center;
+  line-height: 1.3; box-shadow: 0 4px 14px rgba(17, 169, 230, 0.22);
+}
+.workflow-arrow {
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; width: 42px;
+}
+.split-lines {
+  position: relative; height: 280px; width: 28px;
+}
+.split-lines::before {
+  content: ''; position: absolute; left: 0; top: 50%;
+  width: 28px; height: 2px; background: var(--blue-primary);
+}
+.split-lines .top-arm,
+.split-lines .bot-arm {
+  position: absolute; right: 0; width: 2px; background: var(--blue-primary);
+}
+.split-lines .top-arm { top: 25%; height: calc(50% - 25%); }
+.split-lines .bot-arm { top: 50%; height: calc(75% - 50%); }
+.split-lines .top-arrow,
+.split-lines .bot-arrow {
+  position: absolute; right: -10px; width: 0; height: 0;
+  border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+  border-left: 7px solid var(--blue-primary);
+}
+.split-lines .top-arrow { top: calc(25% - 5px); }
+.split-lines .bot-arrow { top: calc(75% - 5px); }
+.workflow-tracks {
+  display: flex; flex-direction: column; gap: 28px;
+  flex: 1; min-width: 0; max-width: 520px;
+  justify-content: center; overflow: visible;
+}
+.workflow-track {
+  background: var(--bg-subtle); border-radius: 12px;
+  padding: 8px 12px; border: 1px solid rgba(17, 169, 230, 0.12);
+  position: relative;
+}
+.track-header {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;
+}
+.track-title {
+  font-size: 0.82rem; font-weight: 600; color: var(--text-dark);
+}
+.track-sub {
+  font-size: 0.62rem; color: var(--text-gray);
+}
+.steps-row {
+  display: flex; gap: 6px; margin-bottom: 4px;
+}
+.step-card {
+  flex: 1; background: white; border-radius: 8px;
+  padding: 6px 8px; border: 1px solid var(--bg-subtle);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06); position: relative;
+}
+.step-top {
+  display: flex; align-items: center; gap: 5px; margin-bottom: 2px;
+}
+.step-num {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--gradient-blue-start), var(--gradient-green-end));
+  color: white; display: flex; align-items: center; justify-content: center;
+  font-size: 0.5rem; font-weight: 700; flex-shrink: 0;
+}
+.step-card h4 {
+  font-size: 0.62rem; font-weight: 600; color: var(--text-dark); line-height: 1.2;
+}
+.step-card p {
+  font-size: 0.52rem; color: var(--text-gray); line-height: 1.3; padding-left: 21px;
+}
+.step-card::after {
+  content: '\2192'; position: absolute; right: -9px; top: 50%;
+  transform: translateY(-50%); font-size: 0.72rem;
+  color: var(--blue-primary); opacity: 0.45; z-index: 2;
+}
+.step-card:last-child::after { display: none; }
+.track-errors {
+  background: rgba(217, 79, 79, 0.06); border-radius: 7px;
+  padding: 6px 10px; border: 1px dashed rgba(217, 79, 79, 0.18);
+}
+.track-errors-title {
+  font-size: 0.52rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.7px; color: #d94f4f; margin-bottom: 3px;
+  display: flex; align-items: center; gap: 4px;
+}
+.track-errors-title svg { width: 11px; height: 11px; }
+.error-zones {
+  display: flex; flex-wrap: wrap; gap: 3px;
+}
+.error-zone {
+  display: inline-flex; align-items: center; background: white;
+  color: #d94f4f; font-size: 0.5rem; font-weight: 600;
+  padding: 2px 5px; border-radius: 3px;
+  border: 1px solid rgba(217, 79, 79, 0.14); line-height: 1.2;
+}
+.error-more {
+  display: inline-flex; align-items: center; background: #d94f4f;
+  color: white; font-size: 0.5rem; font-weight: 700;
+  padding: 2px 6px; border-radius: 3px; line-height: 1.2;
+}
+.workflow-merge {
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; width: 42px;
+}
+.merge-lines {
+  position: relative; height: 280px; width: 28px;
+}
+.merge-lines::after {
+  content: ''; position: absolute; right: 0; top: 50%;
+  width: 28px; height: 2px; background: var(--gradient-green-end);
+}
+.merge-lines .top-arm,
+.merge-lines .bot-arm {
+  position: absolute; left: 0; width: 2px; background: var(--gradient-green-end);
+}
+.merge-lines .top-arm { top: 25%; height: calc(50% - 25%); }
+.merge-lines .bot-arm { top: 50%; height: calc(75% - 50%); }
+.merge-lines .top-conn,
+.merge-lines .bot-conn {
+  position: absolute; left: -8px; height: 2px;
+  width: 10px; background: var(--gradient-green-end);
+}
+.merge-lines .top-conn { top: 25%; }
+.merge-lines .bot-conn { top: 75%; }
+.merge-lines .out-arrow {
+  position: absolute; right: -10px; top: calc(50% - 5px);
+  width: 0; height: 0; border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid var(--gradient-green-end);
+}
+.workflow-end {
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.end-flow {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.payment-wrapper {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.end-row {
+  display: flex; align-items: flex-start; gap: 12px;
+}
+.end-warning {
+  display: flex; justify-content: center;
+}
+.end-arrow {
+  color: var(--gradient-green-end); font-size: 1rem;
+  font-weight: 700; margin-top: 18px;
+}
+.sylae-card {
+  background: linear-gradient(135deg, #f0f9ff, #ecfdf5);
+  border: 1.5px solid var(--blue-primary); border-radius: 10px;
+  padding: 8px 12px; text-align: center;
+  box-shadow: 0 3px 10px rgba(17, 169, 230, 0.12);
+}
+.sylae-card h3 {
+  font-size: 0.95rem; font-weight: 700;
+  background: linear-gradient(90deg, var(--gradient-blue-start), var(--gradient-green-end));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 1px;
+}
+.sylae-card .sylae-sub {
+  font-size: 0.55rem; color: var(--text-gray);
+}
+.payment-badge {
+  background: linear-gradient(135deg, var(--gradient-blue-start), var(--gradient-green-end));
+  color: white; padding: 10px 14px; border-radius: 10px;
+  font-size: 0.68rem; font-weight: 700;
+  box-shadow: 0 4px 14px rgba(17, 169, 230, 0.22);
+  text-align: center; line-height: 1.3;
+}
+.anomalie-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: white; border: 1px solid rgba(217, 79, 79, 0.3);
+  color: #d94f4f; padding: 3px 6px; border-radius: 4px;
+  font-size: 0.5rem; font-weight: 600; line-height: 1.2;
+}
+.anomalie-badge svg {
+  width: 9px; height: 9px; stroke: #d94f4f; flex-shrink: 0;
+}
+
+/* Workflow animations */
+.slide-workflow.active .start-badge {
+  animation: fadeInUp 0.4s ease 0.1s forwards; opacity: 0;
+}
+.slide-workflow.active .workflow-track {
+  animation: fadeInUp 0.4s ease forwards; opacity: 0;
+}
+.slide-workflow.active .workflow-track:nth-child(1) { animation-delay: 0.15s; }
+.slide-workflow.active .workflow-track:nth-child(2) { animation-delay: 0.25s; }
+.slide-workflow.active .sylae-card {
+  animation: fadeInUp 0.4s ease 0.35s forwards; opacity: 0;
+}
+.slide-workflow.active .payment-badge {
+  animation: fadeInUp 0.4s ease 0.45s forwards; opacity: 0;
+}
+.slide-workflow.active .anomalie-badge {
+  animation: fadeInUp 0.4s ease 0.55s forwards; opacity: 0;
+}
+.slide-workflow.active .workflow-header {
+  animation: fadeInUp 0.4s ease 0.05s forwards; opacity: 0;
+}
+
