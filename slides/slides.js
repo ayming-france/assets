@@ -150,6 +150,11 @@ navItems.forEach(item => {
   });
 });
 
+// Nav toggle click (touch support)
+const navToggle = document.querySelector('.nav-toggle');
+const chapterNav = document.querySelector('.chapter-nav');
+if (navToggle && chapterNav) navToggle.addEventListener('click', () => chapterNav.classList.toggle('open'));
+
 // Keyboard hint buttons (conditional)
 const keyPrev = document.getElementById('key-prev');
 const keyNext = document.getElementById('key-next');
