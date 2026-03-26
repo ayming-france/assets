@@ -1251,6 +1251,9 @@
     .slide.active .column-card:nth-child(3),
     .slide.active .stat-card:nth-child(3),
     .slide.active .feature-item:nth-child(3) { animation-delay: 0.35s; }
+    .slide.active .column-card:nth-child(4),
+    .slide.active .stat-card:nth-child(4),
+    .slide.active .feature-item:nth-child(4) { animation-delay: 0.45s; }
     .slide.active .feature-item:nth-child(4) { animation-delay: 0.45s; }
     .slide.active .feature-item:nth-child(5) { animation-delay: 0.55s; }
 
