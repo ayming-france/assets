@@ -307,7 +307,7 @@
       font-size: 44px;
       font-weight: 700;
       line-height: 1.2;
-      margin-bottom: 50px;
+      margin-bottom: 10px;
       text-align: center;
       background: linear-gradient(90deg, var(--gradient-blue-start), var(--gradient-green-end));
       -webkit-background-clip: text;
