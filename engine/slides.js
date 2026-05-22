@@ -31,6 +31,64 @@ function updateSlide() {
   if (introSlide && slides[currentSlide] === introSlide) {
     setTimeout(animateIntroCounters, 500);
   }
+
+  // Scale the slide to fit the viewport; re-fit once entrance animations have
+  // settled and when its images finish loading
+  fitSlide();
+  setTimeout(fitSlide, 250);
+  setTimeout(fitSlide, 700);
+  slides[currentSlide].querySelectorAll('img').forEach(img => {
+    if (!img.complete) img.addEventListener('load', fitSlide, { once: true });
+  });
+}
+
+// Auto-fit: scale a slide's content wrapper so it always fits the viewport on
+// both axes (e.g. 1280x720), capped at each layout's design scale so larger
+// screens stay unchanged. Measures the real geometry of the wrapper and its
+// direct children, then scales around the wrapper's centre, handling the nav
+// offset and any off-centre or oversized content. Cover and full-bleed slides
+// have none of these wrappers and are left untouched.
+function fitSlide() {
+  try {
+    const slide = slides[currentSlide];
+    if (!slide) return;
+    const wrap = slide.querySelector(':scope > .slide-inner, :scope > .value-detail-layout, :scope > .layout-split');
+    if (!wrap) return;
+    // Design scale baked into each layout's CSS — never enlarge past it
+    let designScale = 1;
+    if (wrap.classList.contains('slide-inner')) designScale = 1.2;
+    else if (wrap.classList.contains('value-detail-layout')) designScale = 1.15;
+    // Measure at natural size: wrapper box plus the extent of its direct children
+    wrap.style.transform = 'scale(1)';
+    const w = wrap.getBoundingClientRect();
+    let minL = w.left, minT = w.top, maxR = w.right, maxB = w.bottom;
+    for (const c of wrap.children) {
+      const b = c.getBoundingClientRect();
+      if (b.width || b.height) {
+        if (b.left < minL) minL = b.left;
+        if (b.top < minT) minT = b.top;
+        if (b.right > maxR) maxR = b.right;
+        if (b.bottom > maxB) maxB = b.bottom;
+      }
+    }
+    // The wrapper scales around its own box centre (transform-origin: center)
+    const ox = w.left + w.width / 2;
+    const oy = w.top + w.height / 2;
+    const M = 16; // keep this margin from each viewport edge
+    const VW = window.innerWidth, VH = window.innerHeight;
+    // Largest scale before a given content edge (offset d from origin) crosses
+    // the [lo, hi] safe band, both measured relative to the scaling origin
+    const cap = (d, lo, hi) => d < 0 ? lo / d : d > 0 ? hi / d : Infinity;
+    let scale = Math.min(
+      designScale,
+      cap(minL - ox, M - ox, VW - M - ox),
+      cap(maxR - ox, M - ox, VW - M - ox),
+      cap(minT - oy, M - oy, VH - M - oy),
+      cap(maxB - oy, M - oy, VH - M - oy)
+    );
+    if (!isFinite(scale) || scale <= 0) scale = designScale;
+    wrap.style.transform = 'scale(' + scale + ')';
+  } catch (e) { /* never let auto-fit break navigation */ }
 }
 
 function nextSlide() { if (currentSlide < totalSlides - 1) { currentSlide++; updateSlide(); } }
@@ -170,6 +228,14 @@ document.addEventListener('touchend', e => {
   const diff = touchStartX - e.changedTouches[0].screenX;
   if (Math.abs(diff) > 50) { diff > 0 ? nextSlide() : prevSlide(); }
 });
+
+// Re-fit on resize and once all assets (fonts, images) have loaded
+let fitResizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(fitResizeTimer);
+  fitResizeTimer = setTimeout(fitSlide, 100);
+});
+window.addEventListener('load', fitSlide);
 
 // Init
 updateSlide();
