@@ -307,7 +307,7 @@
       font-size: 44px;
       font-weight: 700;
       line-height: 1.2;
-      margin-bottom: 10px;
+      margin-bottom: 50px;
       text-align: center;
       background: linear-gradient(90deg, var(--gradient-blue-start), var(--gradient-green-end));
       -webkit-background-clip: text;
@@ -1375,7 +1375,9 @@
 
     .intro-title-band {
       position: absolute;
-      bottom: 140px;
+      /* Must clear the stats bar below it: bar is ~153px tall at minimum
+         (28px padding x2 + one-line number + label) */
+      bottom: 170px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 3;
@@ -1428,6 +1430,9 @@
       color: var(--blue-accent);
       line-height: 1;
       margin-bottom: 8px;
+      /* A wrapped number doubles the stats bar height and collides with the
+         title band above it (absolute positioning inside .intro-hero) */
+      white-space: nowrap;
     }
 
     .intro-stat-label {
