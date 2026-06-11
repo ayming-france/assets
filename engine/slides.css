@@ -2725,3 +2725,36 @@
   animation: fadeInUp 0.4s ease 0.05s forwards; opacity: 0;
 }
 
+
+/* ===== PDF DOWNLOAD POPOVER (toggled by clicking the Ayming logo) ===== */
+.pdf-popover {
+  position: fixed;
+  bottom: 80px;
+  right: 50px;
+  background: var(--bg-white);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  z-index: 250;
+}
+.pdf-popover.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+.pdf-popover a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--blue-dark);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.pdf-popover a:hover { color: var(--blue-primary); }
+.pdf-popover svg { width: 18px; height: 18px; flex-shrink: 0; }

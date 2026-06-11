@@ -239,3 +239,32 @@ window.addEventListener('load', fitSlide);
 
 // Init
 updateSlide();
+
+// PDF download: discreet affordance. If a deck.pdf file exists alongside the
+// deck's index.html, clicking the Ayming logo (.company-logo) toggles a small
+// download popover. Decks without a deck.pdf are unaffected.
+(function () {
+  try {
+    const logos = document.querySelectorAll('.company-logo');
+    if (!logos.length || !window.fetch) return;
+    fetch('deck.pdf', { method: 'HEAD' }).then(r => {
+      if (!r.ok) return;
+      const title = (document.title || 'presentation').replace(/[\\/:*?"<>|]/g, ' ').trim();
+      const pop = document.createElement('div');
+      pop.className = 'pdf-popover';
+      pop.innerHTML =
+        '<a href="deck.pdf" download="' + title + '.pdf">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
+        'Télécharger la présentation (PDF)</a>';
+      document.body.appendChild(pop);
+      logos.forEach(l => l.addEventListener('click', e => {
+        e.stopPropagation();
+        pop.classList.toggle('visible');
+      }));
+      document.addEventListener('click', e => {
+        if (!pop.contains(e.target)) pop.classList.remove('visible');
+      });
+    }).catch(() => {});
+  } catch (e) { /* never let the PDF affordance break navigation */ }
+})();
