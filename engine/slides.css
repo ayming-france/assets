@@ -43,18 +43,13 @@
       height: 100vh;
       background: var(--bg-light);
       border-right: 1px solid var(--bg-subtle);
-      padding: 40px 24px calc(40px + var(--banner-h)) 24px;
-      z-index: 300; /* above the brand banner (200) so nav items are never clipped */
+      padding: 40px 24px;
+      z-index: 300; /* above the brand banner (200) so the band never hides nav items */
       display: flex;
       flex-direction: column;
-      overflow-y: auto; /* scroll when the item list is taller than the viewport */
-      overflow-x: hidden;
-      scrollbar-width: none;      /* Firefox: hide the scrollbar, keep scrolling */
-      -ms-overflow-style: none;   /* old Edge */
       transform: translateX(calc(-1 * var(--nav-width) + var(--nav-collapsed)));
       transition: transform 0.3s ease;
     }
-    .chapter-nav::-webkit-scrollbar { display: none; } /* Chrome / Safari */
 
     .chapter-nav:hover,
     .chapter-nav.open {
