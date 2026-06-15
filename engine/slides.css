@@ -43,8 +43,8 @@
       height: 100vh;
       background: var(--bg-light);
       border-right: 1px solid var(--bg-subtle);
-      padding: 40px 24px;
-      z-index: 100;
+      padding: 40px 24px calc(40px + var(--banner-h)) 24px;
+      z-index: 300; /* above the brand banner (200) so nav items are never clipped */
       display: flex;
       flex-direction: column;
       transform: translateX(calc(-1 * var(--nav-width) + var(--nav-collapsed)));
@@ -2829,7 +2829,7 @@
   pointer-events: none;
   transform: translateY(8px);
   transition: opacity 0.25s ease, transform 0.25s ease;
-  z-index: 250;
+  z-index: 350;
 }
 .pdf-popover.visible {
   opacity: 1;
