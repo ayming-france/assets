@@ -5,6 +5,40 @@ const navItems = document.querySelectorAll('.nav-item');
 const counter = document.querySelector('.slide-counter');
 const totalSlides = slides.length;
 
+// ===== Brand banner =====
+// Injected once on every deck (zero per-deck markup). Carries the Ayming logo
+// (click = download popover), the confidentiality line, and the consolidated
+// prev / counter / next / fullscreen controls. Hidden on the full-bleed cover.
+const BANNER_H = 46; // keep in sync with --banner-h in slides.css
+let brandBanner = null;
+let bannerCounter = null;
+(function injectBrandBanner() {
+  try {
+    const logoSrc = (document.querySelector('.nav-logo img, .company-logo img') || {}).src
+      || 'https://www.ayming.fr/wp-content/uploads/sites/3/2025/07/Ayming.png';
+    const svg = (inner) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+      + 'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>';
+    const banner = document.createElement('div');
+    banner.className = 'brand-banner';
+    banner.innerHTML =
+      '<div class="banner-logo"><img src="' + logoSrc + '" alt="Ayming"></div>'
+      + '<div class="banner-divider"></div>'
+      + '<div class="banner-confidential">CONFIDENTIEL · Document propriété exclusive d’Ayming</div>'
+      + '<div class="banner-controls">'
+      +   '<button class="banner-btn" data-act="prev" aria-label="Précédent">' + svg('<polyline points="15 18 9 12 15 6"/>') + '</button>'
+      +   '<span class="banner-counter"></span>'
+      +   '<button class="banner-btn" data-act="next" aria-label="Suivant">' + svg('<polyline points="9 18 15 12 9 6"/>') + '</button>'
+      +   '<button class="banner-btn" data-act="fs" aria-label="Plein écran">' + svg('<path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/>') + '</button>'
+      + '</div>';
+    document.body.appendChild(banner);
+    brandBanner = banner;
+    bannerCounter = banner.querySelector('.banner-counter');
+    banner.querySelector('[data-act="prev"]').addEventListener('click', () => prevSlide());
+    banner.querySelector('[data-act="next"]').addEventListener('click', () => nextSlide());
+    banner.querySelector('[data-act="fs"]').addEventListener('click', () => toggleFullscreen());
+  } catch (e) { /* never let the banner break navigation */ }
+})();
+
 function updateSlide() {
   slides.forEach((s, i) => {
     s.classList.remove('active');
@@ -25,6 +59,10 @@ function updateSlide() {
   if (bestNav) bestNav.classList.add('active');
 
   if (counter) counter.innerHTML = `<span class="current">${currentSlide + 1}</span>/${totalSlides}`;
+
+  // Brand banner: update counter, hide on the full-bleed cover slide
+  if (bannerCounter) bannerCounter.textContent = `${currentSlide + 1}/${totalSlides}`;
+  if (brandBanner) brandBanner.classList.toggle('is-hidden', slides[currentSlide].classList.contains('cover'));
 
   // Counter animation (conditional: only if intro stat numbers exist)
   const introSlide = document.querySelector('.slide-introduction');
@@ -75,6 +113,8 @@ function fitSlide() {
     const ox = w.left + w.width / 2;
     const oy = w.top + w.height / 2;
     const M = 16; // keep this margin from each viewport edge
+    // Reserve the brand banner's height at the bottom (cover has no banner)
+    const bh = slide.classList.contains('cover') ? 0 : BANNER_H;
     const VW = window.innerWidth, VH = window.innerHeight;
     // Largest scale before a given content edge (offset d from origin) crosses
     // the [lo, hi] safe band, both measured relative to the scaling origin
@@ -83,8 +123,8 @@ function fitSlide() {
       designScale,
       cap(minL - ox, M - ox, VW - M - ox),
       cap(maxR - ox, M - ox, VW - M - ox),
-      cap(minT - oy, M - oy, VH - M - oy),
-      cap(maxB - oy, M - oy, VH - M - oy)
+      cap(minT - oy, M - oy, VH - M - bh - oy),
+      cap(maxB - oy, M - oy, VH - M - bh - oy)
     );
     if (!isFinite(scale) || scale <= 0) scale = designScale;
     wrap.style.transform = 'scale(' + scale + ')';
@@ -241,12 +281,12 @@ window.addEventListener('load', fitSlide);
 updateSlide();
 
 // PDF download: discreet affordance. If a deck.pdf file exists alongside the
-// deck's index.html, clicking the Ayming logo (.company-logo) toggles a small
-// download popover. Decks without a deck.pdf are unaffected.
+// deck's index.html, clicking the Ayming logo in the brand banner toggles a
+// small download popover. Decks without a deck.pdf are unaffected.
 (function () {
   try {
-    const logos = document.querySelectorAll('.company-logo');
-    if (!logos.length || !window.fetch) return;
+    const logo = document.querySelector('.banner-logo');
+    if (!logo || !window.fetch) return;
     fetch('deck.pdf', { method: 'HEAD' }).then(r => {
       if (!r.ok) return;
       const title = (document.title || 'presentation').replace(/[\\/:*?"<>|]/g, ' ').trim();
@@ -258,10 +298,11 @@ updateSlide();
         '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
         'Télécharger la présentation (PDF)</a>';
       document.body.appendChild(pop);
-      logos.forEach(l => l.addEventListener('click', e => {
+      logo.style.cursor = 'pointer';
+      logo.addEventListener('click', e => {
         e.stopPropagation();
         pop.classList.toggle('visible');
-      }));
+      });
       document.addEventListener('click', e => {
         if (!pop.contains(e.target)) pop.classList.remove('visible');
       });

@@ -17,6 +17,7 @@
       --shadow-lg: 0 10px 40px rgba(0,0,0,0.1);
       --nav-width: 260px;
       --nav-collapsed: 20px;
+      --banner-h: 46px;
     }
 
     * {
@@ -208,6 +209,12 @@
       opacity: 0;
       transition: opacity 0.4s ease;
       overflow: hidden;
+    }
+
+    /* Reserve the brand banner's height so centred content never sits behind it.
+       Cover slides are full-bleed and have no banner. */
+    .slide:not(.cover) {
+      padding-bottom: calc(60px + var(--banner-h));
     }
 
     .slide.active {
@@ -965,12 +972,14 @@
       color: white;
     }
 
-    /* ===== LOGO ===== */
-    .company-logo {
-      position: absolute;
-      bottom: 35px;
-      right: 50px;
-      height: 30px;
+    /* ===== LOGO =====
+       Superseded by the brand banner (logo now lives there). The per-slide
+       markup stays harmless; we just hide it. Same for the standalone counter
+       and the old keyboard-hint strip, both consolidated into the banner. */
+    .company-logo,
+    .slide-counter,
+    .keyboard-hint {
+      display: none !important;
     }
 
     .company-logo img {
@@ -2731,11 +2740,88 @@
 }
 
 
-/* ===== PDF DOWNLOAD POPOVER (toggled by clicking the Ayming logo) ===== */
+/* ===== BRAND BANNER (injected once by slides.js, shown on every slide except
+   the cover). Carries the Ayming logo (click = download popover), the
+   confidentiality line, and the consolidated nav controls. ===== */
+.brand-banner {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: var(--banner-h);
+  background: var(--gradient-brand-horizontal);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+  z-index: 200;
+  color: #fff;
+}
+.brand-banner.is-hidden { display: none; }
+.banner-logo {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.banner-logo img {
+  height: 100%;
+  width: auto;
+  filter: brightness(0) invert(1);
+}
+.banner-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(255,255,255,0.45);
+  flex-shrink: 0;
+}
+.banner-confidential {
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: rgba(255,255,255,0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.banner-controls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.banner-counter {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  min-width: 44px;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+.banner-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  padding: 0;
+}
+.banner-btn:hover { background: rgba(255,255,255,0.20); }
+.banner-btn:active { background: rgba(255,255,255,0.30); }
+.banner-btn svg { width: 18px; height: 18px; }
+
+/* ===== PDF DOWNLOAD POPOVER (toggled by clicking the banner logo) ===== */
 .pdf-popover {
   position: fixed;
-  bottom: 80px;
-  right: 50px;
+  bottom: calc(var(--banner-h) + 10px);
+  left: 24px;
   background: var(--bg-white);
   border-radius: 12px;
   box-shadow: var(--shadow-lg);
