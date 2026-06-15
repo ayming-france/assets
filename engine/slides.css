@@ -47,6 +47,8 @@
       z-index: 300; /* above the brand banner (200) so nav items are never clipped */
       display: flex;
       flex-direction: column;
+      overflow-y: auto; /* scroll when the item list is taller than the viewport */
+      overflow-x: hidden;
       transform: translateX(calc(-1 * var(--nav-width) + var(--nav-collapsed)));
       transition: transform 0.3s ease;
     }
