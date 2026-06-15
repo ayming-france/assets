@@ -49,9 +49,12 @@
       flex-direction: column;
       overflow-y: auto; /* scroll when the item list is taller than the viewport */
       overflow-x: hidden;
+      scrollbar-width: none;      /* Firefox: hide the scrollbar, keep scrolling */
+      -ms-overflow-style: none;   /* old Edge */
       transform: translateX(calc(-1 * var(--nav-width) + var(--nav-collapsed)));
       transition: transform 0.3s ease;
     }
+    .chapter-nav::-webkit-scrollbar { display: none; } /* Chrome / Safari */
 
     .chapter-nav:hover,
     .chapter-nav.open {
