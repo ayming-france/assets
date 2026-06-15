@@ -280,23 +280,32 @@ window.addEventListener('load', fitSlide);
 // Init
 updateSlide();
 
-// PDF download: discreet affordance. If a deck.pdf file exists alongside the
-// deck's index.html, clicking the Ayming logo in the brand banner toggles a
-// small download popover. Decks without a deck.pdf are unaffected.
+// Download popover: discreet affordance. If a deck.pdf and/or deck.pptx file
+// exists alongside the deck's index.html, clicking the Ayming logo in the brand
+// banner toggles a small download popover with one link per available format.
+// Decks without either file are unaffected.
 (function () {
   try {
     const logo = document.querySelector('.banner-logo');
     if (!logo || !window.fetch) return;
-    fetch('deck.pdf', { method: 'HEAD' }).then(r => {
-      if (!r.ok) return;
-      const title = (document.title || 'presentation').replace(/[\\/:*?"<>|]/g, ' ').trim();
+    const title = (document.title || 'presentation').replace(/[\\/:*?"<>|]/g, ' ').trim();
+    const DL_ICON =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+    const formats = [
+      { file: 'deck.pdf', ext: 'pdf', label: 'Télécharger en PDF' },
+      { file: 'deck.pptx', ext: 'pptx', label: 'Télécharger en PowerPoint' },
+    ];
+    Promise.all(
+      formats.map(f => fetch(f.file, { method: 'HEAD' }).then(r => r.ok).catch(() => false))
+    ).then(oks => {
+      const available = formats.filter((f, i) => oks[i]);
+      if (!available.length) return;
       const pop = document.createElement('div');
       pop.className = 'pdf-popover';
-      pop.innerHTML =
-        '<a href="deck.pdf" download="' + title + '.pdf">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-        '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
-        'Télécharger la présentation (PDF)</a>';
+      pop.innerHTML = available.map(f =>
+        '<a href="' + f.file + '" download="' + title + '.' + f.ext + '">' + DL_ICON + f.label + '</a>'
+      ).join('');
       document.body.appendChild(pop);
       logo.style.cursor = 'pointer';
       logo.addEventListener('click', e => {
@@ -307,5 +316,5 @@ updateSlide();
         if (!pop.contains(e.target)) pop.classList.remove('visible');
       });
     }).catch(() => {});
-  } catch (e) { /* never let the PDF affordance break navigation */ }
+  } catch (e) { /* never let the download affordance break navigation */ }
 })();

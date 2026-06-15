@@ -2848,4 +2848,5 @@
   white-space: nowrap;
 }
 .pdf-popover a:hover { color: var(--blue-primary); }
+.pdf-popover a + a { border-top: 1px solid rgba(0, 0, 0, 0.08); }
 .pdf-popover svg { width: 18px; height: 18px; flex-shrink: 0; }
