@@ -318,3 +318,273 @@ updateSlide();
     }).catch(() => {});
   } catch (e) { /* never let the download affordance break navigation */ }
 })();
+
+/* ===== PERSONNALISATION EDITOR (appended) ===== */
+/* Personnalisation editor (client-side). Hidden by default; press E to toggle. */
+window.addEventListener('load', function () {
+  try {
+  window.dataLayer = window.dataLayer || [];
+  function track(event, detail) {
+    window.dataLayer.push(Object.assign({ event: event }, detail || {}));
+    var l = document.getElementById('pm-log');
+    if (l) { var d = document.createElement('div'); d.className = 'pm-log-line'; d.innerHTML = '<span class="pm-dot"></span>'; d.appendChild(document.createTextNode(event + '  ' + JSON.stringify(detail || {}))); l.prepend(d); }
+  }
+  function toast(msg) {
+    var t = document.createElement('div'); t.className = 'pm-toast'; t.textContent = msg; document.body.appendChild(t);
+    requestAnimationFrame(function () { t.classList.add('show'); });
+    setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 300); }, 2600);
+  }
+  function confirmDialog(msg, onYes) {
+    var ov = document.createElement('div'); ov.className = 'pm-ovl';
+    ov.innerHTML = '<div class="pm-dlg"><div class="pm-dlg-msg"></div><div class="pm-dlg-btns"><button class="pm-dlg-cancel">Annuler</button><button class="pm-dlg-ok">Confirmer</button></div></div>';
+    ov.querySelector('.pm-dlg-msg').textContent = msg; document.body.appendChild(ov);
+    function close() { ov.remove(); }
+    ov.querySelector('.pm-dlg-cancel').addEventListener('click', close);
+    ov.querySelector('.pm-dlg-ok').addEventListener('click', function () { close(); onYes(); });
+    ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+  }
+  function ICO(p, s) { return '<svg xmlns="http://www.w3.org/2000/svg" width="' + (s || 15) + '" height="' + (s || 15) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; }
+  var ICON = {
+    eye: ICO('<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>'),
+    eyeOff: ICO('<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.4 10.4 0 0 1 12 5c7 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/>'),
+    contrast: ICO('<circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 0 0 0-12z"/>', 14),
+    type: ICO('<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/>', 14),
+    layers: ICO('<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m6.08 9.5-3.48 1.59a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.84L17.92 9.5"/>', 14),
+    download: ICO('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>', 14),
+    save: ICO('<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>', 14),
+    activity: ICO('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>', 14),
+    grip: ICO('<circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>', 14)
+  };
+
+  var slides = document.querySelectorAll('.slide');
+  var deckKey = location.pathname.replace(/\//g, '') || 'deck';
+  function slideIndex(el) { var s = el.closest('.slide'); return s ? Array.prototype.indexOf.call(slides, s) + 1 : 0; }
+  function fieldName(el) { var b = (el.className || el.tagName).toString().split(' ')[0].replace(/[^a-z0-9_-]/gi, '') || el.tagName.toLowerCase(); return b + '@s' + slideIndex(el); }
+  // stable path (deck DOM is static across reloads): "slideIdx:child-child-..."
+  function elPath(el) { var s = el.closest('.slide'); if (!s) return null; var si = Array.prototype.indexOf.call(slides, s), idx = [], n = el; while (n && n !== s) { idx.unshift(Array.prototype.indexOf.call(n.parentElement.children, n)); n = n.parentElement; } return si + ':' + idx.join('-'); }
+  function resolve(key) { var pr = key.split(':'), s = slides[+pr[0]]; if (!s) return null; var n = s; if (pr[1]) pr[1].split('-').forEach(function (i) { n = n && n.children[+i]; }); return n; }
+  function elName(el, key) { return el ? (el.tagName.toLowerCase() + (el.className ? '.' + String(el.className).split(' ')[0] : '')) : key; }
+
+  var INLINE = { STRONG: 1, EM: 1, B: 1, I: 1, A: 1, SPAN: 1, BR: 1, SUP: 1, SUB: 1, SMALL: 1, U: 1, MARK: 1, ABBR: 1 };
+  function isTextLeaf(el) {
+    if (el.closest('#pm-panel') || !(el.innerText || '').trim() || /^(IMG|SVG|CANVAS|INPUT|BUTTON)$/.test(el.tagName)) return false;
+    for (var i = 0; i < el.children.length; i++) { var c = el.children[i]; if (!INLINE[c.tagName] && (c.innerText || '').trim()) return false; }
+    return true;
+  }
+  function editableEls() {
+    var out = [];
+    slides.forEach(function (s) { s.querySelectorAll('*').forEach(function (el) { if (isTextLeaf(el)) out.push(el); }); });
+    return out.filter(function (el) { return !out.some(function (o) { return o !== el && o.contains(el); }); });
+  }
+
+  // ---- live state (auto-saved as draft; named saves are snapshots) ----
+  function blank() { return { text: {}, masked: [], opacity: {}, slidesHidden: [] }; }
+  var state = blank();
+  function autosave() { try { localStorage.setItem('pm:draft:' + deckKey, JSON.stringify(state)); } catch (e) { } }
+  function getSaves() { try { return JSON.parse(localStorage.getItem('pm:saves:' + deckKey) || '{}'); } catch (e) { return {}; } }
+  function setSaves(o) { try { localStorage.setItem('pm:saves:' + deckKey, JSON.stringify(o)); } catch (e) { } }
+
+  var mode = null, selected = null;
+  function deselect() { if (selected) { selected.style.outline = ''; selected = null; } document.getElementById('pm-style').style.display = 'none'; }
+  function clearEditable() { editableEls().forEach(function (el) { el.style.outline = ''; el.style.cursor = ''; el.contentEditable = 'false'; }); deselect(); }
+  function bindText(el) {
+    if (el.dataset.pmBound) return; el.dataset.pmBound = '1'; var t;
+    el.addEventListener('input', function () { clearTimeout(t); t = setTimeout(function () { var k = elPath(el); state.text[k] = el.innerHTML; autosave(); track('deck_field_edit', { field: fieldName(el), slide: slideIndex(el) }); }, 500); });
+    el.addEventListener('keydown', function (e) { e.stopPropagation(); });
+  }
+  function applyMode(m) {
+    mode = m; clearEditable();
+    if (m === 'text') editableEls().forEach(function (el) { el.contentEditable = 'true'; el.style.outline = '2px dashed rgba(15,167,226,.9)'; el.style.outlineOffset = '2px'; el.style.cursor = 'text'; bindText(el); });
+    if (m) track('deck_edit_mode_toggle', { mode: m });
+  }
+
+  function updateHideBtn() { var b = document.getElementById('pm-hide'); if (b) b.textContent = (selected && selected.style.display === 'none') ? 'Démasquer' : 'Masquer'; }
+  function selectEl(el) {
+    if (!el || el === document.body || el.closest('#pm-panel')) return;
+    if (selected) selected.style.outline = '';
+    selected = el; el.style.outline = '2px solid #0ab38c'; el.style.outlineOffset = '2px';
+    document.getElementById('pm-style').style.display = 'block';
+    document.getElementById('pm-selname').textContent = elName(el);
+    var cur = Math.round((parseFloat(getComputedStyle(el).opacity) || 1) * 100);
+    document.getElementById('pm-opacity').value = cur; document.getElementById('pm-opval').textContent = cur + '%';
+    updateHideBtn();
+  }
+  function isRow(p) { var k = Array.prototype.filter.call(p.children, function (c) { return c.offsetWidth > 0 && c.offsetHeight > 0; }); if (k.length < 2) return false; var r0 = k[0].getBoundingClientRect(), r1 = k[1].getBoundingClientRect(); return Math.abs(r0.top - r1.top) < r0.height && r1.left > r0.left + 3; }
+  function pickBlock(el) { var slide = el.closest('.slide'); if (!slide) return el; var n = el; while (n && n.parentElement && n !== slide) { var p = n.parentElement; if (p === slide || p.closest('#pm-panel')) break; if (isRow(p)) return n; n = p; } return el; }
+  // Center remaining columns with minimal change: keep the grid, just narrow it to
+  // the visible cards (at their original width) and center the group. Restore on un-hide.
+  function recenterRow(row) {
+    if (!row) return;
+    var grid = getComputedStyle(row).display.indexOf('grid') >= 0;
+    if (row.dataset.pmGTC === undefined) {
+      row.dataset.pmGTC = row.style.gridTemplateColumns || '__none__';
+      row.dataset.pmJC2 = row.style.justifyContent || '__none__';
+      var c0 = Array.prototype.filter.call(row.children, function (c) { return c.offsetWidth > 0; })[0];
+      row.dataset.pmCardW = c0 ? c0.offsetWidth : 0;
+    }
+    var n = Array.prototype.filter.call(row.children, function (c) { return getComputedStyle(c).display !== 'none'; }).length;
+    if (grid && +row.dataset.pmCardW > 0) row.style.gridTemplateColumns = 'repeat(' + n + ', ' + row.dataset.pmCardW + 'px)';
+    row.style.justifyContent = 'center';
+  }
+  function restoreRow(row) {
+    if (!row) return;
+    var anyMasked = Array.prototype.some.call(row.children, function (c) { return c.style.display === 'none'; });
+    if (anyMasked || row.dataset.pmGTC === undefined) return;
+    row.style.gridTemplateColumns = row.dataset.pmGTC === '__none__' ? '' : row.dataset.pmGTC;
+    row.style.justifyContent = row.dataset.pmJC2 === '__none__' ? '' : row.dataset.pmJC2;
+    delete row.dataset.pmGTC; delete row.dataset.pmJC2; delete row.dataset.pmCardW;
+  }
+
+  function maskEl(el) { var k = elPath(el); el.dataset.pmPrev = el.style.display; el.style.display = 'none'; recenterRow(el.parentElement); if (state.masked.indexOf(k) < 0) state.masked.push(k); }
+  function unmaskKey(k) { var el = resolve(k); if (el) { el.style.display = el.dataset.pmPrev || ''; restoreRow(el.parentElement); } state.masked = state.masked.filter(function (x) { return x !== k; }); }
+
+  document.addEventListener('click', function (e) {
+    if (mode !== 'style' || e.target.closest('#pm-panel') || !e.target.closest('.slide')) return;
+    e.preventDefault(); e.stopPropagation();
+    var blk = pickBlock(e.target);
+    if (selected === blk) { deselect(); return; }
+    selectEl(blk);
+  }, true);
+  document.addEventListener('click', function (e) { var a = e.target.closest('a[href]'); if (a) track('deck_link_click', { href: a.href, slide: slideIndex(a) }); });
+  slides.forEach(function (s, i) { new MutationObserver(function () { if (s.classList.contains('active')) track('deck_slide_view', { slide: i + 1, chapter: s.dataset.chapter || '' }); }).observe(s, { attributes: true, attributeFilter: ['class'] }); });
+
+  function sec(id, icon, title, extra, body) { return '<div class="pm-acc" data-sec="' + id + '"><div class="pm-achead">' + icon + ' <span>' + title + '</span>' + (extra || '') + ICO('<path d="m6 9 6 6 6-6"/>', 16) + '</div><div class="pm-acbody">' + body + '</div></div>'; }
+  var panel = document.createElement('div'); panel.id = 'pm-panel';
+  panel.innerHTML =
+    '<div class="pm-h" id="pm-drag">' + ICON.grip + ' Personnalisation</div><div class="pm-body">' +
+    sec('text', ICON.type, 'Texte', '', '<div class="pm-hint">Cliquez un texte (titre, chiffre, description) et tapez.</div>') +
+    sec('visual', ICON.contrast, 'Visuel', '',
+      '<div class="pm-hint">Cliquez un bloc (colonne, carte, image).</div>' +
+      '<div id="pm-style"><div class="pm-elname">Élément : <b id="pm-selname">—</b></div>' +
+      '<div class="pm-row2"><button id="pm-hide" class="pm-mini">Masquer</button><button id="pm-deselect" class="pm-mini">Désélectionner</button></div>' +
+      '<div class="pm-oprow"><span class="pm-oplab">Opacité</span><input type="range" id="pm-opacity" min="0" max="100" value="100"><span id="pm-opval">100%</span></div></div>' +
+      '<div id="pm-maskedwrap"><div class="pm-modhd">Éléments masqués</div><div id="pm-masked"></div></div>') +
+    sec('slides', ICON.layers, 'Slides', '<span id="pm-count" class="pm-count"></span>', '<div id="pm-slides"></div>') +
+    sec('versions', ICON.save, 'Versions', '',
+      '<div class="pm-hint">Sauvegardez vos modifications sous un nom. Vos retouches sont aussi gardées automatiquement après un refresh.</div>' +
+      '<div class="pm-vrow"><input id="pm-vname" placeholder="Nom de la version" /><button id="pm-vsave" class="pm-mini">Enregistrer</button></div>' +
+      '<div id="pm-saves"></div><button id="pm-vreset" class="pm-mini pm-reset">Réinitialiser le deck</button>') +
+    sec('events', ICON.activity, 'Évènements (GA4)', '', '<div id="pm-log" class="pm-log"></div>') +
+    '</div>';
+  panel.style.display = 'none';
+  document.body.appendChild(panel);
+  // keystrokes inside the panel (e.g. typing a version name) must not reach the deck's nav
+  panel.addEventListener('keydown', function (e) { e.stopPropagation(); });
+  panel.addEventListener('keyup', function (e) { e.stopPropagation(); });
+
+  var css = document.createElement('style');
+  css.textContent =
+    '#pm-panel{position:fixed;top:14px;right:14px;width:300px;max-height:92vh;flex-direction:column;z-index:99999;background:#fff;border-radius:16px;box-shadow:0 18px 50px rgba(2,30,60,.32);font-family:system-ui,Arial,sans-serif;font-size:13px;color:#13324d;border:1px solid rgba(0,61,121,.08);overflow:hidden}' +
+    '.pm-toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(10px);z-index:100000;background:#003d79;color:#fff;font-family:system-ui,Arial,sans-serif;font-size:13px;font-weight:600;padding:11px 20px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.28);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}.pm-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}' +
+    '.pm-ovl{position:fixed;inset:0;z-index:100000;background:rgba(8,24,44,.45);display:flex;align-items:center;justify-content:center;font-family:system-ui,Arial,sans-serif}.pm-dlg{background:#fff;border-radius:16px;padding:22px;max-width:340px;box-shadow:0 24px 70px rgba(0,0,0,.32)}.pm-dlg-msg{font-size:14px;color:#13324d;margin-bottom:18px;line-height:1.5}.pm-dlg-btns{display:flex;gap:10px;justify-content:flex-end}.pm-dlg button{font-size:13px;font-weight:700;border-radius:9px;padding:9px 18px;cursor:pointer;border:0}.pm-dlg-cancel{background:#eef3f8;color:#34495c}.pm-dlg-ok{background:#c0392b;color:#fff}' +
+    '#pm-dlpop{position:fixed;bottom:58px;left:14px;z-index:100000;background:#fff;border-radius:12px;box-shadow:0 12px 40px rgba(2,30,60,.3);display:none;flex-direction:column;overflow:hidden;border:1px solid rgba(0,61,121,.08);font-family:system-ui,Arial,sans-serif}#pm-dlpop.show{display:flex}#pm-dlpop .pm-dlbtn{display:flex;align-items:center;gap:9px;padding:12px 18px;background:#fff;border:0;font-size:13px;font-weight:600;color:#003d79;cursor:pointer;white-space:nowrap}#pm-dlpop .pm-dlbtn:hover{background:#f2f6fa}#pm-dlpop .pm-dlbtn+.pm-dlbtn{border-top:1px solid #eef1f5}#pm-dlpop svg{vertical-align:-2px}' +
+    '#pm-panel .pm-h{font-weight:800;font-size:14px;padding:13px 16px;display:flex;gap:8px;align-items:center;cursor:grab;background:linear-gradient(135deg,#003d79,#0ab38c);color:#fff;user-select:none}' +
+    '#pm-panel .pm-tag{background:rgba(255,255,255,.25);font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;margin-left:auto}' +
+    '#pm-panel .pm-body{overflow:auto}#pm-panel .pm-acc{border-top:1px solid #eef1f5}' +
+    '#pm-panel .pm-achead{display:flex;align-items:center;gap:9px;padding:12px 16px;cursor:pointer;font-weight:700;font-size:13px;user-select:none}#pm-panel .pm-achead:hover{background:#f6f9fc}#pm-panel .pm-acc.open>.pm-achead{color:#0ab38c}' +
+    '#pm-panel .pm-achead .pm-count{margin-left:6px;color:#0ab38c;font-weight:700;font-size:11px}#pm-panel .pm-achead>svg:last-of-type{margin-left:auto;transition:transform .2s;opacity:.5}#pm-panel .pm-acc.open .pm-achead>svg:last-of-type{transform:rotate(180deg)}' +
+    '#pm-panel .pm-acbody{display:none;padding:2px 0 12px}#pm-panel .pm-acc.open .pm-acbody{display:block}' +
+    '#pm-panel .pm-hint{font-size:11.5px;color:#7c8ea0;font-style:italic;padding:0 16px 6px}' +
+    '#pm-panel #pm-style{display:none;padding:0 16px}#pm-panel .pm-elname{font-size:11px;color:#56697a;margin:6px 0}' +
+    '#pm-panel .pm-row{display:flex;gap:8px;padding:0 16px}#pm-panel .pm-row2{display:flex;gap:8px;margin:2px 0 8px}' +
+    '#pm-panel .pm-btn{flex:1;padding:10px;border:0;border-radius:10px;background:#0fa7e2;color:#fff;font-weight:700;cursor:pointer}' +
+    '#pm-panel .pm-mini{font-size:11.5px;background:#fff;border:1px solid #cfd9e3;border-radius:8px;padding:7px 11px;cursor:pointer;color:#34495c;font-weight:600}#pm-panel .pm-mini:hover{border-color:#0fa7e2;color:#0fa7e2}' +
+    '#pm-panel .pm-oprow{display:flex;align-items:center;gap:8px}#pm-panel .pm-oplab{font-size:11px;color:#56697a}#pm-panel #pm-opacity{flex:1}#pm-panel #pm-opval{width:42px;text-align:right;font-weight:700}' +
+    '#pm-panel #pm-maskedwrap{display:none;padding:6px 16px 0}#pm-panel .pm-modhd{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:#7c8ea0;font-weight:700;margin-bottom:4px}#pm-panel .pm-modrow{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0;gap:8px}#pm-panel .pm-modrow span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '#pm-panel .pm-vrow{display:flex;gap:8px;padding:0 16px 8px}#pm-panel #pm-vname{flex:1;border:1px solid #cfd9e3;border-radius:8px;padding:7px 10px;font-size:12px}#pm-panel #pm-saves{padding:0 16px}#pm-panel .pm-reset{margin:8px 16px 0;color:#c0392b;border-color:#e8c4be}' +
+    '#pm-panel #pm-slides{display:flex;flex-direction:column;gap:1px;max-height:200px;overflow:auto;padding:0 8px}#pm-panel .pm-srow{display:flex;gap:8px;align-items:center;font-size:12px;padding:4px 8px;border-radius:7px}#pm-panel .pm-srow:hover{background:#f2f6fa}#pm-panel .pm-srow.pm-hidden .pm-sname{opacity:.4;text-decoration:line-through}#pm-panel .pm-eye{cursor:pointer;display:inline-flex}' +
+    '#pm-panel .pm-fixed{border-top:1px solid #eef1f5;padding:12px 16px;background:#fafcfe}#pm-panel .pm-fxhd{display:flex;align-items:center;gap:9px;font-weight:700;font-size:13px;margin-bottom:9px}#pm-panel .pm-fixed .pm-row{padding:0}' +
+    '#pm-panel .pm-log{background:#0e1b2a;color:#cfe8ff;border-radius:10px;margin:0 16px;padding:9px;font-family:ui-monospace,monospace;font-size:11px;line-height:1.5;max-height:200px;overflow:auto}#pm-panel .pm-log-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid rgba(255,255,255,.06);padding:2px 0}' +
+    '#pm-panel svg{vertical-align:-2px;flex:none}#pm-panel .pm-h svg{opacity:.85}#pm-panel .pm-modrow svg{margin-right:3px}#pm-panel .pm-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#0fa7e2;margin-right:7px;vertical-align:1px}';
+  document.head.appendChild(css);
+
+  function renderMasked() {
+    var wrap = document.getElementById('pm-maskedwrap'), box = document.getElementById('pm-masked');
+    box.innerHTML = ''; wrap.style.display = state.masked.length ? 'block' : 'none';
+    state.masked.forEach(function (k) { var el = resolve(k); var r = document.createElement('div'); r.className = 'pm-modrow'; r.innerHTML = '<span>' + ICON.eyeOff + ' ' + elName(el, k) + '</span><button class="pm-mini" data-k="' + k + '">Démasquer</button>'; box.appendChild(r); });
+  }
+  var list = document.getElementById('pm-slides');
+  function updateCount() { var v = Array.prototype.filter.call(slides, function (s) { return s.dataset.pmHidden !== '1'; }).length; document.getElementById('pm-count').textContent = v + '/' + slides.length; }
+  function renderSlides() {
+    list.innerHTML = '';
+    slides.forEach(function (s, i) { var hidden = s.dataset.pmHidden === '1'; var r = document.createElement('div'); r.className = 'pm-srow' + (hidden ? ' pm-hidden' : ''); r.innerHTML = '<span class="pm-eye" data-i="' + i + '">' + (hidden ? ICON.eyeOff : ICON.eye) + '</span><span class="pm-sname">' + (i + 1) + '. ' + (s.dataset.chapter || 'slide') + '</span>'; list.appendChild(r); });
+    updateCount();
+  }
+  function renderSaves() {
+    var box = document.getElementById('pm-saves'), o = getSaves(); box.innerHTML = '';
+    Object.keys(o).forEach(function (name) { var r = document.createElement('div'); r.className = 'pm-modrow'; r.innerHTML = '<span>' + ICON.save + ' ' + name + '</span><span><button class="pm-mini" data-load="' + name + '">Charger</button> <button class="pm-mini" data-del="' + name + '">✕</button></span>'; box.appendChild(r); });
+  }
+
+  function applyState(st) {
+    state = Object.assign(blank(), st || {});
+    Object.keys(state.text).forEach(function (k) { var el = resolve(k); if (el) { el.innerHTML = state.text[k]; bindText(el); } });
+    Object.keys(state.opacity).forEach(function (k) { var el = resolve(k); if (el) { el.style.setProperty('animation', 'none', 'important'); el.style.setProperty('opacity', state.opacity[k] / 100, 'important'); } });
+    state.masked.forEach(function (k) { var el = resolve(k); if (el && el.style.display !== 'none') { el.dataset.pmPrev = el.style.display; el.style.display = 'none'; recenterRow(el.parentElement); } });
+    state.slidesHidden.forEach(function (i) { if (slides[i]) slides[i].dataset.pmHidden = '1'; });
+    renderMasked(); renderSlides(); autosave();
+  }
+
+  // accordion
+  panel.querySelectorAll('.pm-achead').forEach(function (h) {
+    h.addEventListener('click', function () {
+      var acc = h.parentElement, willOpen = !acc.classList.contains('open'), s = acc.dataset.sec;
+      panel.querySelectorAll('.pm-acc').forEach(function (a) { a.classList.remove('open'); });
+      if (willOpen) { acc.classList.add('open'); applyMode(s === 'text' ? 'text' : s === 'visual' ? 'style' : null); } else applyMode(null);
+    });
+  });
+
+  document.getElementById('pm-deselect').addEventListener('click', deselect);
+  document.getElementById('pm-hide').addEventListener('click', function () {
+    if (!selected) return; var el = selected;
+    if (el.style.display === 'none') { unmaskKey(elPath(el)); track('deck_element_show', { target: fieldName(el), slide: slideIndex(el) }); }
+    else { maskEl(el); track('deck_element_hide', { target: fieldName(el), slide: slideIndex(el) }); }
+    updateHideBtn(); renderMasked(); autosave();
+  });
+  document.getElementById('pm-masked').addEventListener('click', function (e) { var b = e.target.closest('[data-k]'); if (!b) return; unmaskKey(b.dataset.k); if (selected && elPath(selected) === b.dataset.k) updateHideBtn(); renderMasked(); autosave(); });
+  document.getElementById('pm-opacity').addEventListener('input', function (e) {
+    if (!selected) return; var el = selected, v = e.target.value, k = elPath(el);
+    el.style.setProperty('animation', 'none', 'important'); el.style.setProperty('opacity', v / 100, 'important');
+    document.getElementById('pm-opval').textContent = v + '%';
+    if (+v === 100) delete state.opacity[k]; else state.opacity[k] = +v;
+    clearTimeout(window.__pmop); window.__pmop = setTimeout(function () { autosave(); track('deck_style_change', { target: fieldName(el), opacity: +v }); }, 400);
+  });
+
+  list.addEventListener('click', function (e) {
+    var eye = e.target.closest('.pm-eye'); if (!eye) return;
+    var i = +eye.dataset.i, hide = slides[i].dataset.pmHidden !== '1';
+    slides[i].dataset.pmHidden = hide ? '1' : '';
+    state.slidesHidden = Array.prototype.filter.call(slides, function (s) { return s.dataset.pmHidden === '1'; }).map(function (s) { return Array.prototype.indexOf.call(slides, s); });
+    eye.innerHTML = hide ? ICON.eyeOff : ICON.eye; eye.closest('.pm-srow').classList.toggle('pm-hidden', hide);
+    track(hide ? 'deck_slide_hidden' : 'deck_slide_shown', { slide: i + 1, chapter: slides[i].dataset.chapter || '' }); updateCount(); autosave();
+  });
+
+  // versions
+  document.getElementById('pm-vsave').addEventListener('click', function () {
+    var name = (document.getElementById('pm-vname').value || '').trim(); if (!name) { toast('Donnez un nom à la version.'); return; }
+    var o = getSaves(); var existed = !!o[name]; o[name] = state; setSaves(o); renderSaves();
+    track('deck_version_save', { name: name, overwrite: existed }); toast(existed ? 'Version « ' + name + ' » écrasée.' : 'Version « ' + name + ' » enregistrée.');
+  });
+  document.getElementById('pm-saves').addEventListener('click', function (e) {
+    var l = e.target.closest('[data-load]'), d = e.target.closest('[data-del]');
+    if (l) { var o = getSaves(); if (o[l.dataset.load]) { applyState(JSON.parse(JSON.stringify(o[l.dataset.load]))); track('deck_version_load', { name: l.dataset.load }); } }
+    else if (d) { var o2 = getSaves(); delete o2[d.dataset.del]; setSaves(o2); renderSaves(); }
+  });
+  document.getElementById('pm-vreset').addEventListener('click', function () { confirmDialog('Effacer toutes vos modifications sur ce deck ?', function () { localStorage.removeItem('pm:draft:' + deckKey); location.reload(); }); });
+
+  function dl(f) { var h = state.slidesHidden.length; track('deck_download', { format: f, hidden_count: h }); toast('DÉMO ' + f.toUpperCase() + ' : le ' + f.toUpperCase() + ' personnalisé serait généré ici. Évènement envoyé à GA4.'); }
+  // Export stays on the Ayming logo via the engine's own download popover (deck.pdf / deck.pptx).
+
+  (function () { var h = document.getElementById('pm-drag'), down = false, ox = 0, oy = 0; h.addEventListener('mousedown', function (e) { down = true; var r = panel.getBoundingClientRect(); panel.style.right = 'auto'; panel.style.left = r.left + 'px'; panel.style.top = r.top + 'px'; ox = e.clientX - r.left; oy = e.clientY - r.top; e.preventDefault(); }); document.addEventListener('mousemove', function (e) { if (!down) return; panel.style.left = (e.clientX - ox) + 'px'; panel.style.top = (e.clientY - oy) + 'px'; }); document.addEventListener('mouseup', function () { down = false; }); })();
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'e' && e.key !== 'E') return;
+    var t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.stopPropagation(); panel.style.display = (panel.style.display === 'none') ? 'flex' : 'none';
+  }, true);
+
+  // restore auto-draft from a previous session, then render lists
+  renderSlides(); renderSaves();
+  try { var dr = localStorage.getItem('pm:draft:' + deckKey); if (dr) applyState(JSON.parse(dr)); } catch (e) { }
+  track('deck_open', { deck: deckKey });
+  } catch (e) { if (window.console) console.warn('[perso] editor disabled:', e); }
+});
