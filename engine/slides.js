@@ -617,8 +617,15 @@ window.addEventListener('load', function () {
   async function pmCapture(progress) {
     var st = document.createElement('style');
     // freeze animations + kill pointer-events so no element stays in :hover
-    // (html-to-image bakes the current computed style, incl. a hovered card's overlay)
-    st.textContent = '*,*::before,*::after{animation-duration:.001s!important;animation-delay:0s!important;transition-duration:.001s!important}*{pointer-events:none!important}';
+    // (html-to-image bakes the current computed style, incl. a hovered card's overlay).
+    // Also flatten 3D flip cards (testimonials) to their FRONT face: html-to-image
+    // can't do preserve-3d/backface-visibility, so the rotateY(180) back renders
+    // mirrored. Force no rotation + hide the back so only the readable cover shows.
+    st.textContent = '*,*::before,*::after{animation-duration:.001s!important;animation-delay:0s!important;transition-duration:.001s!important}'
+      + '*{pointer-events:none!important}'
+      + '.testimonial-card-inner{transform:none!important;transform-style:flat!important}'
+      + '.testimonial-front{transform:none!important;backface-visibility:visible!important;-webkit-backface-visibility:visible!important}'
+      + '.testimonial-back{display:none!important}';
     document.head.appendChild(st);
     var keep = currentSlide, out = [], visible = [], _ac = window.animateCounter;
     // Capture the ACTUAL viewport: fitSlide lays content out for the real window
