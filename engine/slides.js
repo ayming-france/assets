@@ -603,19 +603,29 @@ window.addEventListener('load', function () {
   })();
   function pmLoadScript(src) { return new Promise(function (res, rej) { if (document.querySelector('script[data-pm="' + src + '"]')) return res(); var s = document.createElement('script'); s.src = src; s.dataset.pm = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
   function copyLink(link) { try { if (navigator.clipboard) navigator.clipboard.writeText(link); } catch (e) { } }
-  var PM_VW = 1280, PM_VH = 720, PM_W_IN = 13.333, PM_H_IN = 7.5;
-  function pmToIn(px) { return px * PM_W_IN / PM_VW; }
-  // Snapshot every non-hidden slide as a 2x JPEG of the live render + its link rects.
+  var PM_W_IN = 13.333; // page width in inches; height derived from the capture aspect
+  // Exclude editor chrome + the logo popover from the captured image. They stay
+  // visible on screen (so the popover keeps showing progress) but aren't baked in.
+  function pmFilter(node) {
+    if (node && node.classList) {
+      if (node.id === 'pm-panel') return false;
+      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls'];
+      for (var i = 0; i < ex.length; i++) if (node.classList.contains(ex[i])) return false;
+    }
+    return true;
+  }
   async function pmCapture(progress) {
     var st = document.createElement('style');
-    st.textContent = '.chapter-nav,.nav-toggle,.banner-controls,#pm-panel,.pm-toast,.pm-ovl,#pm-dlpop{display:none!important}*,*::before,*::after{animation-duration:.001s!important;animation-delay:0s!important;transition-duration:.001s!important}';
+    st.textContent = '*,*::before,*::after{animation-duration:.001s!important;animation-delay:0s!important;transition-duration:.001s!important}';
     document.head.appendChild(st);
     var keep = currentSlide, out = [], visible = [], _ac = window.animateCounter;
+    // Capture the ACTUAL viewport: fitSlide lays content out for the real window
+    // (scaling up to 1.2x), so a hardcoded size would crop/misscale. This matches
+    // exactly what's on screen. Page aspect is derived from vw/vh below.
+    var vw = Math.round(window.innerWidth), vh = Math.round(window.innerHeight);
     // Stat counters (animateIntroCounters) re-run on each slide entry and count
-    // 0->target over ~800ms. During capture we navigate to every slide, so the
-    // shot would catch a mid-count value. Override to set the final value
-    // INSTANTLY, from the element's CURRENT text, so a rep's edited number is
-    // preserved (not reset, not half-counted). Restored after capture.
+    // 0->target over ~800ms; freeze them at their CURRENT value so an edited
+    // number is preserved (not reset, not half-counted). Restored after capture.
     try { window.animateCounter = function (el, target, suffix) { el.textContent = (typeof target === 'number' ? target.toLocaleString('fr-FR') : target) + (suffix || ''); }; } catch (e) { }
     for (var k = 0; k < slides.length; k++) if (state.slidesHidden.indexOf(k) < 0) visible.push(k);
     try {
@@ -623,7 +633,7 @@ window.addEventListener('load', function () {
         if (progress) progress(j + 1, visible.length);
         goToSlide(visible[j]);
         await new Promise(function (r) { setTimeout(r, 450); });
-        var img = await htmlToImage.toJpeg(document.body, { quality: 0.92, pixelRatio: 2, width: PM_VW, height: PM_VH, backgroundColor: '#ffffff', cacheBust: true });
+        var img = await htmlToImage.toJpeg(document.body, { quality: 0.92, pixelRatio: 2, width: vw, height: vh, backgroundColor: '#ffffff', cacheBust: true, filter: pmFilter });
         var links = [];
         document.querySelectorAll('.slide.active a[href]').forEach(function (a) {
           var href = a.href; if (!href || href.indexOf('javascript:') === 0) return;
@@ -635,18 +645,19 @@ window.addEventListener('load', function () {
         out.push({ img: img, links: links });
       }
     } finally { goToSlide(keep); st.remove(); try { window.animateCounter = _ac; } catch (e) { } }
-    return out;
+    return { caps: out, vw: vw, vh: vh };
   }
   function pmBtnBusy(btn, on, label) { if (!btn) return; btn.style.pointerEvents = on ? 'none' : ''; btn.style.opacity = on ? '.6' : ''; if (on) { btn.dataset.prev = btn.innerHTML; btn.textContent = label || 'Génération…'; } else { btn.innerHTML = btn.dataset.prev || btn.innerHTML; } }
   async function pmExportPptx(btn) {
     pmBtnBusy(btn, true); toast('Génération du PowerPoint…');
     try {
       await pmLoadScript(ENGINE_BASE + 'html-to-image.js'); await pmLoadScript(ENGINE_BASE + 'pptxgen.bundle.js');
-      var caps = await pmCapture(function (n, t) { if (btn) btn.textContent = 'Slide ' + n + '/' + t + '…'; });
-      var pptx = new PptxGenJS(); pptx.defineLayout({ name: 'AY', width: PM_W_IN, height: PM_H_IN }); pptx.layout = 'AY';
-      caps.forEach(function (c) {
-        var sl = pptx.addSlide(); sl.addImage({ data: c.img, x: 0, y: 0, w: PM_W_IN, h: PM_H_IN });
-        c.links.forEach(function (l) { sl.addText(' ', { x: pmToIn(l.x), y: pmToIn(l.y), w: pmToIn(l.w), h: pmToIn(l.h), hyperlink: { url: l.url }, fill: { color: 'FFFFFF', transparency: 100 }, line: { type: 'none' }, margin: 0 }); });
+      var res = await pmCapture(function (n, t) { if (btn) btn.textContent = 'Slide ' + n + '/' + t + '…'; });
+      var s = PM_W_IN / res.vw, PH = PM_W_IN * res.vh / res.vw;
+      var pptx = new PptxGenJS(); pptx.defineLayout({ name: 'AY', width: PM_W_IN, height: PH }); pptx.layout = 'AY';
+      res.caps.forEach(function (c) {
+        var sl = pptx.addSlide(); sl.addImage({ data: c.img, x: 0, y: 0, w: PM_W_IN, h: PH });
+        c.links.forEach(function (l) { sl.addText(' ', { x: l.x * s, y: l.y * s, w: l.w * s, h: l.h * s, hyperlink: { url: l.url }, fill: { color: 'FFFFFF', transparency: 100 }, line: { type: 'none' }, margin: 0 }); });
       });
       await pptx.writeFile({ fileName: deckKey + '-personnalise.pptx' });
       track('deck_download', { format: 'pptx', hidden_count: state.slidesHidden.length }); toast('PowerPoint téléchargé.');
@@ -657,12 +668,13 @@ window.addEventListener('load', function () {
     pmBtnBusy(btn, true); toast('Génération du PDF…');
     try {
       await pmLoadScript(ENGINE_BASE + 'html-to-image.js'); await pmLoadScript(ENGINE_BASE + 'jspdf.umd.min.js');
-      var caps = await pmCapture(function (n, t) { if (btn) btn.textContent = 'Slide ' + n + '/' + t + '…'; });
-      var JsPDF = window.jspdf.jsPDF, pdf = new JsPDF({ orientation: 'landscape', unit: 'in', format: [PM_W_IN, PM_H_IN] });
-      caps.forEach(function (c, idx) {
-        if (idx) pdf.addPage([PM_W_IN, PM_H_IN], 'landscape');
-        pdf.addImage(c.img, 'JPEG', 0, 0, PM_W_IN, PM_H_IN);
-        c.links.forEach(function (l) { pdf.link(pmToIn(l.x), pmToIn(l.y), pmToIn(l.w), pmToIn(l.h), { url: l.url }); });
+      var res = await pmCapture(function (n, t) { if (btn) btn.textContent = 'Slide ' + n + '/' + t + '…'; });
+      var s = PM_W_IN / res.vw, PH = PM_W_IN * res.vh / res.vw;
+      var JsPDF = window.jspdf.jsPDF, pdf = new JsPDF({ orientation: 'landscape', unit: 'in', format: [PM_W_IN, PH] });
+      res.caps.forEach(function (c, idx) {
+        if (idx) pdf.addPage([PM_W_IN, PH], 'landscape');
+        pdf.addImage(c.img, 'JPEG', 0, 0, PM_W_IN, PH);
+        c.links.forEach(function (l) { pdf.link(l.x * s, l.y * s, l.w * s, l.h * s, { url: l.url }); });
       });
       pdf.save(deckKey + '-personnalise.pdf');
       track('deck_download', { format: 'pdf', hidden_count: state.slidesHidden.length }); toast('PDF téléchargé.');
