@@ -383,6 +383,12 @@ window.addEventListener('load', function () {
   function autosave() { try { localStorage.setItem('pm:draft:' + deckKey, JSON.stringify(state)); } catch (e) { } }
   function getSaves() { try { return JSON.parse(localStorage.getItem('pm:saves:' + deckKey) || '{}'); } catch (e) { return {}; } }
   function setSaves(o) { try { localStorage.setItem('pm:saves:' + deckKey, JSON.stringify(o)); } catch (e) { } }
+  // UTF-8 safe base64 of the state -> a shareable "?pm=" link. The export
+  // pipeline (and any viewer) replays it through applyState, so personalization
+  // lives in the URL and is rendered headlessly without re-implementing it.
+  function pmEncode(st) { return btoa(unescape(encodeURIComponent(JSON.stringify(st)))); }
+  function pmDecode(s) { return JSON.parse(decodeURIComponent(escape(atob(s)))); }
+  function pmLink() { return location.origin + location.pathname + '?pm=' + encodeURIComponent(pmEncode(state)); }
 
   var mode = null, selected = null;
   function deselect() { if (selected) { selected.style.outline = ''; selected = null; } document.getElementById('pm-style').style.display = 'none'; }
@@ -464,6 +470,10 @@ window.addEventListener('load', function () {
       '<div class="pm-hint">Sauvegardez vos modifications sous un nom. Vos retouches sont aussi gardées automatiquement après un refresh.</div>' +
       '<div class="pm-vrow"><input id="pm-vname" placeholder="Nom de la version" /><button id="pm-vsave" class="pm-mini">Enregistrer</button></div>' +
       '<div id="pm-saves"></div><button id="pm-vreset" class="pm-mini pm-reset">Réinitialiser le deck</button>') +
+    sec('export', ICON.download, 'Exporter', '',
+      '<div class="pm-hint">Téléchargez votre version. Le texte modifié reste éditable dans PowerPoint, les slides masquées sont retirées.</div>' +
+      '<div class="pm-row"><button id="pm-dl-pptx" class="pm-btn">Télécharger PowerPoint</button></div>' +
+      '<button id="pm-copylink" class="pm-mini" style="margin:10px 16px 0;display:block">Copier le lien de ma version</button>') +
     sec('events', ICON.activity, 'Évènements (GA4)', '', '<div id="pm-log" class="pm-log"></div>') +
     '</div>';
   panel.style.display = 'none';
@@ -571,8 +581,60 @@ window.addEventListener('load', function () {
   });
   document.getElementById('pm-vreset').addEventListener('click', function () { confirmDialog('Effacer toutes vos modifications sur ce deck ?', function () { localStorage.removeItem('pm:draft:' + deckKey); location.reload(); }); });
 
-  function dl(f) { var h = state.slidesHidden.length; track('deck_download', { format: f, hidden_count: h }); toast('DÉMO ' + f.toUpperCase() + ' : le ' + f.toUpperCase() + ' personnalisé serait généré ici. Évènement envoyé à GA4.'); }
-  // Export stays on the Ayming logo via the engine's own download popover (deck.pdf / deck.pptx).
+  // Self-service personalized export, generated entirely in the browser (no
+  // server, zero cost). The deploy emits a "template" under export/: blanked
+  // slide images (export/sN.jpg) + manifest.json (link rects + [data-edit] field
+  // boxes). Here we rebuild a PPTX with PptxGenJS: each slide = its image, plus
+  // a NATIVE editable text box per field carrying the field's CURRENT on-screen
+  // text (so rep edits are reflected and stay editable). Hidden slides are
+  // dropped; masked fields are skipped. State also lives in "?pm=" for a
+  // shareable live link and for the headless pipeline.
+  var ENGINE_BASE = (function () {
+    try { var s = Array.prototype.slice.call(document.scripts).filter(function (x) { return /\/engine\/slides\.js/.test(x.src); })[0]; return s ? s.src.replace(/slides\.js.*$/, '') : 'https://ayming-france.github.io/assets/engine/'; }
+    catch (e) { return 'https://ayming-france.github.io/assets/engine/'; }
+  })();
+  function pmLoadScript(src) { return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
+  function pmHex(c) { var m = (c || '').match(/\d+(\.\d+)?/g) || [255, 255, 255]; function h(n) { return ('0' + Math.round(+n).toString(16)).slice(-2); } return (h(m[0]) + h(m[1]) + h(m[2])).toUpperCase(); }
+  function copyLink(link) { try { if (navigator.clipboard) navigator.clipboard.writeText(link); } catch (e) { } }
+  async function pmExportPptx() {
+    var btn = document.getElementById('pm-dl-pptx'), prev = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Génération…'; toast('Génération du PowerPoint…');
+    try {
+      if (!window.PptxGenJS) await pmLoadScript(ENGINE_BASE + 'pptxgen.bundle.js');
+      var base = location.pathname.replace(/[^/]*$/, '');
+      var man = await fetch(base + 'export/manifest.json').then(function (r) { if (!r.ok) throw 0; return r.json(); });
+      var W = man.slide_w_in, H = man.slide_h_in, vw = man.viewport_w, toIn = function (px) { return px * W / vw; };
+      var pptx = new PptxGenJS(); pptx.defineLayout({ name: 'AY', width: W, height: H }); pptx.layout = 'AY';
+      man.slides.forEach(function (sd, i) {
+        if (state.slidesHidden.indexOf(i) >= 0) return;
+        var slide = pptx.addSlide();
+        slide.addImage({ path: base + 'export/' + sd.img, x: 0, y: 0, w: W, h: H });
+        sd.links.forEach(function (l) { slide.addText(' ', { x: toIn(l.x), y: toIn(l.y), w: toIn(l.w), h: toIn(l.h), hyperlink: { url: l.url }, fill: { color: 'FFFFFF', transparency: 100 }, line: { type: 'none' }, margin: 0 }); });
+        sd.edits.forEach(function (e) {
+          var el = e.id ? resolve(e.id) : null;                            // same id scheme as the editor
+          if (el && getComputedStyle(el).display === 'none') return;       // masked -> drop the box
+          slide.addText(el ? el.innerText : e.text, {
+            x: toIn(e.x), y: toIn(e.y), w: toIn(e.w), h: toIn(e.h),
+            fontFace: (e.ff || 'Lato').split(',')[0].replace(/['"]/g, '').trim(),
+            fontSize: e.fs * 0.75, color: pmHex(e.color),
+            bold: parseInt(e.fw, 10) >= 600, italic: !!e.italic,
+            align: e.ta === 'center' ? 'center' : e.ta === 'right' ? 'right' : 'left',
+            valign: 'middle', margin: 0, wrap: true, fit: 'shrink',
+            lineSpacingMultiple: (e.lh && e.fs ? e.lh / e.fs : 1),
+          });
+        });
+      });
+      await pptx.writeFile({ fileName: deckKey + '-personnalise.pptx' });
+      track('deck_download', { format: 'pptx', hidden_count: state.slidesHidden.length });
+      toast('PowerPoint téléchargé.');
+    } catch (err) { if (window.console) console.warn('[perso] export', err); toast('Export PowerPoint indisponible pour ce deck.'); }
+    btn.disabled = false; btn.textContent = prev;
+  }
+  document.getElementById('pm-dl-pptx').addEventListener('click', pmExportPptx);
+  document.getElementById('pm-copylink').addEventListener('click', function () {
+    copyLink(pmLink()); track('deck_link_share', { hidden_count: state.slidesHidden.length }); toast('Lien de votre version copié.');
+  });
+  // The base (non-personalized) deck.pdf / deck.pptx stay on the Ayming logo popover.
 
   (function () { var h = document.getElementById('pm-drag'), down = false, ox = 0, oy = 0; h.addEventListener('mousedown', function (e) { down = true; var r = panel.getBoundingClientRect(); panel.style.right = 'auto'; panel.style.left = r.left + 'px'; panel.style.top = r.top + 'px'; ox = e.clientX - r.left; oy = e.clientY - r.top; e.preventDefault(); }); document.addEventListener('mousemove', function (e) { if (!down) return; panel.style.left = (e.clientX - ox) + 'px'; panel.style.top = (e.clientY - oy) + 'px'; }); document.addEventListener('mouseup', function () { down = false; }); })();
 
@@ -584,7 +646,13 @@ window.addEventListener('load', function () {
 
   // restore auto-draft from a previous session, then render lists
   renderSlides(); renderSaves();
-  try { var dr = localStorage.getItem('pm:draft:' + deckKey); if (dr) applyState(JSON.parse(dr)); } catch (e) { }
+  // A "?pm=" link (shared by a rep, or fed to the export pipeline) wins over the
+  // local auto-draft, so the deck shows exactly the personalized state encoded.
+  try {
+    var pmParam = new URLSearchParams(location.search).get('pm');
+    if (pmParam) { applyState(pmDecode(pmParam)); }
+    else { var dr = localStorage.getItem('pm:draft:' + deckKey); if (dr) applyState(JSON.parse(dr)); }
+  } catch (e) { }
   track('deck_open', { deck: deckKey });
   } catch (e) { if (window.console) console.warn('[perso] editor disabled:', e); }
 });
