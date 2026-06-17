@@ -616,7 +616,9 @@ window.addEventListener('load', function () {
   }
   async function pmCapture(progress) {
     var st = document.createElement('style');
-    st.textContent = '*,*::before,*::after{animation-duration:.001s!important;animation-delay:0s!important;transition-duration:.001s!important}';
+    // freeze animations + kill pointer-events so no element stays in :hover
+    // (html-to-image bakes the current computed style, incl. a hovered card's overlay)
+    st.textContent = '*,*::before,*::after{animation-duration:.001s!important;animation-delay:0s!important;transition-duration:.001s!important}*{pointer-events:none!important}';
     document.head.appendChild(st);
     var keep = currentSlide, out = [], visible = [], _ac = window.animateCounter;
     // Capture the ACTUAL viewport: fitSlide lays content out for the real window
