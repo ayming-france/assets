@@ -471,8 +471,8 @@ window.addEventListener('load', function () {
       '<div class="pm-vrow"><input id="pm-vname" placeholder="Nom de la version" /><button id="pm-vsave" class="pm-mini">Enregistrer</button></div>' +
       '<div id="pm-saves"></div><button id="pm-vreset" class="pm-mini pm-reset">Réinitialiser le deck</button>') +
     sec('export', ICON.download, 'Exporter', '',
-      '<div class="pm-hint">Téléchargez votre version. Le texte modifié reste éditable dans PowerPoint, les slides masquées sont retirées.</div>' +
-      '<div class="pm-row"><button id="pm-dl-pptx" class="pm-btn">Télécharger PowerPoint</button></div>' +
+      '<div class="pm-hint">Téléchargez votre version personnalisée (texte, masquages, slides masquées) en PowerPoint ou PDF.</div>' +
+      '<div class="pm-row"><button id="pm-dl-pptx" class="pm-btn">PowerPoint</button><button id="pm-dl-pdf" class="pm-btn">PDF</button></div>' +
       '<button id="pm-copylink" class="pm-mini" style="margin:10px 16px 0;display:block">Copier le lien de ma version</button>') +
     sec('events', ICON.activity, 'Évènements (GA4)', '', '<div id="pm-log" class="pm-log"></div>') +
     '</div>';
@@ -582,55 +582,80 @@ window.addEventListener('load', function () {
   document.getElementById('pm-vreset').addEventListener('click', function () { confirmDialog('Effacer toutes vos modifications sur ce deck ?', function () { localStorage.removeItem('pm:draft:' + deckKey); location.reload(); }); });
 
   // Self-service personalized export, generated entirely in the browser (no
-  // server, zero cost). The deploy emits a "template" under export/: blanked
-  // slide images (export/sN.jpg) + manifest.json (link rects + [data-edit] field
-  // boxes). Here we rebuild a PPTX with PptxGenJS: each slide = its image, plus
-  // a NATIVE editable text box per field carrying the field's CURRENT on-screen
-  // text (so rep edits are reflected and stay editable). Hidden slides are
-  // dropped; masked fields are skipped. State also lives in "?pm=" for a
-  // shareable live link and for the headless pipeline.
+  // server, zero cost). We snapshot each live (edited) slide with html-to-image
+  // (real browser renderer -> gradients, fonts, alignment, masks, opacity all
+  // faithful) and assemble an image-per-slide PPTX (PptxGenJS) and PDF (jsPDF),
+  // dropping hidden slides and keeping links clickable. The file is an image of
+  // exactly what the rep personalized on the web (text not editable in the file;
+  // editing stays on the web). State also lives in "?pm=" for a shareable link.
   var ENGINE_BASE = (function () {
     try { var s = Array.prototype.slice.call(document.scripts).filter(function (x) { return /\/engine\/slides\.js/.test(x.src); })[0]; return s ? s.src.replace(/slides\.js.*$/, '') : 'https://ayming-france.github.io/assets/engine/'; }
     catch (e) { return 'https://ayming-france.github.io/assets/engine/'; }
   })();
-  function pmLoadScript(src) { return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
-  function pmHex(c) { var m = (c || '').match(/\d+(\.\d+)?/g) || [255, 255, 255]; function h(n) { return ('0' + Math.round(+n).toString(16)).slice(-2); } return (h(m[0]) + h(m[1]) + h(m[2])).toUpperCase(); }
+  function pmLoadScript(src) { return new Promise(function (res, rej) { if (document.querySelector('script[data-pm="' + src + '"]')) return res(); var s = document.createElement('script'); s.src = src; s.dataset.pm = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
   function copyLink(link) { try { if (navigator.clipboard) navigator.clipboard.writeText(link); } catch (e) { } }
-  async function pmExportPptx() {
-    var btn = document.getElementById('pm-dl-pptx'), prev = btn.textContent;
-    btn.disabled = true; btn.textContent = 'Génération…'; toast('Génération du PowerPoint…');
+  var PM_VW = 1280, PM_VH = 720, PM_W_IN = 13.333, PM_H_IN = 7.5;
+  function pmToIn(px) { return px * PM_W_IN / PM_VW; }
+  // Snapshot every non-hidden slide as a 2x JPEG of the live render + its link rects.
+  async function pmCapture(progress) {
+    var st = document.createElement('style');
+    st.textContent = '.chapter-nav,.nav-toggle,.banner-controls,#pm-panel,.pm-toast,.pm-ovl,#pm-dlpop{display:none!important}*,*::before,*::after{animation-duration:.001s!important;animation-delay:0s!important;transition-duration:.001s!important}';
+    document.head.appendChild(st);
+    var keep = currentSlide, out = [], visible = [];
+    for (var k = 0; k < slides.length; k++) if (state.slidesHidden.indexOf(k) < 0) visible.push(k);
     try {
-      if (!window.PptxGenJS) await pmLoadScript(ENGINE_BASE + 'pptxgen.bundle.js');
-      var base = location.pathname.replace(/[^/]*$/, '');
-      var man = await fetch(base + 'export/manifest.json').then(function (r) { if (!r.ok) throw 0; return r.json(); });
-      var W = man.slide_w_in, H = man.slide_h_in, vw = man.viewport_w, toIn = function (px) { return px * W / vw; };
-      var pptx = new PptxGenJS(); pptx.defineLayout({ name: 'AY', width: W, height: H }); pptx.layout = 'AY';
-      man.slides.forEach(function (sd, i) {
-        if (state.slidesHidden.indexOf(i) >= 0) return;
-        var slide = pptx.addSlide();
-        slide.addImage({ path: base + 'export/' + sd.img, x: 0, y: 0, w: W, h: H });
-        sd.links.forEach(function (l) { slide.addText(' ', { x: toIn(l.x), y: toIn(l.y), w: toIn(l.w), h: toIn(l.h), hyperlink: { url: l.url }, fill: { color: 'FFFFFF', transparency: 100 }, line: { type: 'none' }, margin: 0 }); });
-        sd.edits.forEach(function (e) {
-          var el = e.id ? resolve(e.id) : null;                            // same id scheme as the editor
-          if (el && getComputedStyle(el).display === 'none') return;       // masked -> drop the box
-          slide.addText(el ? el.innerText : e.text, {
-            x: toIn(e.x), y: toIn(e.y), w: toIn(e.w), h: toIn(e.h),
-            fontFace: (e.ff || 'Lato').split(',')[0].replace(/['"]/g, '').trim(),
-            fontSize: e.fs * 0.75, color: pmHex(e.color),
-            bold: parseInt(e.fw, 10) >= 600, italic: !!e.italic,
-            align: e.ta === 'center' ? 'center' : e.ta === 'right' ? 'right' : 'left',
-            valign: 'middle', margin: 0, wrap: true, fit: 'shrink',
-            lineSpacingMultiple: (e.lh && e.fs ? e.lh / e.fs : 1),
-          });
+      for (var j = 0; j < visible.length; j++) {
+        if (progress) progress(j + 1, visible.length);
+        goToSlide(visible[j]);
+        await new Promise(function (r) { setTimeout(r, 450); });
+        var img = await htmlToImage.toJpeg(document.body, { quality: 0.92, pixelRatio: 2, width: PM_VW, height: PM_VH, backgroundColor: '#ffffff', cacheBust: true });
+        var links = [];
+        document.querySelectorAll('.slide.active a[href]').forEach(function (a) {
+          var href = a.href; if (!href || href.indexOf('javascript:') === 0) return;
+          var el = a.closest('.testimonial-card') || a, r = el.getBoundingClientRect();
+          if ((r.width < 5 || r.height < 5) && a.parentElement) r = a.parentElement.getBoundingClientRect();
+          if (r.width < 5 || r.height < 5) return;
+          links.push({ x: r.x, y: r.y, w: r.width, h: r.height, url: href });
         });
+        out.push({ img: img, links: links });
+      }
+    } finally { goToSlide(keep); st.remove(); }
+    return out;
+  }
+  function pmBtnBusy(btn, on, label) { btn.disabled = on; if (on) { btn.dataset.prev = btn.textContent; btn.textContent = label || 'Génération…'; } else { btn.textContent = btn.dataset.prev || btn.textContent; } }
+  async function pmExportPptx() {
+    var btn = document.getElementById('pm-dl-pptx'); pmBtnBusy(btn, true); toast('Génération du PowerPoint…');
+    try {
+      await pmLoadScript(ENGINE_BASE + 'html-to-image.js'); await pmLoadScript(ENGINE_BASE + 'pptxgen.bundle.js');
+      var caps = await pmCapture(function (n, t) { btn.textContent = 'Slide ' + n + '/' + t + '…'; });
+      var pptx = new PptxGenJS(); pptx.defineLayout({ name: 'AY', width: PM_W_IN, height: PM_H_IN }); pptx.layout = 'AY';
+      caps.forEach(function (c) {
+        var sl = pptx.addSlide(); sl.addImage({ data: c.img, x: 0, y: 0, w: PM_W_IN, h: PM_H_IN });
+        c.links.forEach(function (l) { sl.addText(' ', { x: pmToIn(l.x), y: pmToIn(l.y), w: pmToIn(l.w), h: pmToIn(l.h), hyperlink: { url: l.url }, fill: { color: 'FFFFFF', transparency: 100 }, line: { type: 'none' }, margin: 0 }); });
       });
       await pptx.writeFile({ fileName: deckKey + '-personnalise.pptx' });
-      track('deck_download', { format: 'pptx', hidden_count: state.slidesHidden.length });
-      toast('PowerPoint téléchargé.');
-    } catch (err) { if (window.console) console.warn('[perso] export', err); toast('Export PowerPoint indisponible pour ce deck.'); }
-    btn.disabled = false; btn.textContent = prev;
+      track('deck_download', { format: 'pptx', hidden_count: state.slidesHidden.length }); toast('PowerPoint téléchargé.');
+    } catch (err) { if (window.console) console.warn('[perso] pptx', err); toast('Export PowerPoint indisponible.'); }
+    pmBtnBusy(btn, false);
+  }
+  async function pmExportPdf() {
+    var btn = document.getElementById('pm-dl-pdf'); pmBtnBusy(btn, true); toast('Génération du PDF…');
+    try {
+      await pmLoadScript(ENGINE_BASE + 'html-to-image.js'); await pmLoadScript(ENGINE_BASE + 'jspdf.umd.min.js');
+      var caps = await pmCapture(function (n, t) { btn.textContent = 'Slide ' + n + '/' + t + '…'; });
+      var JsPDF = window.jspdf.jsPDF, pdf = new JsPDF({ orientation: 'landscape', unit: 'in', format: [PM_W_IN, PM_H_IN] });
+      caps.forEach(function (c, idx) {
+        if (idx) pdf.addPage([PM_W_IN, PM_H_IN], 'landscape');
+        pdf.addImage(c.img, 'JPEG', 0, 0, PM_W_IN, PM_H_IN);
+        c.links.forEach(function (l) { pdf.link(pmToIn(l.x), pmToIn(l.y), pmToIn(l.w), pmToIn(l.h), { url: l.url }); });
+      });
+      pdf.save(deckKey + '-personnalise.pdf');
+      track('deck_download', { format: 'pdf', hidden_count: state.slidesHidden.length }); toast('PDF téléchargé.');
+    } catch (err) { if (window.console) console.warn('[perso] pdf', err); toast('Export PDF indisponible.'); }
+    pmBtnBusy(btn, false);
   }
   document.getElementById('pm-dl-pptx').addEventListener('click', pmExportPptx);
+  document.getElementById('pm-dl-pdf').addEventListener('click', pmExportPdf);
   document.getElementById('pm-copylink').addEventListener('click', function () {
     copyLink(pmLink()); track('deck_link_share', { hidden_count: state.slidesHidden.length }); toast('Lien de votre version copié.');
   });
