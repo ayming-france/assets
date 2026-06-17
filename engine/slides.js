@@ -292,29 +292,42 @@ updateSlide();
     const DL_ICON =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
       '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+    // Single download/share point. Each format downloads the instant static deck
+    // when unmodified, or a browser-captured personalized file when the rep has
+    // edited (window.pm* exposed by the personalization editor). Plus a link to
+    // share the personalized live version. No need to open the editor to download.
+    const LINK_ICON =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
     const formats = [
-      { file: 'deck.pdf', ext: 'pdf', label: 'Télécharger en PDF' },
-      { file: 'deck.pptx', ext: 'pptx', label: 'Télécharger en PowerPoint' },
+      { file: 'deck.pdf', ext: 'pdf', label: 'Télécharger en PDF', fn: 'pmExportPdf' },
+      { file: 'deck.pptx', ext: 'pptx', label: 'Télécharger en PowerPoint', fn: 'pmExportPptx' },
     ];
     Promise.all(
       formats.map(f => fetch(f.file, { method: 'HEAD' }).then(r => r.ok).catch(() => false))
     ).then(oks => {
-      const available = formats.filter((f, i) => oks[i]);
-      if (!available.length) return;
       const pop = document.createElement('div');
       pop.className = 'pdf-popover';
-      pop.innerHTML = available.map(f =>
-        '<a href="' + f.file + '" download="' + title + '.' + f.ext + '">' + DL_ICON + f.label + '</a>'
-      ).join('');
+      formats.forEach((f, i) => {
+        const a = document.createElement('a');
+        a.href = f.file; a.setAttribute('download', title + '.' + f.ext);
+        a.innerHTML = DL_ICON + f.label;
+        a.addEventListener('click', e => {
+          const edited = window.pmHasEdits && window.pmHasEdits();
+          if ((edited || !oks[i]) && window[f.fn]) { e.preventDefault(); window[f.fn](a); }
+          // else: the native <a download> serves the instant static deck
+          else pop.classList.remove('visible');
+        });
+        pop.appendChild(a);
+      });
+      const cl = document.createElement('a');
+      cl.href = '#'; cl.innerHTML = LINK_ICON + 'Copier le lien';
+      cl.addEventListener('click', e => { e.preventDefault(); if (window.pmCopyLink) window.pmCopyLink(); pop.classList.remove('visible'); });
+      pop.appendChild(cl);
       document.body.appendChild(pop);
       logo.style.cursor = 'pointer';
-      logo.addEventListener('click', e => {
-        e.stopPropagation();
-        pop.classList.toggle('visible');
-      });
-      document.addEventListener('click', e => {
-        if (!pop.contains(e.target)) pop.classList.remove('visible');
-      });
+      logo.addEventListener('click', e => { e.stopPropagation(); pop.classList.toggle('visible'); });
+      document.addEventListener('click', e => { if (!pop.contains(e.target)) pop.classList.remove('visible'); });
     }).catch(() => {});
   } catch (e) { /* never let the download affordance break navigation */ }
 })();
@@ -470,10 +483,6 @@ window.addEventListener('load', function () {
       '<div class="pm-hint">Sauvegardez vos modifications sous un nom. Vos retouches sont aussi gardées automatiquement après un refresh.</div>' +
       '<div class="pm-vrow"><input id="pm-vname" placeholder="Nom de la version" /><button id="pm-vsave" class="pm-mini">Enregistrer</button></div>' +
       '<div id="pm-saves"></div><button id="pm-vreset" class="pm-mini pm-reset">Réinitialiser le deck</button>') +
-    sec('export', ICON.download, 'Exporter', '',
-      '<div class="pm-hint">Téléchargez votre version personnalisée (texte, masquages, slides masquées) en PowerPoint ou PDF.</div>' +
-      '<div class="pm-row"><button id="pm-dl-pptx" class="pm-btn">PowerPoint</button><button id="pm-dl-pdf" class="pm-btn">PDF</button></div>' +
-      '<button id="pm-copylink" class="pm-mini" style="margin:10px 16px 0;display:block">Copier le lien de ma version</button>') +
     sec('events', ICON.activity, 'Évènements (GA4)', '', '<div id="pm-log" class="pm-log"></div>') +
     '</div>';
   panel.style.display = 'none';
@@ -628,12 +637,12 @@ window.addEventListener('load', function () {
     } finally { goToSlide(keep); st.remove(); try { window.animateCounter = _ac; } catch (e) { } }
     return out;
   }
-  function pmBtnBusy(btn, on, label) { btn.disabled = on; if (on) { btn.dataset.prev = btn.textContent; btn.textContent = label || 'Génération…'; } else { btn.textContent = btn.dataset.prev || btn.textContent; } }
-  async function pmExportPptx() {
-    var btn = document.getElementById('pm-dl-pptx'); pmBtnBusy(btn, true); toast('Génération du PowerPoint…');
+  function pmBtnBusy(btn, on, label) { if (!btn) return; btn.style.pointerEvents = on ? 'none' : ''; btn.style.opacity = on ? '.6' : ''; if (on) { btn.dataset.prev = btn.innerHTML; btn.textContent = label || 'Génération…'; } else { btn.innerHTML = btn.dataset.prev || btn.innerHTML; } }
+  async function pmExportPptx(btn) {
+    pmBtnBusy(btn, true); toast('Génération du PowerPoint…');
     try {
       await pmLoadScript(ENGINE_BASE + 'html-to-image.js'); await pmLoadScript(ENGINE_BASE + 'pptxgen.bundle.js');
-      var caps = await pmCapture(function (n, t) { btn.textContent = 'Slide ' + n + '/' + t + '…'; });
+      var caps = await pmCapture(function (n, t) { if (btn) btn.textContent = 'Slide ' + n + '/' + t + '…'; });
       var pptx = new PptxGenJS(); pptx.defineLayout({ name: 'AY', width: PM_W_IN, height: PM_H_IN }); pptx.layout = 'AY';
       caps.forEach(function (c) {
         var sl = pptx.addSlide(); sl.addImage({ data: c.img, x: 0, y: 0, w: PM_W_IN, h: PM_H_IN });
@@ -644,11 +653,11 @@ window.addEventListener('load', function () {
     } catch (err) { if (window.console) console.warn('[perso] pptx', err); toast('Export PowerPoint indisponible.'); }
     pmBtnBusy(btn, false);
   }
-  async function pmExportPdf() {
-    var btn = document.getElementById('pm-dl-pdf'); pmBtnBusy(btn, true); toast('Génération du PDF…');
+  async function pmExportPdf(btn) {
+    pmBtnBusy(btn, true); toast('Génération du PDF…');
     try {
       await pmLoadScript(ENGINE_BASE + 'html-to-image.js'); await pmLoadScript(ENGINE_BASE + 'jspdf.umd.min.js');
-      var caps = await pmCapture(function (n, t) { btn.textContent = 'Slide ' + n + '/' + t + '…'; });
+      var caps = await pmCapture(function (n, t) { if (btn) btn.textContent = 'Slide ' + n + '/' + t + '…'; });
       var JsPDF = window.jspdf.jsPDF, pdf = new JsPDF({ orientation: 'landscape', unit: 'in', format: [PM_W_IN, PM_H_IN] });
       caps.forEach(function (c, idx) {
         if (idx) pdf.addPage([PM_W_IN, PM_H_IN], 'landscape');
@@ -660,12 +669,13 @@ window.addEventListener('load', function () {
     } catch (err) { if (window.console) console.warn('[perso] pdf', err); toast('Export PDF indisponible.'); }
     pmBtnBusy(btn, false);
   }
-  document.getElementById('pm-dl-pptx').addEventListener('click', pmExportPptx);
-  document.getElementById('pm-dl-pdf').addEventListener('click', pmExportPdf);
-  document.getElementById('pm-copylink').addEventListener('click', function () {
-    copyLink(pmLink()); track('deck_link_share', { hidden_count: state.slidesHidden.length }); toast('Lien de votre version copié.');
-  });
-  // The base (non-personalized) deck.pdf / deck.pptx stay on the Ayming logo popover.
+  // Single download/share entry = the Ayming-logo popover (engine). Expose the
+  // generators + an "edited?" test so the popover serves the static deck when
+  // unmodified (instant) and a browser-captured personalized file when edited.
+  window.pmExportPptx = pmExportPptx;
+  window.pmExportPdf = pmExportPdf;
+  window.pmHasEdits = function () { return !!(Object.keys(state.text).length || state.masked.length || Object.keys(state.opacity).length || state.slidesHidden.length); };
+  window.pmCopyLink = function () { copyLink(pmLink()); track('deck_link_share', { hidden_count: state.slidesHidden.length }); toast('Lien de votre version copié.'); };
 
   (function () { var h = document.getElementById('pm-drag'), down = false, ox = 0, oy = 0; h.addEventListener('mousedown', function (e) { down = true; var r = panel.getBoundingClientRect(); panel.style.right = 'auto'; panel.style.left = r.left + 'px'; panel.style.top = r.top + 'px'; ox = e.clientX - r.left; oy = e.clientY - r.top; e.preventDefault(); }); document.addEventListener('mousemove', function (e) { if (!down) return; panel.style.left = (e.clientX - ox) + 'px'; panel.style.top = (e.clientY - oy) + 'px'; }); document.addEventListener('mouseup', function () { down = false; }); })();
 
