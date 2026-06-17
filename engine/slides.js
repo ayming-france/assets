@@ -601,7 +601,13 @@ window.addEventListener('load', function () {
     var st = document.createElement('style');
     st.textContent = '.chapter-nav,.nav-toggle,.banner-controls,#pm-panel,.pm-toast,.pm-ovl,#pm-dlpop{display:none!important}*,*::before,*::after{animation-duration:.001s!important;animation-delay:0s!important;transition-duration:.001s!important}';
     document.head.appendChild(st);
-    var keep = currentSlide, out = [], visible = [];
+    var keep = currentSlide, out = [], visible = [], _ac = window.animateCounter;
+    // Stat counters (animateIntroCounters) re-run on each slide entry and count
+    // 0->target over ~800ms. During capture we navigate to every slide, so the
+    // shot would catch a mid-count value. Override to set the final value
+    // INSTANTLY, from the element's CURRENT text, so a rep's edited number is
+    // preserved (not reset, not half-counted). Restored after capture.
+    try { window.animateCounter = function (el, target, suffix) { el.textContent = (typeof target === 'number' ? target.toLocaleString('fr-FR') : target) + (suffix || ''); }; } catch (e) { }
     for (var k = 0; k < slides.length; k++) if (state.slidesHidden.indexOf(k) < 0) visible.push(k);
     try {
       for (var j = 0; j < visible.length; j++) {
@@ -619,7 +625,7 @@ window.addEventListener('load', function () {
         });
         out.push({ img: img, links: links });
       }
-    } finally { goToSlide(keep); st.remove(); }
+    } finally { goToSlide(keep); st.remove(); try { window.animateCounter = _ac; } catch (e) { } }
     return out;
   }
   function pmBtnBusy(btn, on, label) { btn.disabled = on; if (on) { btn.dataset.prev = btn.textContent; btn.textContent = label || 'Génération…'; } else { btn.textContent = btn.dataset.prev || btn.textContent; } }
