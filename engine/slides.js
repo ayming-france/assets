@@ -235,10 +235,23 @@ document.addEventListener('keydown', e => {
     case 'ArrowLeft': prevSlide(); break;
     case 'f': case 'F': toggleFullscreen(); break;
     case 'e': case 'E': if (eggElements.length) triggerEasterEgg(); break;
+    case 'p': case 'P': { const pp = document.querySelector('.pdf-popover'); if (pp) pp.classList.toggle('visible'); break; }
     case 'Home': goToSlide(0); break;
     case 'End': goToSlide(totalSlides - 1); break;
   }
 });
+
+// Discreet keyboard hint (top-right). Aids reps; hidden in fullscreen (during a
+// live pitch, CSS) and excluded from exports (pmFilter). Deliberately does NOT
+// advertise the secret 'E' editor, so prospects with the link can't discover it.
+(function () {
+  try {
+    const hint = document.createElement('div');
+    hint.className = 'deck-help';
+    hint.innerHTML = '<span>&#8592; &#8594; naviguer</span><span>F plein écran</span><span>P exporter</span>';
+    document.body.appendChild(hint);
+  } catch (e) { /* never let the hint break the deck */ }
+})();
 
 // Nav clicks: data-slide values are always slide indices
 navItems.forEach(item => {
@@ -609,7 +622,7 @@ window.addEventListener('load', function () {
   function pmFilter(node) {
     if (node && node.classList) {
       if (node.id === 'pm-panel') return false;
-      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls'];
+      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help'];
       for (var i = 0; i < ex.length; i++) if (node.classList.contains(ex[i])) return false;
     }
     return true;

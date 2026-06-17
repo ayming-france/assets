@@ -2743,6 +2743,36 @@
 /* ===== BRAND BANNER (injected once by slides.js, shown on every slide except
    the cover). Carries the Ayming logo (click = download popover), the
    confidentiality line, and the consolidated nav controls. ===== */
+/* Discreet keyboard hint, top-right. Visible while preparing (windowed), hidden
+   in fullscreen during a live pitch, and excluded from exports (pmFilter). */
+.deck-help {
+  position: fixed;
+  top: 10px;
+  right: 14px;
+  z-index: 9000;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  font-family: system-ui, Arial, sans-serif;
+  font-size: 11px;
+  color: #6d8093;
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  padding: 5px 13px;
+  border-radius: 20px;
+  box-shadow: 0 2px 10px rgba(2, 30, 60, 0.08);
+  pointer-events: none;
+  user-select: none;
+}
+.deck-help span { white-space: nowrap; }
+.deck-help span + span {
+  border-left: 1px solid rgba(0, 61, 121, 0.15);
+  padding-left: 14px;
+}
+:fullscreen .deck-help,
+:-webkit-full-screen .deck-help { display: none; }
+
 .brand-banner {
   position: fixed;
   left: 0;
