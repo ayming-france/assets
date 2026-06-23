@@ -404,6 +404,14 @@ window.addEventListener('load', function () {
   var slides = document.querySelectorAll('.slide');
   var deckKey = location.pathname.replace(/\//g, '') || 'deck';
   function slideIndex(el) { var s = el.closest('.slide'); return s ? Array.prototype.indexOf.call(slides, s) + 1 : 0; }
+  // Human-readable slide label for analytics: the slide's heading, else its
+  // chapter, else "slide N". Lets Umami show which slide, not just a number.
+  function slideTitle(s) {
+    if (!s) return '';
+    var t = s.querySelector('.slide-title, .value-detail-title, .section-title, .intro-title-band, .intro-title, h1, h2');
+    var txt = t ? (t.textContent || '').replace(/\s+/g, ' ').trim() : '';
+    return txt.slice(0, 60) || s.dataset.chapter || ('slide ' + (Array.prototype.indexOf.call(slides, s) + 1));
+  }
   function fieldName(el) { var b = (el.className || el.tagName).toString().split(' ')[0].replace(/[^a-z0-9_-]/gi, '') || el.tagName.toLowerCase(); return b + '@s' + slideIndex(el); }
   // stable path (deck DOM is static across reloads): "slideIdx:child-child-..."
   function elPath(el) { var s = el.closest('.slide'); if (!s) return null; var si = Array.prototype.indexOf.call(slides, s), idx = [], n = el; while (n && n !== s) { idx.unshift(Array.prototype.indexOf.call(n.parentElement.children, n)); n = n.parentElement; } return si + ':' + idx.join('-'); }
@@ -440,7 +448,10 @@ window.addEventListener('load', function () {
   function clearEditable() { editableEls().forEach(function (el) { el.style.outline = ''; el.style.cursor = ''; el.contentEditable = 'false'; }); deselect(); }
   function bindText(el) {
     if (el.dataset.pmBound) return; el.dataset.pmBound = '1'; var t;
-    el.addEventListener('input', function () { clearTimeout(t); t = setTimeout(function () { var k = elPath(el); state.text[k] = el.innerHTML; autosave(); track('deck_field_edit', { field: fieldName(el), slide: slideIndex(el) }); }, 500); });
+    // Snapshot the text as it was when first made editable, so each edit event
+    // can report what it changed from -> to (truncated for analytics).
+    if (el.dataset.pmOrig === undefined) el.dataset.pmOrig = (el.innerText || '').replace(/\s+/g, ' ').trim();
+    el.addEventListener('input', function () { clearTimeout(t); t = setTimeout(function () { var k = elPath(el); state.text[k] = el.innerHTML; autosave(); track('deck_field_edit', { field: fieldName(el), slide: slideIndex(el), title: slideTitle(el.closest('.slide')), before: (el.dataset.pmOrig || '').slice(0, 100), after: (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 100) }); }, 500); });
     el.addEventListener('keydown', function (e) { e.stopPropagation(); });
   }
   function applyMode(m) {
@@ -497,7 +508,7 @@ window.addEventListener('load', function () {
     selectEl(blk);
   }, true);
   document.addEventListener('click', function (e) { var a = e.target.closest('a[href]'); if (a) track('deck_link_click', { href: a.href, slide: slideIndex(a) }); });
-  slides.forEach(function (s, i) { new MutationObserver(function () { if (s.classList.contains('active')) track('deck_slide_view', { slide: i + 1, chapter: s.dataset.chapter || '' }); }).observe(s, { attributes: true, attributeFilter: ['class'] }); });
+  slides.forEach(function (s, i) { new MutationObserver(function () { if (s.classList.contains('active')) track('deck_slide_view', { slide: i + 1, title: slideTitle(s), chapter: s.dataset.chapter || '' }); }).observe(s, { attributes: true, attributeFilter: ['class'] }); });
 
   function sec(id, icon, title, extra, body) { return '<div class="pm-acc" data-sec="' + id + '"><div class="pm-achead">' + icon + ' <span>' + title + '</span>' + (extra || '') + ICO('<path d="m6 9 6 6 6-6"/>', 16) + '</div><div class="pm-acbody">' + body + '</div></div>'; }
   var panel = document.createElement('div'); panel.id = 'pm-panel';
@@ -587,8 +598,8 @@ window.addEventListener('load', function () {
   document.getElementById('pm-deselect').addEventListener('click', deselect);
   document.getElementById('pm-hide').addEventListener('click', function () {
     if (!selected) return; var el = selected;
-    if (el.style.display === 'none') { unmaskKey(elPath(el)); track('deck_element_show', { target: fieldName(el), slide: slideIndex(el) }); }
-    else { maskEl(el); track('deck_element_hide', { target: fieldName(el), slide: slideIndex(el) }); }
+    if (el.style.display === 'none') { unmaskKey(elPath(el)); track('deck_element_show', { target: fieldName(el), slide: slideIndex(el), title: slideTitle(el.closest('.slide')) }); }
+    else { maskEl(el); track('deck_element_hide', { target: fieldName(el), slide: slideIndex(el), title: slideTitle(el.closest('.slide')) }); }
     updateHideBtn(); renderMasked(); autosave();
   });
   document.getElementById('pm-masked').addEventListener('click', function (e) { var b = e.target.closest('[data-k]'); if (!b) return; unmaskKey(b.dataset.k); if (selected && elPath(selected) === b.dataset.k) updateHideBtn(); renderMasked(); autosave(); });
@@ -606,7 +617,7 @@ window.addEventListener('load', function () {
     slides[i].dataset.pmHidden = hide ? '1' : '';
     state.slidesHidden = Array.prototype.filter.call(slides, function (s) { return s.dataset.pmHidden === '1'; }).map(function (s) { return Array.prototype.indexOf.call(slides, s); });
     eye.innerHTML = hide ? ICON.eyeOff : ICON.eye; eye.closest('.pm-srow').classList.toggle('pm-hidden', hide);
-    track(hide ? 'deck_slide_hidden' : 'deck_slide_shown', { slide: i + 1, chapter: slides[i].dataset.chapter || '' }); updateCount(); autosave();
+    track(hide ? 'deck_slide_hidden' : 'deck_slide_shown', { slide: i + 1, title: slideTitle(slides[i]), chapter: slides[i].dataset.chapter || '' }); updateCount(); autosave();
   });
 
   // versions
