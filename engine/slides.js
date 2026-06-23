@@ -1,4 +1,21 @@
 /* Ayming Slides - Unified JS */
+
+// ===== Umami analytics (self-hosted on Vercel, privacy-friendly) =====
+// Injected once here so every deck that loads the shared engine is tracked with
+// zero per-deck markup. Pageviews are automatic; the deck's own custom events
+// (slide views, PDF downloads, link clicks, ...) are bridged into Umami from the
+// internal track() helper further down.
+(function injectUmami() {
+  try {
+    if (window.__umamiInjected) return; window.__umamiInjected = true;
+    var s = document.createElement('script');
+    s.defer = true;
+    s.src = 'https://umami-analytics-three-fawn.vercel.app/script.js';
+    s.setAttribute('data-website-id', 'b3424f11-6037-4c00-a72e-97dfdd6377a5');
+    (document.head || document.documentElement).appendChild(s);
+  } catch (e) { /* never let analytics break the deck */ }
+})();
+
 let currentSlide = 0;
 const slides = document.querySelectorAll('.slide');
 const navItems = document.querySelectorAll('.nav-item');
@@ -352,6 +369,8 @@ window.addEventListener('load', function () {
   window.dataLayer = window.dataLayer || [];
   function track(event, detail) {
     window.dataLayer.push(Object.assign({ event: event }, detail || {}));
+    // Bridge every deck event into Umami (self-hosted analytics).
+    try { if (window.umami && window.umami.track) window.umami.track(event, detail || {}); } catch (e) { }
     var l = document.getElementById('pm-log');
     if (l) { var d = document.createElement('div'); d.className = 'pm-log-line'; d.innerHTML = '<span class="pm-dot"></span>'; d.appendChild(document.createTextNode(event + '  ' + JSON.stringify(detail || {}))); l.prepend(d); }
   }
