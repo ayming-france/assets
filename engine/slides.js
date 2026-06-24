@@ -384,10 +384,8 @@ window.addEventListener('load', function () {
   window.dataLayer = window.dataLayer || [];
   function track(event, detail) {
     window.dataLayer.push(Object.assign({ event: event }, detail || {}));
-    // Bridge deck events into Umami (self-hosted analytics). Skip deck_open: it
-    // duplicates Umami's automatic pageview (same moment, deck is in the URL).
-    // The dataLayer above still receives it for GA/GTM.
-    try { if (window.umami && window.umami.track && event !== 'deck_open') window.umami.track(event, detail || {}); } catch (e) { }
+    // Bridge every deck event into Umami (self-hosted analytics).
+    try { if (window.umami && window.umami.track) window.umami.track(event, detail || {}); } catch (e) { }
     var l = document.getElementById('pm-log');
     if (l) { var d = document.createElement('div'); d.className = 'pm-log-line'; d.innerHTML = '<span class="pm-dot"></span>'; d.appendChild(document.createTextNode(event + '  ' + JSON.stringify(detail || {}))); l.prepend(d); }
   }
