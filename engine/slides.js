@@ -382,10 +382,21 @@ updateSlide();
 window.addEventListener('load', function () {
   try {
   window.dataLayer = window.dataLayer || [];
+  // Audience role for analytics: default "rep" (Sales). A visitor becomes a
+  // "client" if they arrived via a personalized "?pm=" share link. That sticks
+  // for the browsing session (sessionStorage), so if a client then strips the
+  // URL down to the hub they still count as a client, not a rep.
+  var AY_ROLE = (function () {
+    try {
+      var hasPm = /[?&]pm=/.test(location.search);
+      if (hasPm) sessionStorage.setItem('ay-role', 'client');
+      return (hasPm || sessionStorage.getItem('ay-role') === 'client') ? 'client' : 'rep';
+    } catch (e) { return 'rep'; }
+  })();
   function track(event, detail) {
     window.dataLayer.push(Object.assign({ event: event }, detail || {}));
-    // Bridge every deck event into Umami (self-hosted analytics).
-    try { if (window.umami && window.umami.track) window.umami.track(event, detail || {}); } catch (e) { }
+    // Bridge every deck event into Umami, tagged with the audience role.
+    try { if (window.umami && window.umami.track) window.umami.track(event, Object.assign({ role: AY_ROLE }, detail || {})); } catch (e) { }
     var l = document.getElementById('pm-log');
     if (l) { var d = document.createElement('div'); d.className = 'pm-log-line'; d.innerHTML = '<span class="pm-dot"></span>'; d.appendChild(document.createTextNode(event + '  ' + JSON.stringify(detail || {}))); l.prepend(d); }
   }
