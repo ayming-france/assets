@@ -382,22 +382,12 @@ updateSlide();
 window.addEventListener('load', function () {
   try {
   window.dataLayer = window.dataLayer || [];
-  // Human-readable names for Umami so the activity / event log reads clearly.
-  // The GA dataLayer keeps the machine names below, so GTM triggers are unaffected.
-  var UMAMI_LABELS = {
-    deck_open: 'Deck opened', deck_slide_view: 'Slide viewed',
-    deck_slide_time: 'Time on slide', deck_completed: 'Deck completed',
-    deck_link_click: 'Link clicked', deck_download: 'Deck downloaded',
-    deck_field_edit: 'Text edited', deck_element_hide: 'Element hidden',
-    deck_element_show: 'Element shown', deck_slide_hidden: 'Slide hidden',
-    deck_slide_shown: 'Slide shown', deck_style_change: 'Style changed',
-    deck_version_save: 'Version saved', deck_version_load: 'Version loaded',
-    deck_link_share: 'Share link copied'
-  };
   function track(event, detail) {
     window.dataLayer.push(Object.assign({ event: event }, detail || {}));
-    // Bridge every deck event into Umami with a clear, human-readable name.
-    try { if (window.umami && window.umami.track) window.umami.track(UMAMI_LABELS[event] || event, detail || {}); } catch (e) { }
+    // Bridge deck events into Umami (self-hosted analytics). Skip deck_open: it
+    // duplicates Umami's automatic pageview (same moment, deck is in the URL).
+    // The dataLayer above still receives it for GA/GTM.
+    try { if (window.umami && window.umami.track && event !== 'deck_open') window.umami.track(event, detail || {}); } catch (e) { }
     var l = document.getElementById('pm-log');
     if (l) { var d = document.createElement('div'); d.className = 'pm-log-line'; d.innerHTML = '<span class="pm-dot"></span>'; d.appendChild(document.createTextNode(event + '  ' + JSON.stringify(detail || {}))); l.prepend(d); }
   }
