@@ -388,9 +388,13 @@ window.addEventListener('load', function () {
   // URL down to the hub they still count as a client, not a rep.
   var AY_ROLE = (function () {
     try {
-      var hasPm = /[?&]pm=/.test(location.search);
-      if (hasPm) sessionStorage.setItem('ay-role', 'client');
-      return (hasPm || sessionStorage.getItem('ay-role') === 'client') ? 'client' : 'rep';
+      var stored = localStorage.getItem('ay-role');
+      // First touch wins and is remembered. A browser already marked "rep" stays
+      // a rep even when it opens a ?pm= link (Sales previewing what a client sees).
+      if (stored === 'rep' || stored === 'client') return stored;
+      var role = /[?&]pm=/.test(location.search) ? 'client' : 'rep';
+      localStorage.setItem('ay-role', role);
+      return role;
     } catch (e) { return 'rep'; }
   })();
   function track(event, detail) {
@@ -790,7 +794,12 @@ window.addEventListener('load', function () {
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'e' && e.key !== 'E') return;
     var t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
-    e.stopPropagation(); panel.style.display = (panel.style.display === 'none') ? 'flex' : 'none';
+    e.stopPropagation();
+    var opening = panel.style.display === 'none';
+    panel.style.display = opening ? 'flex' : 'none';
+    // Opening the editor is a definitive Sales signal: lock this browser to "rep"
+    // (corrects any earlier client tag from previewing a ?pm= link).
+    if (opening) { try { localStorage.setItem('ay-role', 'rep'); AY_ROLE = 'rep'; } catch (ex) {} }
   }, true);
 
   // restore auto-draft from a previous session, then render lists
