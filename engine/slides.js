@@ -8,6 +8,21 @@
 (function injectUmami() {
   try {
     if (window.__umamiInjected) return; window.__umamiInjected = true;
+    // Allow-list: only the client-facing offer decks are tracked. Internal /
+    // personal decks (marketing dashboards, lead prioritization, abo-dat, the
+    // hub homepage, ...) also load this shared engine but are excluded. Add a
+    // slug here when a new CLIENT deck goes live.
+    var TRACKED = [
+      'declarer-un-accident-du-travail', 'collecte-et-traitement-des-arrets',
+      'aides-apprentissage', 'maitrise-des-charges-sociales',
+      'accompagnement-controle-urssaf', 'visites-medicales',
+      'rattrapage-visites-medicales', 'questionnaires-de-maladie-professionnelle',
+      'recuperer-ij', 'ecosystem-digital', 'maitrise-des-ijss',
+      'gestion-des-atmp', 'pilotage-arrets-longue-duree', 'veille-net-entreprises',
+      'duerp', 'accidents-tiers', 'cotisations-atmp', 'remboursements-ijss'
+    ];
+    var slug = (location.pathname.split('/').filter(Boolean)[0] || '').toLowerCase();
+    if (TRACKED.indexOf(slug) < 0) return; // not a client deck -> no analytics
     var s = document.createElement('script');
     s.defer = true;
     s.src = 'https://umami-analytics-three-fawn.vercel.app/script.js';
