@@ -427,8 +427,8 @@ window.addEventListener('load', function () {
   })();
   function track(event, detail) {
     window.dataLayer.push(Object.assign({ event: event }, detail || {}));
-    // Bridge every deck event into Umami, tagged with role (+ recipient if set).
-    try { if (window.umami && window.umami.track) window.umami.track(event, Object.assign({ role: AY_ROLE }, AY_RECIPIENT ? { recipient: AY_RECIPIENT } : {}, detail || {})); } catch (e) { }
+    // Bridge every deck event into Umami, tagged with role + deck name (+ recipient).
+    try { if (window.umami && window.umami.track) window.umami.track(event, Object.assign({ role: AY_ROLE, deck: deckKey }, AY_RECIPIENT ? { recipient: AY_RECIPIENT } : {}, detail || {})); } catch (e) { }
     var l = document.getElementById('pm-log');
     if (l) { var d = document.createElement('div'); d.className = 'pm-log-line'; d.innerHTML = '<span class="pm-dot"></span>'; d.appendChild(document.createTextNode(event + '  ' + JSON.stringify(detail || {}))); l.prepend(d); }
   }
