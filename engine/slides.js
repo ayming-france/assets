@@ -23,10 +23,22 @@
     ];
     var slug = (location.pathname.split('/').filter(Boolean)[0] || '').toLowerCase();
     if (TRACKED.indexOf(slug) < 0) return; // not a client deck -> no analytics
+    // Audience role, computed here so it rides as a native Umami TAG on every hit
+    // (including the automatic pageview) -> filterable dashboard-wide via Filter > Tag.
+    var role = (function () {
+      try {
+        var stored = localStorage.getItem('ay-role');
+        if (stored === 'rep' || stored === 'client') return stored;
+        var r = /[?&]pm=/.test(location.search) ? 'client' : 'rep';
+        localStorage.setItem('ay-role', r); return r;
+      } catch (e) { return 'rep'; }
+    })();
+    window.__AY_ROLE = role;
     var s = document.createElement('script');
     s.defer = true;
     s.src = 'https://umami-analytics-three-fawn.vercel.app/script.js';
     s.setAttribute('data-website-id', 'b3424f11-6037-4c00-a72e-97dfdd6377a5');
+    s.setAttribute('data-tag', role);
     (document.head || document.documentElement).appendChild(s);
   } catch (e) { /* never let analytics break the deck */ }
 })();
@@ -386,11 +398,11 @@ window.addEventListener('load', function () {
   // "client" if they arrived via a personalized "?pm=" share link. That sticks
   // for the browsing session (sessionStorage), so if a client then strips the
   // URL down to the hub they still count as a client, not a rep.
-  var AY_ROLE = (function () {
+  // Reuse the role computed in injectUmami (drives the native tag). First touch
+  // wins and is remembered: a browser marked "rep" stays a rep even on a ?pm= link.
+  var AY_ROLE = window.__AY_ROLE || (function () {
     try {
       var stored = localStorage.getItem('ay-role');
-      // First touch wins and is remembered. A browser already marked "rep" stays
-      // a rep even when it opens a ?pm= link (Sales previewing what a client sees).
       if (stored === 'rep' || stored === 'client') return stored;
       var role = /[?&]pm=/.test(location.search) ? 'client' : 'rep';
       localStorage.setItem('ay-role', role);
@@ -432,6 +444,22 @@ window.addEventListener('load', function () {
     function close() { ov.remove(); }
     ov.querySelector('.pm-dlg-cancel').addEventListener('click', close);
     ov.querySelector('.pm-dlg-ok').addEventListener('click', function () { close(); onYes(); });
+    ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+  }
+  // Styled text-input dialog (replaces the native window.prompt for sharing).
+  function promptDialog(msg, placeholder, okLabel, onConfirm) {
+    var ov = document.createElement('div'); ov.className = 'pm-ovl';
+    ov.innerHTML = '<div class="pm-dlg"><div class="pm-dlg-msg"></div><input class="pm-dlg-input" type="text"><div class="pm-dlg-btns"><button class="pm-dlg-cancel">Annuler</button><button class="pm-dlg-ok pm-dlg-go"></button></div></div>';
+    ov.querySelector('.pm-dlg-msg').textContent = msg;
+    var input = ov.querySelector('.pm-dlg-input'); input.placeholder = placeholder || '';
+    ov.querySelector('.pm-dlg-go').textContent = okLabel || 'Confirmer';
+    document.body.appendChild(ov);
+    setTimeout(function () { input.focus(); }, 50);
+    function close() { ov.remove(); }
+    function go() { var v = input.value.trim(); close(); onConfirm(v); }
+    ov.querySelector('.pm-dlg-cancel').addEventListener('click', close);
+    ov.querySelector('.pm-dlg-go').addEventListener('click', go);
+    input.addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Enter') go(); else if (e.key === 'Escape') close(); });
     ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
   }
   function ICO(p, s) { return '<svg xmlns="http://www.w3.org/2000/svg" width="' + (s || 15) + '" height="' + (s || 15) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; }
@@ -602,7 +630,7 @@ window.addEventListener('load', function () {
   css.textContent =
     '#pm-panel{position:fixed;top:14px;right:14px;width:300px;max-height:92vh;flex-direction:column;z-index:99999;background:#fff;border-radius:16px;box-shadow:0 18px 50px rgba(2,30,60,.32);font-family:system-ui,Arial,sans-serif;font-size:13px;color:#13324d;border:1px solid rgba(0,61,121,.08);overflow:hidden}' +
     '.pm-toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(10px);z-index:100000;background:#003d79;color:#fff;font-family:system-ui,Arial,sans-serif;font-size:13px;font-weight:600;padding:11px 20px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.28);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}.pm-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}' +
-    '.pm-ovl{position:fixed;inset:0;z-index:100000;background:rgba(8,24,44,.45);display:flex;align-items:center;justify-content:center;font-family:system-ui,Arial,sans-serif}.pm-dlg{background:#fff;border-radius:16px;padding:22px;max-width:340px;box-shadow:0 24px 70px rgba(0,0,0,.32)}.pm-dlg-msg{font-size:14px;color:#13324d;margin-bottom:18px;line-height:1.5}.pm-dlg-btns{display:flex;gap:10px;justify-content:flex-end}.pm-dlg button{font-size:13px;font-weight:700;border-radius:9px;padding:9px 18px;cursor:pointer;border:0}.pm-dlg-cancel{background:#eef3f8;color:#34495c}.pm-dlg-ok{background:#c0392b;color:#fff}' +
+    '.pm-ovl{position:fixed;inset:0;z-index:100000;background:rgba(8,24,44,.45);display:flex;align-items:center;justify-content:center;font-family:system-ui,Arial,sans-serif}.pm-dlg{background:#fff;border-radius:16px;padding:22px;max-width:340px;box-shadow:0 24px 70px rgba(0,0,0,.32)}.pm-dlg-msg{font-size:14px;color:#13324d;margin-bottom:18px;line-height:1.5}.pm-dlg-btns{display:flex;gap:10px;justify-content:flex-end}.pm-dlg button{font-size:13px;font-weight:700;border-radius:9px;padding:9px 18px;cursor:pointer;border:0}.pm-dlg-cancel{background:#eef3f8;color:#34495c}.pm-dlg-ok{background:#c0392b;color:#fff}.pm-dlg-input{width:100%;box-sizing:border-box;border:1px solid #cfd9e3;border-radius:9px;padding:10px 12px;font-size:14px;margin-bottom:16px;font-family:inherit}.pm-dlg-input:focus{outline:none;border-color:#0fa7e2}.pm-dlg-go{background:#0fa7e2!important}' +
     '#pm-dlpop{position:fixed;bottom:58px;left:14px;z-index:100000;background:#fff;border-radius:12px;box-shadow:0 12px 40px rgba(2,30,60,.3);display:none;flex-direction:column;overflow:hidden;border:1px solid rgba(0,61,121,.08);font-family:system-ui,Arial,sans-serif}#pm-dlpop.show{display:flex}#pm-dlpop .pm-dlbtn{display:flex;align-items:center;gap:9px;padding:12px 18px;background:#fff;border:0;font-size:13px;font-weight:600;color:#003d79;cursor:pointer;white-space:nowrap}#pm-dlpop .pm-dlbtn:hover{background:#f2f6fa}#pm-dlpop .pm-dlbtn+.pm-dlbtn{border-top:1px solid #eef1f5}#pm-dlpop svg{vertical-align:-2px}' +
     '#pm-panel .pm-h{font-weight:800;font-size:14px;padding:13px 16px;display:flex;gap:8px;align-items:center;cursor:grab;background:linear-gradient(135deg,#003d79,#0ab38c);color:#fff;user-select:none}' +
     '#pm-panel .pm-tag{background:rgba(255,255,255,.25);font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;margin-left:auto}' +
@@ -804,12 +832,13 @@ window.addEventListener('load', function () {
   window.pmExportPdf = pmExportPdf;
   window.pmHasEdits = function () { return !!(Object.keys(state.text).length || state.masked.length || Object.keys(state.opacity).length || state.slidesHidden.length); };
   window.pmCopyLink = function () {
-    var name = (window.prompt('Nom du client / entreprise (optionnel, pour suivre qui consulte) :', '') || '').trim();
-    var link = pmLink();
-    if (name) link += (link.indexOf('?') >= 0 ? '&' : '?') + 'to=' + encodeURIComponent(name);
-    copyLink(link);
-    track('deck_link_share', { hidden_count: state.slidesHidden.length, recipient: name || '' });
-    toast(name ? ('Lien pour « ' + name + ' » copié.') : 'Lien de votre version copié.');
+    promptDialog('À qui envoyez-vous ce lien ?', 'Nom du client / entreprise (optionnel)', 'Copier le lien', function (name) {
+      var link = pmLink();
+      if (name) link += (link.indexOf('?') >= 0 ? '&' : '?') + 'to=' + encodeURIComponent(name);
+      copyLink(link);
+      track('deck_link_share', { hidden_count: state.slidesHidden.length, recipient: name || '' });
+      toast(name ? ('Lien pour « ' + name + ' » copié.') : 'Lien copié.');
+    });
   };
 
   (function () { var h = document.getElementById('pm-drag'), down = false, ox = 0, oy = 0; h.addEventListener('mousedown', function (e) { down = true; var r = panel.getBoundingClientRect(); panel.style.right = 'auto'; panel.style.left = r.left + 'px'; panel.style.top = r.top + 'px'; ox = e.clientX - r.left; oy = e.clientY - r.top; e.preventDefault(); }); document.addEventListener('mousemove', function (e) { if (!down) return; panel.style.left = (e.clientX - ox) + 'px'; panel.style.top = (e.clientY - oy) + 'px'; }); document.addEventListener('mouseup', function () { down = false; }); })();
