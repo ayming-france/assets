@@ -397,10 +397,26 @@ window.addEventListener('load', function () {
       return role;
     } catch (e) { return 'rep'; }
   })();
+  // Optional client identity set by the rep on the share link as "?to=<company>".
+  // A company name is not personal data; it rides in the tracking payload via
+  // umami.identify (stamps the session's Distinct ID) and tags events. Sticky
+  // for the session so it survives navigation / stripping to the hub.
+  var AY_RECIPIENT = '';
+  try {
+    var _m = location.search.match(/[?&]to=([^&]+)/);
+    AY_RECIPIENT = _m ? decodeURIComponent(_m[1]) : '';
+    if (AY_RECIPIENT) sessionStorage.setItem('ay-to', AY_RECIPIENT);
+    else AY_RECIPIENT = sessionStorage.getItem('ay-to') || '';
+  } catch (e) {}
+  (function ayIdentify() {
+    if (!AY_RECIPIENT) return;
+    if (window.umami && window.umami.identify) { try { window.umami.identify(AY_RECIPIENT, { role: AY_ROLE }); } catch (e) {} }
+    else setTimeout(ayIdentify, 300);
+  })();
   function track(event, detail) {
     window.dataLayer.push(Object.assign({ event: event }, detail || {}));
-    // Bridge every deck event into Umami, tagged with the audience role.
-    try { if (window.umami && window.umami.track) window.umami.track(event, Object.assign({ role: AY_ROLE }, detail || {})); } catch (e) { }
+    // Bridge every deck event into Umami, tagged with role (+ recipient if set).
+    try { if (window.umami && window.umami.track) window.umami.track(event, Object.assign({ role: AY_ROLE }, AY_RECIPIENT ? { recipient: AY_RECIPIENT } : {}, detail || {})); } catch (e) { }
     var l = document.getElementById('pm-log');
     if (l) { var d = document.createElement('div'); d.className = 'pm-log-line'; d.innerHTML = '<span class="pm-dot"></span>'; d.appendChild(document.createTextNode(event + '  ' + JSON.stringify(detail || {}))); l.prepend(d); }
   }
@@ -787,7 +803,14 @@ window.addEventListener('load', function () {
   window.pmExportPptx = pmExportPptx;
   window.pmExportPdf = pmExportPdf;
   window.pmHasEdits = function () { return !!(Object.keys(state.text).length || state.masked.length || Object.keys(state.opacity).length || state.slidesHidden.length); };
-  window.pmCopyLink = function () { copyLink(pmLink()); track('deck_link_share', { hidden_count: state.slidesHidden.length }); toast('Lien de votre version copié.'); };
+  window.pmCopyLink = function () {
+    var name = (window.prompt('Nom du client / entreprise (optionnel, pour suivre qui consulte) :', '') || '').trim();
+    var link = pmLink();
+    if (name) link += (link.indexOf('?') >= 0 ? '&' : '?') + 'to=' + encodeURIComponent(name);
+    copyLink(link);
+    track('deck_link_share', { hidden_count: state.slidesHidden.length, recipient: name || '' });
+    toast(name ? ('Lien pour « ' + name + ' » copié.') : 'Lien de votre version copié.');
+  };
 
   (function () { var h = document.getElementById('pm-drag'), down = false, ox = 0, oy = 0; h.addEventListener('mousedown', function (e) { down = true; var r = panel.getBoundingClientRect(); panel.style.right = 'auto'; panel.style.left = r.left + 'px'; panel.style.top = r.top + 'px'; ox = e.clientX - r.left; oy = e.clientY - r.top; e.preventDefault(); }); document.addEventListener('mousemove', function (e) { if (!down) return; panel.style.left = (e.clientX - ox) + 'px'; panel.style.top = (e.clientY - oy) + 'px'; }); document.addEventListener('mouseup', function () { down = false; }); })();
 
