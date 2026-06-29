@@ -525,7 +525,7 @@ window.addEventListener('load', function () {
     // Snapshot the text as it was when first made editable, so each edit event
     // can report what it changed from -> to (truncated for analytics).
     if (el.dataset.pmOrig === undefined) el.dataset.pmOrig = (el.innerText || '').replace(/\s+/g, ' ').trim();
-    el.addEventListener('input', function () { clearTimeout(t); t = setTimeout(function () { var k = elPath(el); state.text[k] = el.innerHTML; autosave(); track('deck_field_edit', { field: fieldName(el), slide: slideIndex(el), title: slideTitle(el.closest('.slide')), before: (el.dataset.pmOrig || '').slice(0, 100), after: (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 100) }); }, 500); });
+    el.addEventListener('input', function () { clearTimeout(t); t = setTimeout(function () { var k = elPath(el); state.text[k] = el.innerHTML; autosave(); track('deck_field_edit', { field: fieldName(el), slide: slideIndex(el), title: slideTitle(el.closest('.slide')), before: (el.dataset.pmOrig || '').slice(0, 500), after: (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 500) }); }, 500); });
     el.addEventListener('keydown', function (e) { e.stopPropagation(); });
   }
   function applyMode(m) {
