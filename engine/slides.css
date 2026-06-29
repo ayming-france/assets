@@ -2892,3 +2892,10 @@
 .client-logos img.lg-trim { height:21px; }
 .client-logos img.lg-boost { height:34px; }
 .client-logos img.lg-xl { height:46px; }
+
+/* ==== Shared certification strip on every cover (rendered by slides.js into .cover-right) ==== */
+.cover .cover-right { position:relative; }
+.cover .cover-right::after { content:''; position:absolute; left:0; right:0; bottom:0; height:42%; background:linear-gradient(to top, #fff 4%, rgba(255,255,255,0.92) 30%, rgba(255,255,255,0) 100%); z-index:3; pointer-events:none; }
+.cover .cover-right .cert-strip { position:absolute; left:10px; right:30px; bottom:24px; z-index:4; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:18px; }
+.cover .cert-chip { background:none; box-shadow:none; padding:0; display:inline-flex; align-items:center; }
+.cover .cert-chip img { height:60px; width:auto; object-fit:contain; display:block; }

@@ -83,6 +83,26 @@ const CLIENTS_SLIDE = {
   } catch (e) { if (window.console) console.warn('shared clients slide render failed', e); }
 })();
 
+/* ============================================================================
+   Shared certification strip on every deck's cover. Renders the badges into the
+   cover's .cover-right (over the photo, on a white gradient). Single source: edit
+   CERT_BADGES once here. Guarded: never breaks a deck.
+   ========================================================================== */
+const CERT_BADGES = ['afaq-iso-9001', 'afaq-iso-27001', 'rse-iso-26000', 'opqcm', 'qualiopi', 'un-global-compact', 'ecovadis'];
+(function renderCertStrip() {
+  try {
+    var cr = document.querySelector('.slide.cover .cover-right');
+    if (!cr || cr.querySelector('.cert-strip')) return;
+    var base = 'https://ayming-france.github.io/assets/imagery/certifications/';
+    var strip = document.createElement('div');
+    strip.className = 'cert-strip';
+    strip.innerHTML = CERT_BADGES.map(function (s) {
+      return '<span class="cert-chip"><img src="' + base + s + '.png" alt="' + s + '"></span>';
+    }).join('');
+    cr.appendChild(strip);
+  } catch (e) { if (window.console) console.warn('cert strip render failed', e); }
+})();
+
 let currentSlide = 0;
 const slides = document.querySelectorAll('.slide');
 const navItems = document.querySelectorAll('.nav-item');
@@ -885,6 +905,10 @@ window.addEventListener('load', function () {
 
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'e' && e.key !== 'E') return;
+    // A "?pm=" link is what a rep shares with a client: editing is disabled on it,
+    // so the client can never alter the deck and every edit event is guaranteed to
+    // originate from a rep editing their own working copy (the bare deck URL).
+    if (/[?&]pm=/.test(location.search)) return;
     var t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
     e.stopPropagation();
     var opening = panel.style.display === 'none';
