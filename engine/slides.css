@@ -1,3 +1,5 @@
+/* Brand design system (single source of truth): DESIGN.md in the ayming-workspace repo root.
+   These :root tokens are the reference implementation it mirrors. Keep them in sync. */
 :root {
       --blue-primary: #11a9e6;
       --blue-accent: #0da4e8;
