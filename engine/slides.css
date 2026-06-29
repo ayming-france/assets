@@ -2882,3 +2882,13 @@
 .pdf-popover a:hover { color: var(--blue-primary); }
 .pdf-popover a + a { border-top: 1px solid rgba(0, 0, 0, 0.08); }
 .pdf-popover svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+/* ==== Shared "Clients par secteur" slide (rendered by slides.js into [data-shared="clients"]) ==== */
+.clients-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:13px 15px; width:100%; max-width:1060px; margin:0 auto; }
+.client-sector { display:flex; flex-direction:column; border:1px solid var(--bg-subtle); border-radius:11px; padding:0 12px 10px; background:#fff; box-shadow:var(--shadow-sm); overflow:hidden; }
+.client-sector h4 { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#fff; text-align:center; margin:0 -12px 10px; padding:7px 10px; background:var(--gradient-brand-horizontal); }
+.client-logos { flex:1 1 auto; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; align-content:center; gap:12px 8px; }
+.client-logos img { flex:0 0 calc(33.333% - 8px); max-width:calc(33.333% - 8px); min-width:0; height:27px; object-fit:contain; display:block; }
+.client-logos img.lg-trim { height:21px; }
+.client-logos img.lg-boost { height:34px; }
+.client-logos img.lg-xl { height:46px; }

@@ -43,6 +43,46 @@
   } catch (e) { /* never let analytics break the deck */ }
 })();
 
+/* ============================================================================
+   Shared "Clients par secteur" slide — single source for every deck.
+   A deck opts in with: <section class="slide" data-chapter="clients" data-shared="clients"></section>
+   Edit CLIENTS_SLIDE below once here and all decks update. Guarded: never breaks decks.
+   ========================================================================== */
+const CLIENTS_SLIDE = {
+  title: 'Plus de 2 500 clients nous font confiance',
+  base: 'https://ayming-france.github.io/assets/imagery/clients/',
+  // "file.ext" or "file.ext|cssClass" (lg-trim wide wordmarks, lg-boost compact emblems, lg-xl detailed)
+  sectors: [
+    ['Agroalimentaire', ['bonduelle.svg|lg-boost', 'andros.png', 'unilever.svg', 'lindt.svg', 'haribo.svg', 'arterris.svg', 'cooperl.png', 'terrena.png|lg-boost']],
+    ['Distribution & Commerce', ['intermarche.svg', 'systeme-u.svg', 'leclerc.svg', 'casino.svg', 'sodexo.svg|lg-trim', 'accor.svg|lg-trim', 'loreal.svg|lg-trim', 'lvmh.svg|lg-trim', 'ikea.svg']],
+    ['Industrie', ['seb.svg|lg-boost', 'engie.svg', 'edf.svg', 'legrand.svg', 'nexans.svg', 'arcelormittal.svg', 'knauf.svg', 'mersen.svg', 'hermes.svg']],
+    ['BTP & Construction', ['vinci.svg', 'bouygues.svg', 'eiffage.svg', 'fayat.png', 'nge.svg', 'spie-batignolles.svg', 'otis.svg|lg-trim']],
+    ['Transport & Logistique', ['transdev.svg', 'sncf.svg', 'cmacgm.svg', 'jacky-perrenot.png', 'gls.svg', 'airfrance-klm.svg|lg-trim']],
+    ['Santé & Pharma', ['pierre-fabre.png', 'vivalto.png|lg-boost', 'baxter.svg|lg-trim', 'virbac.svg', 'delpharm.png', 'gsk.png', 'elsan.png']],
+    ['Services & Finance', ['veolia.svg', 'suez.svg', 'credit-agricole.svg', 'credit-mutuel.svg', 'cdc.svg', 'laposte.svg', 'nicollin.png']],
+    ['Technologies & Médias', ['thales.svg|lg-trim', 'orange.svg', 'solocal.svg', 'sqli.png']],
+    ['Public & ESS', ['omnes.svg', 'upjv.png|lg-boost', 'oppbtp.png|lg-boost', 'aftral.svg', 'min-culture.png|lg-xl']]
+  ]
+};
+(function renderSharedClients() {
+  try {
+    var ph = document.querySelector('section[data-shared="clients"]');
+    if (!ph || ph.getAttribute('data-rendered')) return;
+    var cards = CLIENTS_SLIDE.sectors.map(function (s) {
+      var imgs = s[1].map(function (l) {
+        var p = l.split('|'), file = p[0], cls = p[1] ? ' class="' + p[1] + '"' : '';
+        return '<img src="' + CLIENTS_SLIDE.base + file + '" alt="' + file.replace(/\.[^.]+$/, '') + '"' + cls + '>';
+      }).join('');
+      return '<div class="client-sector"><h4>' + s[0] + '</h4><div class="client-logos">' + imgs + '</div></div>';
+    }).join('');
+    ph.innerHTML =
+      '<div class="slide-inner"><h1 class="slide-title">' + CLIENTS_SLIDE.title + '</h1>' +
+      '<div class="clients-grid">' + cards + '</div></div>' +
+      '<div class="company-logo"><img src="https://www.ayming.fr/wp-content/uploads/sites/3/2025/07/Ayming.png" alt="Ayming"></div>';
+    ph.setAttribute('data-rendered', '1');
+  } catch (e) { if (window.console) console.warn('shared clients slide render failed', e); }
+})();
+
 let currentSlide = 0;
 const slides = document.querySelectorAll('.slide');
 const navItems = document.querySelectorAll('.nav-item');
