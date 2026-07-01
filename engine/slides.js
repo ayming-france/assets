@@ -591,7 +591,6 @@ window.addEventListener('load', function () {
   function applyMode(m) {
     mode = m; clearEditable();
     if (m === 'text') editableEls().forEach(function (el) { el.contentEditable = 'true'; el.style.outline = '2px dashed rgba(15,167,226,.9)'; el.style.outlineOffset = '2px'; el.style.cursor = 'text'; bindText(el); });
-    if (m) track('deck_edit_mode_toggle', { mode: m });
   }
 
   function updateHideBtn() { var b = document.getElementById('pm-hide'); if (b) b.textContent = (selected && selected.style.display === 'none') ? 'Démasquer' : 'Masquer'; }
@@ -642,20 +641,21 @@ window.addEventListener('load', function () {
     selectEl(blk);
   }, true);
   document.addEventListener('click', function (e) { var a = e.target.closest('a[href]'); if (a) track('deck_link_click', { href: a.href, slide: slideIndex(a) }); });
-  // Slide views + dwell time + deck-completed. When the active slide changes we
-  // log how long the PREVIOUS slide was on screen (deck_slide_time), then the new
-  // view (deck_slide_view); reaching the last slide fires deck_completed once.
+  // Dwell time per slide + deck-completed. One row per navigation: when the
+  // active slide changes we log how long the PREVIOUS slide was on screen
+  // (deck_slide_time, including sub-1s skips so the view still counts). This
+  // replaces the old separate deck_slide_view. Reaching the last slide fires
+  // deck_completed once.
   var _curSlide = null, _curEnter = 0, _curTitle = '', _completed = false;
   function flushSlideTime() {
     if (_curSlide === null) return;
     var secs = Math.round((Date.now() - _curEnter) / 1000);
-    if (secs >= 1 && secs < 3600) track('deck_slide_time', { slide: _curSlide + 1, title: _curTitle, seconds: secs });
+    if (secs >= 0 && secs < 3600) track('deck_slide_time', { slide: _curSlide + 1, title: _curTitle, seconds: secs });
   }
   function onSlideActive(s, i) {
     if (_curSlide === i) return;
     flushSlideTime();
     _curSlide = i; _curEnter = Date.now(); _curTitle = slideTitle(s);
-    track('deck_slide_view', { slide: i + 1, title: _curTitle, chapter: s.dataset.chapter || '' });
     if (i === slides.length - 1 && !_completed) { _completed = true; track('deck_completed', { slides: slides.length }); }
   }
   slides.forEach(function (s, i) { new MutationObserver(function () { if (s.classList.contains('active')) onSlideActive(s, i); }).observe(s, { attributes: true, attributeFilter: ['class'] }); });
