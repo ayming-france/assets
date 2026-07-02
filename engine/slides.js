@@ -668,15 +668,16 @@ window.addEventListener('load', function () {
   document.addEventListener('click', function (e) { var a = e.target.closest('a[href]'); if (a) track('deck_link_click', { href: a.href, slide: slideIndex(a) }); });
   // Dwell time per slide + deck-completed. When the active slide changes we log
   // how long the PREVIOUS slide was on screen (deck_slide_time), but only if it
-  // was dwelt on >= 3s so fly-through navigation stays out of the timeline.
+  // was dwelt on >= 5s: below that is a glance, not a read, so it stays out of
+  // the timeline. The exact seconds ride in the event for depth analysis.
   // Reaching the last slide fires deck_completed once.
   var _curSlide = null, _curEnter = 0, _curTitle = '', _completed = false;
   function flushSlideTime() {
     if (_curSlide === null) return;
     var secs = Math.round((Date.now() - _curEnter) / 1000);
-    // Only log slides the visitor actually dwelt on (>= 3s), so quick fly-through
-    // navigation doesn't flood the session timeline with events.
-    if (secs >= 3 && secs < 3600) track('deck_slide_time', { slide: _curSlide + 1, title: _curTitle, seconds: secs });
+    // Only log slides the visitor actually read (>= 5s), so quick glances and
+    // fly-through navigation don't flood the session timeline with events.
+    if (secs >= 5 && secs < 3600) track('deck_slide_time', { slide: _curSlide + 1, title: _curTitle, seconds: secs });
   }
   function onSlideActive(s, i) {
     if (_curSlide === i) return;
