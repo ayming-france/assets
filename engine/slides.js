@@ -39,7 +39,29 @@
     s.src = 'https://umami-analytics-three-fawn.vercel.app/script.js';
     s.setAttribute('data-website-id', 'b3424f11-6037-4c00-a72e-97dfdd6377a5');
     s.setAttribute('data-tag', role);
+    // Don't auto-send the pageview on load: gate it behind a human signal so
+    // link-scanners (email/chat security bots that fetch the URL and leave in
+    // <1s, from Dublin/Amsterdam datacenters) never create a session.
+    s.setAttribute('data-auto-track', 'false');
     (document.head || document.documentElement).appendChild(s);
+    // Fire ONE manual pageview on the first sign of a real human: an interaction
+    // (key/pointer/wheel/touch) or ~4s of visible presence. A scanner does
+    // neither. Custom events (slide_time, link_click, ...) also only fire on
+    // interaction, so a scanner that fetches and leaves stays entirely untracked.
+    var _pv = false, _sig = ['keydown', 'pointerdown', 'wheel', 'touchstart'];
+    function _firePv() {
+      if (_pv) return; _pv = true;
+      _sig.forEach(function (ev) { window.removeEventListener(ev, _firePv, true); });
+      (function go() {
+        if (window.umami && window.umami.track) { try { window.umami.track(); } catch (e) {} }
+        else setTimeout(go, 200);
+      })();
+    }
+    _sig.forEach(function (ev) { window.addEventListener(ev, _firePv, true); });
+    var _dw = 0, _iv = setInterval(function () {
+      if (document.visibilityState === 'visible') _dw += 500;
+      if (_pv || _dw >= 4000) { clearInterval(_iv); _firePv(); }
+    }, 500);
   } catch (e) { /* never let analytics break the deck */ }
 })();
 
@@ -644,16 +666,17 @@ window.addEventListener('load', function () {
     selectEl(blk);
   }, true);
   document.addEventListener('click', function (e) { var a = e.target.closest('a[href]'); if (a) track('deck_link_click', { href: a.href, slide: slideIndex(a) }); });
-  // Dwell time per slide + deck-completed. One row per navigation: when the
-  // active slide changes we log how long the PREVIOUS slide was on screen
-  // (deck_slide_time, including sub-1s skips so the view still counts). This
-  // replaces the old separate deck_slide_view. Reaching the last slide fires
-  // deck_completed once.
+  // Dwell time per slide + deck-completed. When the active slide changes we log
+  // how long the PREVIOUS slide was on screen (deck_slide_time), but only if it
+  // was dwelt on >= 3s so fly-through navigation stays out of the timeline.
+  // Reaching the last slide fires deck_completed once.
   var _curSlide = null, _curEnter = 0, _curTitle = '', _completed = false;
   function flushSlideTime() {
     if (_curSlide === null) return;
     var secs = Math.round((Date.now() - _curEnter) / 1000);
-    if (secs >= 0 && secs < 3600) track('deck_slide_time', { slide: _curSlide + 1, title: _curTitle, seconds: secs });
+    // Only log slides the visitor actually dwelt on (>= 3s), so quick fly-through
+    // navigation doesn't flood the session timeline with events.
+    if (secs >= 3 && secs < 3600) track('deck_slide_time', { slide: _curSlide + 1, title: _curTitle, seconds: secs });
   }
   function onSlideActive(s, i) {
     if (_curSlide === i) return;
@@ -930,6 +953,7 @@ window.addEventListener('load', function () {
     if (pmParam) { applyState(pmDecode(pmParam)); }
     else { var dr = localStorage.getItem('pm:draft:' + deckKey); if (dr) applyState(JSON.parse(dr)); }
   } catch (e) { }
-  track('deck_open', { deck: deckKey });
+  // No deck_open event: Umami's gated pageview already marks "opened this deck"
+  // (one URL per deck), so deck_open was a duplicate at the same timestamp.
   } catch (e) { if (window.console) console.warn('[perso] editor disabled:', e); }
 });
