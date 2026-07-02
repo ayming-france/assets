@@ -91,6 +91,9 @@ const CLIENTS_SLIDE = {
 const CERT_BADGES = ['afaq-iso-9001', 'afaq-iso-27001', 'rse-iso-26000', 'opqcm', 'qualiopi', 'un-global-compact', 'ecovadis'];
 (function renderCertStrip() {
   try {
+    // Only client-facing sales decks opt in (marked <body data-audience="client">).
+    // Internal decks that share the engine (e.g. performance-marketing, methode) stay clean.
+    if (document.body.getAttribute('data-audience') !== 'client') return;
     var cr = document.querySelector('.slide.cover .cover-right');
     if (!cr || cr.querySelector('.cert-strip')) return;
     var base = 'https://ayming-france.github.io/assets/imagery/certifications/';
