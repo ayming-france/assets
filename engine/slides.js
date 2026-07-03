@@ -24,7 +24,7 @@
     var slug = (location.pathname.split('/').filter(Boolean)[0] || '').toLowerCase();
     if (TRACKED.indexOf(slug) < 0) return; // not a client deck -> no analytics
     // Audience role, computed here so it rides as a native Umami TAG on every hit
-    // (including the automatic pageview) -> filterable dashboard-wide via Filter > Tag.
+    // (including the gated pageview) -> filterable dashboard-wide via Filter > Tag.
     var role = (function () {
       try {
         var stored = localStorage.getItem('ay-role');
@@ -494,26 +494,13 @@ window.addEventListener('load', function () {
       return role;
     } catch (e) { return 'rep'; }
   })();
-  // Optional client identity set by the rep on the share link as "?to=<company>".
-  // A company name is not personal data; it rides in the tracking payload via
-  // umami.identify (stamps the session's Distinct ID) and tags events. Sticky
-  // for the session so it survives navigation / stripping to the hub.
-  var AY_RECIPIENT = '';
-  try {
-    var _m = location.search.match(/[?&]to=([^&]+)/);
-    AY_RECIPIENT = _m ? decodeURIComponent(_m[1]) : '';
-    if (AY_RECIPIENT) sessionStorage.setItem('ay-to', AY_RECIPIENT);
-    else AY_RECIPIENT = sessionStorage.getItem('ay-to') || '';
-  } catch (e) {}
-  (function ayIdentify() {
-    if (!AY_RECIPIENT) return;
-    if (window.umami && window.umami.identify) { try { window.umami.identify(AY_RECIPIENT, { role: AY_ROLE }); } catch (e) {} }
-    else setTimeout(ayIdentify, 300);
-  })();
+  // No recipient / client name is ever captured or sent: a client's name can be
+  // an individual's name (PII). Share links carry no "?to=" identity; attribution
+  // stays at the anonymous shared-link level (role tag only).
   function track(event, detail) {
     window.dataLayer.push(Object.assign({ event: event }, detail || {}));
-    // Bridge every deck event into Umami, tagged with role + deck name (+ recipient).
-    try { if (window.umami && window.umami.track) window.umami.track(event, Object.assign({ role: AY_ROLE, deck: deckKey }, AY_RECIPIENT ? { recipient: AY_RECIPIENT } : {}, detail || {})); } catch (e) { }
+    // Bridge every deck event into Umami, tagged with role + deck name.
+    try { if (window.umami && window.umami.track) window.umami.track(event, Object.assign({ role: AY_ROLE, deck: deckKey }, detail || {})); } catch (e) { }
     var l = document.getElementById('pm-log');
     if (l) { var d = document.createElement('div'); d.className = 'pm-log-line'; d.innerHTML = '<span class="pm-dot"></span>'; d.appendChild(document.createTextNode(event + '  ' + JSON.stringify(detail || {}))); l.prepend(d); }
   }
@@ -717,7 +704,7 @@ window.addEventListener('load', function () {
   css.textContent =
     '#pm-panel{position:fixed;top:14px;right:14px;width:300px;max-height:92vh;flex-direction:column;z-index:99999;background:#fff;border-radius:16px;box-shadow:0 18px 50px rgba(2,30,60,.32);font-family:system-ui,Arial,sans-serif;font-size:13px;color:#13324d;border:1px solid rgba(0,61,121,.08);overflow:hidden}' +
     '.pm-toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(10px);z-index:100000;background:#003d79;color:#fff;font-family:system-ui,Arial,sans-serif;font-size:13px;font-weight:600;padding:11px 20px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.28);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}.pm-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}' +
-    '.pm-ovl{position:fixed;inset:0;z-index:100000;background:rgba(8,24,44,.45);display:flex;align-items:center;justify-content:center;font-family:system-ui,Arial,sans-serif}.pm-dlg{background:#fff;border-radius:16px;padding:22px;max-width:340px;box-shadow:0 24px 70px rgba(0,0,0,.32)}.pm-dlg-msg{font-size:14px;color:#13324d;margin-bottom:18px;line-height:1.5}.pm-dlg-btns{display:flex;gap:10px;justify-content:flex-end}.pm-dlg button{font-size:13px;font-weight:700;border-radius:9px;padding:9px 18px;cursor:pointer;border:0}.pm-dlg-cancel{background:#eef3f8;color:#34495c}.pm-dlg-ok{background:#c0392b;color:#fff}.pm-dlg-input{width:100%;box-sizing:border-box;border:1px solid #cfd9e3;border-radius:9px;padding:10px 12px;font-size:14px;margin-bottom:16px;font-family:inherit}.pm-dlg-input:focus{outline:none;border-color:#0fa7e2}.pm-dlg-go{background:#0fa7e2!important}' +
+    '.pm-ovl{position:fixed;inset:0;z-index:100000;background:rgba(8,24,44,.45);display:flex;align-items:center;justify-content:center;font-family:system-ui,Arial,sans-serif}.pm-dlg{background:#fff;border-radius:16px;padding:22px;max-width:340px;box-shadow:0 24px 70px rgba(0,0,0,.32)}.pm-dlg-msg{font-size:14px;color:#13324d;margin-bottom:18px;line-height:1.5}.pm-dlg-btns{display:flex;gap:10px;justify-content:flex-end}.pm-dlg button{font-size:13px;font-weight:700;border-radius:9px;padding:9px 18px;cursor:pointer;border:0}.pm-dlg-cancel{background:#eef3f8;color:#34495c}.pm-dlg-ok{background:#c0392b;color:#fff}.pm-dlg-input{width:100%;box-sizing:border-box;border:1px solid #cfd9e3;border-radius:9px;padding:10px 12px;font-size:14px;margin-bottom:16px;font-family:inherit}.pm-dlg-input:focus{outline:none;border-color:#0fa7e2}.pm-dlg-go{background:#0fa7e2!important}.pm-share{max-width:400px;padding:26px;text-align:left}.pm-share-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#11a9e6,#0ab38c);color:#fff;margin-bottom:15px}.pm-dlg-title{font-size:17px;font-weight:800;color:#0e2438;margin-bottom:6px}.pm-dlg-sub{font-size:13px;color:#5b7085;line-height:1.5;margin-bottom:16px}.pm-share-field{background:#f5f8fb;color:#4a5f73;cursor:text;text-overflow:ellipsis}.pm-dlg-go:hover{filter:brightness(1.06)}.pm-dlg-cancel:hover{background:#e3ebf2}' +
     '#pm-dlpop{position:fixed;bottom:58px;left:14px;z-index:100000;background:#fff;border-radius:12px;box-shadow:0 12px 40px rgba(2,30,60,.3);display:none;flex-direction:column;overflow:hidden;border:1px solid rgba(0,61,121,.08);font-family:system-ui,Arial,sans-serif}#pm-dlpop.show{display:flex}#pm-dlpop .pm-dlbtn{display:flex;align-items:center;gap:9px;padding:12px 18px;background:#fff;border:0;font-size:13px;font-weight:600;color:#003d79;cursor:pointer;white-space:nowrap}#pm-dlpop .pm-dlbtn:hover{background:#f2f6fa}#pm-dlpop .pm-dlbtn+.pm-dlbtn{border-top:1px solid #eef1f5}#pm-dlpop svg{vertical-align:-2px}' +
     '#pm-panel .pm-h{font-weight:800;font-size:14px;padding:13px 16px;display:flex;gap:8px;align-items:center;cursor:grab;background:linear-gradient(135deg,#003d79,#0ab38c);color:#fff;user-select:none}' +
     '#pm-panel .pm-tag{background:rgba(255,255,255,.25);font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;margin-left:auto}' +
@@ -919,13 +906,25 @@ window.addEventListener('load', function () {
   window.pmExportPdf = pmExportPdf;
   window.pmHasEdits = function () { return !!(Object.keys(state.text).length || state.masked.length || Object.keys(state.opacity).length || state.slidesHidden.length); };
   window.pmCopyLink = function () {
-    promptDialog('À qui envoyez-vous ce lien ?', 'Nom du client / entreprise (optionnel)', 'Copier le lien', function (name) {
-      var link = pmLink();
-      if (name) link += (link.indexOf('?') >= 0 ? '&' : '?') + 'to=' + encodeURIComponent(name);
-      copyLink(link);
-      track('deck_link_share', { hidden_count: state.slidesHidden.length, recipient: name || '' });
-      toast(name ? ('Lien pour « ' + name + ' » copié.') : 'Lien copié.');
-    });
+    var link = pmLink();
+    var ov = document.createElement('div'); ov.className = 'pm-ovl';
+    ov.innerHTML = '<div class="pm-dlg pm-share">'
+      + '<div class="pm-share-icon">' + LINK_ICON + '</div>'
+      + '<div class="pm-dlg-title">Partager ce deck</div>'
+      + '<div class="pm-dlg-sub">Ce lien ouvre votre version personnalisée et permet d’en suivre la consultation.</div>'
+      + '<input class="pm-dlg-input pm-share-field" type="text" readonly>'
+      + '<div class="pm-dlg-btns"><button class="pm-dlg-cancel">Fermer</button><button class="pm-dlg-go">Copier le lien</button></div>'
+      + '</div>';
+    var input = ov.querySelector('.pm-share-field'); input.value = link;
+    document.body.appendChild(ov);
+    function close() { ov.remove(); }
+    function go() { copyLink(link); track('deck_link_share', { hidden_count: state.slidesHidden.length }); toast('Lien copié.'); close(); }
+    ov.querySelector('.pm-dlg-cancel').addEventListener('click', close);
+    ov.querySelector('.pm-dlg-go').addEventListener('click', go);
+    input.addEventListener('focus', function () { input.select(); });
+    input.addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Escape') close(); });
+    ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+    setTimeout(function () { input.focus(); }, 50);
   };
 
   (function () { var h = document.getElementById('pm-drag'), down = false, ox = 0, oy = 0; h.addEventListener('mousedown', function (e) { down = true; var r = panel.getBoundingClientRect(); panel.style.right = 'auto'; panel.style.left = r.left + 'px'; panel.style.top = r.top + 'px'; ox = e.clientX - r.left; oy = e.clientY - r.top; e.preventDefault(); }); document.addEventListener('mousemove', function (e) { if (!down) return; panel.style.left = (e.clientX - ox) + 'px'; panel.style.top = (e.clientY - oy) + 'px'; }); document.addEventListener('mouseup', function () { down = false; }); })();
