@@ -12,6 +12,7 @@
     // personal decks (marketing dashboards, lead prioritization, abo-dat, the
     // hub homepage, ...) also load this shared engine but are excluded. Add a
     // slug here when a new CLIENT deck goes live.
+    // TRACKED-START (généré par sync_tracked.py)
     var TRACKED = [
       'declarer-un-accident-du-travail', 'collecte-et-traitement-des-arrets',
       'aides-apprentissage', 'maitrise-des-charges-sociales',
@@ -21,6 +22,7 @@
       'gestion-des-atmp', 'pilotage-arrets-longue-duree', 'veille-net-entreprises',
       'duerp', 'accidents-tiers', 'cotisations-atmp', 'remboursements-ijss'
     ];
+    // TRACKED-END
     var slug = (location.pathname.split('/').filter(Boolean)[0] || '').toLowerCase();
     if (TRACKED.indexOf(slug) < 0) return; // not a client deck -> no analytics
     // Audience role, computed here so it rides as a native Umami TAG on every hit
@@ -505,6 +507,16 @@ window.addEventListener('load', function () {
     if (AY_RECIPIENT) sessionStorage.setItem('ay-to', AY_RECIPIENT);
     else AY_RECIPIENT = sessionStorage.getItem('ay-to') || '';
   } catch (e) {}
+  // Rep identity: the commercial's own first name, remembered locally on their
+  // browser so every event they trigger carries "who". A share link can also
+  // carry "?by=<prénom>" so a client's later events are credited to the rep who
+  // sent the link (attribution, not identification of the client).
+  var AY_REP = '';
+  try { AY_REP = localStorage.getItem('ay-rep') || ''; } catch (e) {}
+  try {
+    var _mb = location.search.match(/[?&]by=([^&]+)/);
+    if (_mb) sessionStorage.setItem('ay-by', decodeURIComponent(_mb[1]));
+  } catch (e) {}
   (function ayIdentify() {
     if (!AY_RECIPIENT) return;
     if (window.umami && window.umami.identify) { try { window.umami.identify(AY_RECIPIENT, { role: AY_ROLE }); } catch (e) {} }
@@ -512,8 +524,14 @@ window.addEventListener('load', function () {
   })();
   function track(event, detail) {
     window.dataLayer.push(Object.assign({ event: event }, detail || {}));
-    // Bridge every deck event into Umami, tagged with role + deck name (+ company).
-    try { if (window.umami && window.umami.track) window.umami.track(event, Object.assign({ role: AY_ROLE, deck: deckKey }, AY_RECIPIENT ? { recipient: AY_RECIPIENT } : {}, detail || {})); } catch (e) { }
+    // Attribute the event to a rep: their own first name when they are logged
+    // in as "rep", else the name of the rep who shared the "?by=" link with
+    // this client.
+    var repTag = '';
+    if (AY_ROLE === 'rep' && AY_REP) repTag = AY_REP;
+    else if (AY_ROLE === 'client') { try { repTag = sessionStorage.getItem('ay-by') || ''; } catch (e) {} }
+    // Bridge every deck event into Umami, tagged with role + deck name (+ company + rep).
+    try { if (window.umami && window.umami.track) window.umami.track(event, Object.assign({ role: AY_ROLE, deck: deckKey }, AY_RECIPIENT ? { recipient: AY_RECIPIENT } : {}, repTag ? { rep: repTag } : {}, detail || {})); } catch (e) { }
     var l = document.getElementById('pm-log');
     if (l) { var d = document.createElement('div'); d.className = 'pm-log-line'; d.innerHTML = '<span class="pm-dot"></span>'; d.appendChild(document.createTextNode(event + '  ' + JSON.stringify(detail || {}))); l.prepend(d); }
   }
@@ -546,6 +564,37 @@ window.addEventListener('load', function () {
     ov.querySelector('.pm-dlg-go').addEventListener('click', go);
     input.addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Enter') go(); else if (e.key === 'Escape') close(); });
     ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+  }
+  // One-time prompt asking the rep's first name, so every event they trigger
+  // (and every client event on a link they later share) can be credited to
+  // them. Cancelling just closes the dialog, it never blocks whatever the
+  // rep was trying to do.
+  function askRep(onDone) {
+    var ov = document.createElement('div'); ov.className = 'pm-ovl';
+    ov.innerHTML = '<div class="pm-dlg pm-share">'
+      + '<div class="pm-dlg-title">Votre prénom</div>'
+      + '<div class="pm-dlg-sub">Une seule fois : votre prénom permet de suivre l’usage des decks par commercial.</div>'
+      + '<input class="pm-dlg-input" type="text" placeholder="Prénom">'
+      + '<div class="pm-dlg-btns"><button class="pm-dlg-cancel">Annuler</button><button class="pm-dlg-go">Confirmer</button></div>'
+      + '</div>';
+    var input = ov.querySelector('.pm-dlg-input');
+    document.body.appendChild(ov);
+    setTimeout(function () { input.focus(); }, 50);
+    // Every exit path continues to onDone: declining to give a name must never
+    // block the action the rep was in the middle of (sharing, editing).
+    function finish() { ov.remove(); if (onDone) onDone(); }
+    function go() {
+      var v = input.value.trim();
+      if (v) {
+        try { localStorage.setItem('ay-rep', v); } catch (e) {}
+        AY_REP = v;
+      }
+      finish();
+    }
+    ov.querySelector('.pm-dlg-cancel').addEventListener('click', finish);
+    ov.querySelector('.pm-dlg-go').addEventListener('click', go);
+    input.addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Enter') go(); else if (e.key === 'Escape') finish(); });
+    ov.addEventListener('click', function (e) { if (e.target === ov) finish(); });
   }
   function ICO(p, s) { return '<svg xmlns="http://www.w3.org/2000/svg" width="' + (s || 15) + '" height="' + (s || 15) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; }
   var ICON = {
@@ -672,22 +721,74 @@ window.addEventListener('load', function () {
   // the timeline. The exact seconds ride in the event for depth analysis.
   // Reaching the last slide fires deck_completed once.
   var _curSlide = null, _curEnter = 0, _curTitle = '', _completed = false;
+  // Per-session read state, built up alongside the per-slide dwell events:
+  // _readMap accumulates seconds per slide across re-visits, _maxSlide is the
+  // furthest slide reached, _lastReadSent dedupes the deck_read summary below.
+  var _readMap = {}, _maxSlide = 0, _lastReadSent = '';
   function flushSlideTime() {
     if (_curSlide === null) return;
     var secs = Math.round((Date.now() - _curEnter) / 1000);
+    // Accumulate every visit's dwell into the read map regardless of the 5s
+    // threshold below, the deck_read summary needs the true total even if no
+    // single visit counts as a "read" on its own.
+    if (secs > 0) _readMap[_curSlide] = (_readMap[_curSlide] || 0) + secs;
     // Only log slides the visitor actually read (>= 5s), so quick glances and
     // fly-through navigation don't flood the session timeline with events.
     if (secs >= 5 && secs < 3600) track('deck_slide_time', { slide: _curSlide + 1, title: _curTitle, seconds: secs });
+  }
+  // Session-level "how much of this deck did they actually read" summary, sent
+  // once per meaningful change on tab-hide/close rather than per slide.
+  function readSummary() {
+    var slidesSeen = 0, total = 0, top = 0, topSecs = 0;
+    for (var k in _readMap) {
+      if (!_readMap.hasOwnProperty(k)) continue;
+      var v = _readMap[k];
+      if (v >= 2) slidesSeen++;
+      total += v;
+      if (v > topSecs) { topSecs = v; top = +k; }
+    }
+    if (total > 3600) total = 3600;
+    return {
+      max_slide: _maxSlide + 1,
+      slides_seen: slidesSeen,
+      total_slides: slides.length,
+      pct_read: Math.round(100 * slidesSeen / slides.length),
+      seconds_total: total,
+      top_slide: top + 1,
+      top_seconds: topSecs
+    };
+  }
+  function sendReadSummary() {
+    var summary = readSummary();
+    // A sub-second visibility flip has nothing to say: skip empty summaries.
+    if (!summary.seconds_total && !summary.slides_seen) return;
+    var snap = JSON.stringify(summary);
+    if (snap === _lastReadSent) return;
+    _lastReadSent = snap;
+    track('deck_read', summary);
   }
   function onSlideActive(s, i) {
     if (_curSlide === i) return;
     flushSlideTime();
     _curSlide = i; _curEnter = Date.now(); _curTitle = slideTitle(s);
+    if (i > _maxSlide) _maxSlide = i;
     if (i === slides.length - 1 && !_completed) { _completed = true; track('deck_completed', { slides: slides.length }); }
   }
   slides.forEach(function (s, i) { new MutationObserver(function () { if (s.classList.contains('active')) onSlideActive(s, i); }).observe(s, { attributes: true, attributeFilter: ['class'] }); });
-  // Flush the final slide's time when the tab is hidden or closed.
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') { flushSlideTime(); _curSlide = null; } });
+  // Seed the tracker with the slide already active at load: the observers only
+  // fire on a class CHANGE, so without this the first slide's dwell is
+  // invisible until the visitor navigates once (most client opens never do).
+  function seedActiveSlide() { slides.forEach(function (s, i) { if (s.classList.contains('active') && _curSlide !== i) { _curSlide = i; _curEnter = Date.now(); _curTitle = slideTitle(s); if (i > _maxSlide) _maxSlide = i; } }); }
+  seedActiveSlide();
+  // Flush the final slide's time when the tab is hidden or closed, then send
+  // the deck_read summary (Umami's tracker uses keepalive, so this is safe on
+  // pagehide too). Coming back re-arms the dwell clock on the current slide,
+  // otherwise the rest of the visit would go uncounted until a navigation.
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') { flushSlideTime(); _curSlide = null; sendReadSummary(); }
+    else if (document.visibilityState === 'visible' && _curSlide === null) seedActiveSlide();
+  });
+  window.addEventListener('pagehide', function () { flushSlideTime(); sendReadSummary(); });
 
   function sec(id, icon, title, extra, body) { return '<div class="pm-acc" data-sec="' + id + '"><div class="pm-achead">' + icon + ' <span>' + title + '</span>' + (extra || '') + ICO('<path d="m6 9 6 6 6-6"/>', 16) + '</div><div class="pm-acbody">' + body + '</div></div>'; }
   var panel = document.createElement('div'); panel.id = 'pm-panel';
@@ -918,7 +1019,14 @@ window.addEventListener('load', function () {
   window.pmExportPptx = pmExportPptx;
   window.pmExportPdf = pmExportPdf;
   window.pmHasEdits = function () { return !!(Object.keys(state.text).length || state.masked.length || Object.keys(state.opacity).length || state.slidesHidden.length); };
+  // The rep must be identified before a link goes out, so any client event on
+  // it can be credited back to them. Chained (never stacked): the "who are
+  // you" prompt closes before the share dialog opens.
   window.pmCopyLink = function () {
+    if (!AY_REP) { askRep(openShareDialog); return; }
+    openShareDialog();
+  };
+  function openShareDialog() {
     var ov = document.createElement('div'); ov.className = 'pm-ovl';
     ov.innerHTML = '<div class="pm-dlg pm-share">'
       + '<div class="pm-share-icon">' + ICO('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>', 20) + '</div>'
@@ -934,6 +1042,7 @@ window.addEventListener('load', function () {
       var name = input.value.trim();
       var link = pmLink();
       if (name) link += (link.indexOf('?') >= 0 ? '&' : '?') + 'to=' + encodeURIComponent(name);
+      if (AY_REP) link += '&by=' + encodeURIComponent(AY_REP);
       copyLink(link);
       track('deck_link_share', { hidden_count: state.slidesHidden.length, recipient: name || '' });
       toast(name ? ('Lien pour « ' + name + ' » copié.') : 'Lien copié.');
@@ -944,10 +1053,11 @@ window.addEventListener('load', function () {
     input.addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Enter') go(); else if (e.key === 'Escape') close(); });
     ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
     setTimeout(function () { input.focus(); }, 50);
-  };
+  }
 
   (function () { var h = document.getElementById('pm-drag'), down = false, ox = 0, oy = 0; h.addEventListener('mousedown', function (e) { down = true; var r = panel.getBoundingClientRect(); panel.style.right = 'auto'; panel.style.left = r.left + 'px'; panel.style.top = r.top + 'px'; ox = e.clientX - r.left; oy = e.clientY - r.top; e.preventDefault(); }); document.addEventListener('mousemove', function (e) { if (!down) return; panel.style.left = (e.clientX - ox) + 'px'; panel.style.top = (e.clientY - oy) + 'px'; }); document.addEventListener('mouseup', function () { down = false; }); })();
 
+  var _repAsked = false;
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'e' && e.key !== 'E') return;
     // A "?pm=" link is what a rep shares with a client: editing is disabled on it,
@@ -960,7 +1070,12 @@ window.addEventListener('load', function () {
     panel.style.display = opening ? 'flex' : 'none';
     // Opening the editor is a definitive Sales signal: lock this browser to "rep"
     // (corrects any earlier client tag from previewing a ?pm= link).
-    if (opening) { try { localStorage.setItem('ay-role', 'rep'); AY_ROLE = 'rep'; } catch (ex) {} }
+    if (opening) {
+      try { localStorage.setItem('ay-role', 'rep'); AY_ROLE = 'rep'; } catch (ex) {}
+      // Ask the rep's first name once per page load. The editor opens either
+      // way, this never gates access to it.
+      if (!AY_REP && !_repAsked) { _repAsked = true; askRep(function () {}); }
+    }
   }, true);
 
   // restore auto-draft from a previous session, then render lists
