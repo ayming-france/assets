@@ -102,7 +102,7 @@ const CLIENTS_SLIDE = {
     ph.innerHTML =
       '<div class="slide-inner"><h1 class="slide-title">' + CLIENTS_SLIDE.title + '</h1>' +
       '<div class="clients-grid">' + cards + '</div></div>' +
-      '<div class="company-logo"><img src="https://www.ayming.fr/wp-content/uploads/sites/3/2025/07/Ayming.png" alt="Ayming"></div>';
+      '<div class="company-logo"><img src="https://ayming-france.github.io/assets/logos/ayming-logo.png" alt="Ayming"></div>';
     ph.setAttribute('data-rendered', '1');
   } catch (e) { if (window.console) console.warn('shared clients slide render failed', e); }
 })();
@@ -146,7 +146,7 @@ let bannerCounter = null;
 (function injectBrandBanner() {
   try {
     const logoSrc = (document.querySelector('.nav-logo img, .company-logo img') || {}).src
-      || 'https://www.ayming.fr/wp-content/uploads/sites/3/2025/07/Ayming.png';
+      || 'https://ayming-france.github.io/assets/logos/ayming-logo.png';
     const svg = (inner) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
       + 'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>';
     const banner = document.createElement('div');
