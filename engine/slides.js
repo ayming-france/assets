@@ -419,6 +419,15 @@ if (keyPrev) keyPrev.addEventListener('click', prevSlide);
 if (keyNext) keyNext.addEventListener('click', nextSlide);
 if (keyFs) keyFs.addEventListener('click', toggleFullscreen);
 
+// Links during a fullscreen presentation: a new tab opened from a fullscreen
+// page stays hidden behind it, so a CTA looks dead. Drop the deck out of
+// fullscreen on any link click; the native target="_blank" then opens and
+// focuses the tab normally. No preventDefault, so nothing gets popup-blocked.
+document.addEventListener('click', e => {
+  const a = e.target.closest && e.target.closest('a[href]');
+  if (a && document.fullscreenElement) { try { document.exitFullscreen(); } catch (x) {} }
+}, false);
+
 // Touch swipe
 let touchStartX = 0;
 document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; });
@@ -1089,6 +1098,13 @@ window.addEventListener('load', function () {
       // Ask the rep's first name once per page load. The editor opens either
       // way, this never gates access to it.
       if (!AY_REP && !_repAsked) { _repAsked = true; askRep(function () {}); }
+    } else {
+      // Closing the editor must fully return to view mode. Collapse the
+      // accordions and clear the active mode so no element stays editable or
+      // selectable: otherwise clicks keep getting highlighted and links stop
+      // opening while the panel is hidden.
+      panel.querySelectorAll('.pm-acc').forEach(function (a) { a.classList.remove('open'); });
+      applyMode(null);
     }
   }, true);
 
