@@ -136,6 +136,20 @@ const navItems = document.querySelectorAll('.nav-item');
 const counter = document.querySelector('.slide-counter');
 const totalSlides = slides.length;
 
+// ===== Legacy logo repoint =====
+// Older deck HTML hardcodes the Ayming nav logo as a wp-content URL on
+// ayming.fr, outside our control. Repoint any such image to the copy hosted in
+// this assets repo, before the brand banner reads the nav logo below, so a
+// WordPress media cleanup can never blank the logo on a live deck.
+(function repointLegacyLogo() {
+  try {
+    const LEGACY = '2025/07/Ayming.png';
+    const HOSTED = 'https://ayming-france.github.io/assets/logos/ayming-logo.png';
+    const imgs = document.querySelectorAll('img[src*="' + LEGACY + '"]');
+    for (let i = 0; i < imgs.length; i++) imgs[i].src = HOSTED;
+  } catch (e) { /* never let a logo swap break the deck */ }
+})();
+
 // ===== Brand banner =====
 // Injected once on every deck (zero per-deck markup). Carries the Ayming logo
 // (click = download popover), the confidentiality line, and the consolidated
