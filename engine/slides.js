@@ -14,13 +14,14 @@
     // slug here when a new CLIENT deck goes live.
     // TRACKED-START (généré par sync_tracked.py)
     var TRACKED = [
-      'declarer-un-accident-du-travail', 'collecte-et-traitement-des-arrets',
-      'aides-apprentissage', 'maitrise-des-charges-sociales',
-      'accompagnement-controle-urssaf', 'visites-medicales',
-      'rattrapage-visites-medicales', 'questionnaires-de-maladie-professionnelle',
-      'recuperer-ij', 'ecosystem-digital', 'maitrise-des-ijss',
-      'gestion-des-atmp', 'pilotage-arrets-longue-duree', 'veille-net-entreprises',
-      'duerp', 'accidents-tiers', 'cotisations-atmp', 'remboursements-ijss'
+      'accidents-tiers', 'accompagnement-controle-urssaf',
+      'aides-apprentissage', 'collecte-et-traitement-des-arrets',
+      'cotisations-atmp', 'declarer-un-accident-du-travail', 'duerp',
+      'ecosystem-digital', 'gestion-des-atmp', 'maitrise-des-charges-sociales',
+      'maitrise-des-ijss', 'offre-essentiel', 'pilotage-arrets-longue-duree',
+      'questionnaires-de-maladie-professionnelle',
+      'rattrapage-visites-medicales', 'recuperer-ij', 'remboursements-ijss',
+      'veille-net-entreprises', 'visites-medicales'
     ];
     // TRACKED-END
     var slug = (location.pathname.split('/').filter(Boolean)[0] || '').toLowerCase();
