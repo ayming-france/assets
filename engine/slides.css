@@ -51,6 +51,21 @@
       flex-direction: column;
       transform: translateX(calc(-1 * var(--nav-width) + var(--nav-collapsed)));
       transition: transform 0.3s ease;
+      /* Scroll when the chapter list is taller than the viewport (many slides on
+         a short window), so lower nav items stay reachable instead of overflowing
+         off-screen. Scrollbar only appears when needed. */
+      overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
+    }
+
+    .chapter-nav::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .chapter-nav::-webkit-scrollbar-thumb {
+      background: rgba(0,69,109,0.18);
+      border-radius: 3px;
     }
 
     .chapter-nav:hover,
