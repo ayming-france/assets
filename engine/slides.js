@@ -1127,7 +1127,7 @@ window.addEventListener('load', function () {
   function pmFilter(node) {
     if (node && node.classList) {
       if (node.id === 'pm-panel') return false;
-      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help'];
+      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help', 'deck-ink', 'deck-tools'];
       for (var i = 0; i < ex.length; i++) if (node.classList.contains(ex[i])) return false;
     }
     return true;
@@ -1211,6 +1211,8 @@ window.addEventListener('load', function () {
   // Single download/share entry = the Ayming-logo popover (engine). Expose the
   // generators + an "edited?" test so the popover serves the static deck when
   // unmodified (instant) and a browser-captured personalized file when edited.
+  // Les IIFE voisines n'ont pas acces a track(), qui vit dans cette portee.
+  window.pmTrack = track;
   window.pmExportPptx = pmExportPptx;
   window.pmExportPdf = pmExportPdf;
   window.pmHasEdits = function () { return !!(Object.keys(state.text).length || state.masked.length || Object.keys(state.opacity).length || state.slidesHidden.length); };
@@ -1292,3 +1294,300 @@ window.addEventListener('load', function () {
   // (one URL per deck), so deck_open was a duplicate at the same timestamp.
   } catch (e) { if (window.console) console.warn('[perso] editor disabled:', e); }
 });
+
+// ===== Outils de présentation : laser, surligneur, projecteur =====
+// Trois gestes tenus, jamais des modes : la touche agit tant qu'elle est
+// enfoncée et tout disparaît ensuite, donc un commercial ne peut pas rester
+// coincé dans un outil ni laisser une trace sur une slide de marque.
+//   L  laser        un point qui suit le curseur, traînée de 0,3 s, rien ne reste
+//   H  surligneur   un trait translucide qui vit 5 s puis s'efface tout seul
+//   S  projecteur   tout s'assombrit sauf le bloc survolé
+// La couche est un canvas plein écran en coordonnées viewport : fitSlide met à
+// l'échelle l'intérieur de la slide, pas la fenêtre, donc rien à recalculer.
+(function () {
+  try {
+    var TRAIL_MS = 320;      // durée de la traînée du laser
+    var INK_HOLD_MS = 5000;  // temps pendant lequel un trait reste opaque
+    var INK_FADE_MS = 1200;  // puis sa disparition
+    var LASER = '#e8443a', INK = 'rgba(255,149,0,.40)', DIM = 'rgba(4,20,38,.55)';
+    var BLOCKS = '.column-card,.value-detail,.feature-item,.option-card,.testimonial-card,.stat-card,.intro-stat-card,td,li';
+
+    var cv = document.createElement('canvas');
+    cv.className = 'deck-ink';
+    cv.style.cssText = 'position:fixed;inset:0;z-index:99000;pointer-events:none;display:none';
+    var ctx = null, active = null, raf = null;
+    var pos = { x: -1, y: -1 }, trail = [], strokes = [], cur = null, spot = null;
+    var sticky = null, drawing = false;
+
+    function ready() {
+      if (!cv.parentNode) document.body.appendChild(cv);
+      var r = window.devicePixelRatio || 1;
+      cv.width = Math.floor(window.innerWidth * r);
+      cv.height = Math.floor(window.innerHeight * r);
+      cv.style.width = window.innerWidth + 'px';
+      cv.style.height = window.innerHeight + 'px';
+      ctx = cv.getContext('2d');
+      ctx.setTransform(r, 0, 0, r, 0, 0);
+    }
+    function slideNow() {
+      var s = document.querySelector('.slide.active');
+      var all = document.querySelectorAll('.slide');
+      return { i: Array.prototype.indexOf.call(all, s) + 1, el: s };
+    }
+    // Le bloc sous le curseur, pour que le projecteur éclaire une carte entière
+    // plutôt qu'un disque qui coupe le texte en deux.
+    function blockAt(x, y) {
+      var el = document.elementFromPoint(x, y);
+      if (!el || !el.closest) return null;
+      if (el.closest('#pm-panel')) return null;
+      var b = el.closest(BLOCKS);
+      if (!b) return null;
+      var r = b.getBoundingClientRect();
+      return (r.width > 40 && r.height > 24) ? r : null;
+    }
+    function draw() {
+      raf = null;
+      if (!ctx) return;
+      var now = performance.now();
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+      if (active === 'spot' && pos.x >= 0) {
+        ctx.fillStyle = DIM;
+        ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out';
+        // destination-out efface proportionnellement a l'alpha de la couleur de
+        // remplissage. Sans cette ligne le trou herite du .55 de DIM et la zone
+        // eclairee reste voilee au lieu de redevenir nette.
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        if (spot) {
+          var pad = 10, rad = 16;
+          var x = spot.left - pad, y = spot.top - pad;
+          var w = spot.width + pad * 2, h = spot.height + pad * 2;
+          if (ctx.roundRect) ctx.roundRect(x, y, w, h, rad); else ctx.rect(x, y, w, h);
+        } else {
+          ctx.arc(pos.x, pos.y, 120, 0, Math.PI * 2);
+        }
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Surligneur : chaque trait vit sa vie, opaque puis effacé.
+      strokes = strokes.filter(function (st) {
+        var age = st.end ? now - st.end : 0;
+        return !st.end || age < INK_HOLD_MS + INK_FADE_MS;
+      });
+      strokes.concat(cur ? [cur] : []).forEach(function (st) {
+        if (st.pts.length < 2) return;
+        var a = 1;
+        if (st.end) {
+          var age = now - st.end;
+          if (age > INK_HOLD_MS) a = 1 - (age - INK_HOLD_MS) / INK_FADE_MS;
+        }
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, a);
+        ctx.strokeStyle = INK; ctx.lineWidth = 16; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.beginPath(); ctx.moveTo(st.pts[0].x, st.pts[0].y);
+        for (var i = 1; i < st.pts.length; i++) ctx.lineTo(st.pts[i].x, st.pts[i].y);
+        ctx.stroke(); ctx.restore();
+      });
+
+      if (active === 'laser' && pos.x >= 0) {
+        trail = trail.filter(function (p) { return now - p.t < TRAIL_MS; });
+        for (var j = 1; j < trail.length; j++) {
+          var al = 1 - (now - trail[j].t) / TRAIL_MS;
+          ctx.save(); ctx.globalAlpha = al * 0.5;
+          ctx.strokeStyle = LASER; ctx.lineWidth = 5; ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.moveTo(trail[j - 1].x, trail[j - 1].y); ctx.lineTo(trail[j].x, trail[j].y);
+          ctx.stroke(); ctx.restore();
+        }
+        ctx.save();
+        ctx.shadowColor = LASER; ctx.shadowBlur = 18;
+        ctx.fillStyle = LASER; ctx.beginPath(); ctx.arc(pos.x, pos.y, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 0.85; ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(pos.x, pos.y, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+
+      if (active || sticky || cur || strokes.length) tick();
+      else { cv.style.display = 'none'; ctx.clearRect(0, 0, window.innerWidth, window.innerHeight); }
+    }
+    function tick() { if (!raf) raf = requestAnimationFrame(draw); }
+
+    document.addEventListener('mousemove', function (e) {
+      pos.x = e.clientX; pos.y = e.clientY;
+      if (!active) return;
+      var now = performance.now();
+      if (active === 'laser') trail.push({ x: pos.x, y: pos.y, t: now });
+      else if (active === 'ink' && cur && (!sticky || drawing)) cur.pts.push({ x: pos.x, y: pos.y });
+      else if (active === 'spot') spot = blockAt(pos.x, pos.y);
+      tick();
+    }, true);
+
+    function start(tool) {
+      if (active === tool) return;
+      active = tool;
+      ready();
+      cv.style.display = 'block';
+      if (tool === 'laser') trail = [];
+      if (tool === 'ink') cur = { pts: pos.x >= 0 ? [{ x: pos.x, y: pos.y }] : [] };
+      if (tool === 'spot') spot = blockAt(pos.x, pos.y);
+      tick();
+    }
+    function stop() {
+      if (!active) return;
+      var tool = active;
+      if (sticky === tool) { cv.style.display = 'block'; }
+      if (tool === 'ink' && cur) {
+        // Le trait ne disparaît pas au relâchement : il tient le temps qu'on en
+        // parle, puis s'efface seul.
+        cur.end = performance.now();
+        if (cur.pts.length > 1) strokes.push(cur);
+        cur = null;
+      }
+      if (tool === 'laser') trail = [];
+      if (tool === 'spot') spot = null;
+      active = null;
+      var sl = slideNow();
+      try { if (window.pmTrack) window.pmTrack('deck_annotate', { tool: tool, slide: sl.i }); } catch (e) { }
+      tick();
+    }
+
+    var KEYS = { l: 'laser', h: 'ink', s: 'spot' };
+    function editable(t) { return t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)); }
+    document.addEventListener('keydown', function (e) {
+      var tool = KEYS[(e.key || '').toLowerCase()];
+      if (!tool || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (editable(e.target) || (e.target && e.target.closest && e.target.closest('#pm-panel'))) return;
+      e.preventDefault(); e.stopPropagation();
+      start(tool);
+    }, true);
+    document.addEventListener('keyup', function (e) {
+      var tool = KEYS[(e.key || '').toLowerCase()];
+      if (tool && active === tool && !sticky) { e.preventDefault(); stop(); }
+    }, true);
+
+    // Palette flottante en bas a droite, au-dessus du bandeau. Repliee c'est un
+    // seul bouton, pour qu'un deck simplement lu ne porte pas de mobilier en
+    // plus ; ouverte c'est la rangee d'outils, l'outil arme reste rempli. Une
+    // touche tenue ne se decouvre pas, un bouton visible si.
+    var st = document.createElement('style');
+    st.textContent = '.deck-tools{position:fixed;right:24px;bottom:calc(var(--banner-h, 56px) + 12px);z-index:99100;display:flex;align-items:flex-end;gap:2px;background:#fff;border-radius:18px;padding:0 8px;height:74px;overflow:hidden;box-shadow:0 12px 34px rgba(2,30,60,.24);font-family:system-ui,Arial,sans-serif}'
+      + '.deck-tools .dt-tool{width:44px;height:74px;border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:flex-end;justify-content:center}'
+      // Les outils sont dessines comme des objets poses dans un plateau : ils
+      // depassent par le bas, et celui qui est arme se souleve.
+      // Le plateau fait 74px et rogne ce qui depasse : l'instrument mesure 76px
+      // pour que la pointe reste entiere une fois souleve, et que seul le bas
+      // du corps soit coupe.
+      + '.deck-tools .dt-tool svg{width:30px;height:76px;display:block;transform:translateY(20px);transition:transform .22s cubic-bezier(.34,1.4,.5,1)}'
+      + '.deck-tools .dt-tool:hover svg{transform:translateY(11px)}'
+      + '.deck-tools .dt-tool.on svg{transform:translateY(2px)}'
+      + '.deck-tools .dt-sep{width:1px;height:34px;background:#e9eff5;margin:0 5px 20px}'
+      + '.deck-tools .dt-round{width:32px;height:32px;border:0;border-radius:50%;background:#f2f6fa;color:#5b7085;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;margin-bottom:21px;transition:background .18s,color .18s}'
+      + '.deck-tools .dt-round:hover{background:#e4ecf4;color:#0fa7e2}'
+      + '.deck-tools .dt-round svg{width:16px;height:16px}'
+      + '.deck-tools.closed{height:52px;padding:0 6px}'
+      + '.deck-tools.closed .dt-tool,.deck-tools.closed .dt-sep,.deck-tools.closed [data-act="close"]{display:none}'
+      + '.deck-tools.closed .dt-round{margin-bottom:10px}'
+      + '.deck-tools:not(.closed) .dt-open{display:none}'
+      + 'canvas.deck-ink.ink-draw{pointer-events:auto;cursor:crosshair}';
+    document.head.appendChild(st);
+
+    function svgIco(inner) {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"'
+        + ' stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>';
+    }
+    var ICO_PEN = '<path d="m9 11-6 6v3h3l6-6"/><path d="m15 5 4 4"/><path d="M13 3.5 20.5 11l-5 5L8 8.5z"/>';
+    // Deux instruments dessines de profil, corps blanc ombre a droite, pointe
+    // coloree. Un pointeur laser et un surligneur biseaute au bleu de la marque.
+    var TOOL_LASER =
+      '<svg viewBox="0 0 38 96" xmlns="http://www.w3.org/2000/svg">'
+      + '<path d="M19 4 27 28H11z" fill="#5b7085"/>'
+      + '<circle cx="19" cy="10" r="4.4" fill="#e8443a"/>'
+      + '<rect x="11" y="26" width="16" height="6" rx="1.5" fill="#cfd9e3"/>'
+      + '<rect x="10" y="31" width="18" height="65" rx="4" fill="#22384c"/>'
+      + '<rect x="10" y="52" width="18" height="7" fill="#e8443a"/>'
+      + '</svg>';
+    var TOOL_INK =
+      '<svg viewBox="0 0 38 96" xmlns="http://www.w3.org/2000/svg">'
+      // Pointe biseautee, epaulement, corps : un vrai feutre, pas un tube.
+      + '<path d="M13 7 25 3v14H13z" fill="#ff9500"/>'
+      + '<path d="M11 17h16l2 9H9z" fill="#e6edf4"/>'
+      + '<rect x="9" y="25" width="20" height="71" rx="5" fill="#fbfdff" stroke="#c9d6e2" stroke-width="1.3"/>'
+      + '<rect x="9.6" y="40" width="18.8" height="10" fill="#ff9500"/>'
+      + '</svg>';
+    var bar = null;
+    function mountButtons() {
+      if (bar) return;
+      bar = document.createElement('div');
+      bar.className = 'deck-tools closed';
+      bar.innerHTML =
+        '<button class="dt-tool" data-act="laser" aria-label="Laser">' + TOOL_LASER + '</button>'
+        + '<button class="dt-tool" data-act="ink" aria-label="Surligneur">' + TOOL_INK + '</button>'
+        + '<div class="dt-sep"></div>'
+        + '<button class="dt-round dt-open" data-act="open" aria-label="Outils de présentation">' + svgIco(ICO_PEN) + '</button>'
+        + '<button class="dt-round" data-act="close" aria-label="Fermer les outils">' + svgIco('<path d="M18 6 6 18M6 6l12 12"/>') + '</button>';
+      document.body.appendChild(bar);
+      bar.addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b) return;
+        var act = b.dataset.act;
+        if (act === 'open') { bar.classList.remove('closed'); return; }
+        if (act === 'close') { clearSticky(); bar.classList.add('closed'); return; }
+        toggleSticky(act);
+      });
+    }
+    function paintButtons() {
+      if (!bar) return;
+      ['laser', 'ink'].forEach(function (t) {
+        var b = bar.querySelector('[data-act="' + t + '"]');
+        if (b) b.classList.toggle('on', sticky === t);
+      });
+      cv.classList.toggle('ink-draw', sticky === 'ink');
+      // Le style inline du canvas bat la feuille de style, donc le curseur se
+      // pose sur le body : c'est le seul retour visuel que le feutre est arme.
+      document.body.style.cursor = (sticky === 'ink') ? 'crosshair' : '';
+    }
+    function toggleSticky(tool) {
+      if (sticky === tool) { sticky = null; stop(); }
+      else { sticky = tool; start(tool); }
+      paintButtons();
+    }
+    function clearSticky() { if (sticky) { sticky = null; stop(); paintButtons(); } }
+
+    // En mode colle, le surligneur ecrit au glisser seulement, comme un vrai
+    // feutre : deplacer la souris sans appuyer ne doit rien tracer.
+    document.addEventListener('mousedown', function (e) {
+      if (sticky !== 'ink') return;
+      e.preventDefault();
+      drawing = true; cur = { pts: [{ x: e.clientX, y: e.clientY }] }; tick();
+    }, true);
+    document.addEventListener('mouseup', function () {
+      if (sticky !== 'ink' || !drawing) return;
+      drawing = false;
+      if (cur) { cur.end = performance.now(); if (cur.pts.length > 1) strokes.push(cur); cur = null; }
+      try { if (window.pmTrack) window.pmTrack('deck_annotate', { tool: 'ink', slide: slideNow().i }); } catch (e) { }
+      tick();
+    }, true);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { clearSticky(); if (bar) bar.classList.add('closed'); return; }
+      if ((e.key === 't' || e.key === 'T') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (editable(e.target) || (e.target && e.target.closest && e.target.closest('#pm-panel'))) return;
+        e.preventDefault(); e.stopPropagation();
+        if (!bar) mountButtons();
+        var opening = bar.classList.contains('closed');
+        bar.classList.toggle('closed', !opening);
+        if (!opening) clearSticky();
+      }
+    }, true);
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountButtons);
+    else mountButtons();
+    // Quitter la fenêtre en gardant la touche enfoncée ne doit pas figer l'outil.
+    window.addEventListener('blur', stop);
+    window.addEventListener('resize', function () { if (cv.parentNode) ready(); });
+    // Changer de slide efface l'encre de la précédente.
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === ' ') { strokes = []; cur = null; clearSticky(); tick(); }
+    }, true);
+  } catch (e) { if (window.console) console.warn('[ink] outils de présentation désactivés:', e); }
+})();
