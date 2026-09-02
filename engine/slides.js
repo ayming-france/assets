@@ -174,6 +174,7 @@ let bannerCounter = null;
       +   '<button class="banner-btn" data-act="prev" aria-label="Précédent">' + svg('<polyline points="15 18 9 12 15 6"/>') + '</button>'
       +   '<span class="banner-counter"></span>'
       +   '<button class="banner-btn" data-act="next" aria-label="Suivant">' + svg('<polyline points="9 18 15 12 9 6"/>') + '</button>'
+      +   '<button class="banner-btn" data-act="tools" aria-label="Outils de présentation (T)" title="Outils de présentation (T)">' + svg('<path d="m9 11-6 6v3h3l6-6"/><path d="m15 5 4 4"/><path d="M13 3.5 20.5 11l-5 5L8 8.5z"/>') + '</button>'
       +   '<button class="banner-btn" data-act="fs" aria-label="Plein écran">' + svg('<path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/>') + '</button>'
       + '</div>';
     document.body.appendChild(banner);
@@ -182,6 +183,11 @@ let bannerCounter = null;
     banner.querySelector('[data-act="prev"]').addEventListener('click', () => prevSlide());
     banner.querySelector('[data-act="next"]').addEventListener('click', () => nextSlide());
     banner.querySelector('[data-act="fs"]').addEventListener('click', () => toggleFullscreen());
+    // Le bandeau vit dans une autre IIFE que la couche d'annotation : il annonce
+    // l'intention, celle-ci l'ecoute.
+    banner.querySelector('[data-act="tools"]').addEventListener('click', function () {
+      document.dispatchEvent(new CustomEvent('ay-tools-toggle'));
+    });
   } catch (e) { /* never let the banner break navigation */ }
 })();
 
@@ -450,7 +456,7 @@ document.addEventListener('keydown', e => {
   try {
     const hint = document.createElement('div');
     hint.className = 'deck-help';
-    hint.innerHTML = '<span>&#8592; &#8594; naviguer</span><span>F plein écran</span><span>P exporter</span>';
+    hint.innerHTML = '<span>&#8592; &#8594; naviguer</span><span>F plein écran</span><span>T outils</span><span>P exporter</span>';
     document.body.appendChild(hint);
   } catch (e) { /* never let the hint break the deck */ }
 })();
@@ -981,11 +987,12 @@ window.addEventListener('load', function () {
     + '.go{width:100%;padding:11px;border:0;border-radius:10px;background:#0fa7e2;color:#fff;font-weight:700;font-size:13px;cursor:pointer}'
     + '.go:hover{background:#0d96cb}'
     + '.hint{font-size:11.5px;color:#7c8ea0;font-style:italic;margin:14px 0 6px}'
-    + '.nrow{position:relative;background:#f6f9fc;border-radius:9px;padding:9px 34px 9px 11px;margin-bottom:7px}'
-    + '.nmeta{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:#7c8ea0;font-weight:700;margin-bottom:3px}'
-    + '.ntxt{font-size:12.5px;white-space:pre-wrap;line-height:1.45}'
-    + '.ndel{position:absolute;top:6px;right:6px;background:#fff;border:1px solid #cfd9e3;border-radius:8px;color:#8296a8;padding:2px 6px;line-height:1;cursor:pointer;font-size:11px}'
-    + '.ndel:hover{border-color:#e8c4be;color:#c0392b}'
+    + '.nrow{position:relative;background:#fff6d5;border-radius:3px;padding:10px 34px 12px 12px;margin-bottom:9px;box-shadow:0 2px 7px rgba(122,92,12,.16)}'
+    + '.nrow::after{content:"";position:absolute;right:0;bottom:0;width:0;height:0;border-style:solid;border-width:0 0 15px 15px;border-color:transparent transparent #fff transparent}'
+    + '.nmeta{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:#a17c17;font-weight:700;margin-bottom:3px}'
+    + '.ntxt{font-size:12.5px;white-space:pre-wrap;line-height:1.45;color:#4a3a10}'
+    + '.ndel{position:absolute;top:6px;right:6px;background:rgba(122,92,12,.12);border:0;border-radius:6px;color:#7a5c0c;padding:2px 6px;line-height:1;cursor:pointer;font-size:11px}'
+    + '.ndel:hover{background:rgba(192,57,43,.16);color:#c0392b}'
     + '.ft{border-top:1px solid #eef1f5;background:#fafcfe;padding:11px 16px;display:flex;gap:8px}'
     + '.ft button{flex:1;font-size:11.5px;background:#fff;border:1px solid #cfd9e3;border-radius:8px;padding:8px 6px;cursor:pointer;color:#34495c;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px}'
     + '.ft button:hover{border-color:#0fa7e2;color:#0fa7e2}.ft svg{flex:none}';
@@ -1265,6 +1272,7 @@ window.addEventListener('load', function () {
   // unmodified (instant) and a browser-captured personalized file when edited.
   // Les IIFE voisines n'ont pas acces a track(), qui vit dans cette portee.
   window.pmTrack = track;
+  window.pmNotesOpen = openPresenter;
   window.pmExportPptx = pmExportPptx;
   window.pmExportPdf = pmExportPdf;
   window.pmHasEdits = function () { return !!(Object.keys(state.text).length || state.masked.length || Object.keys(state.opacity).length || state.slidesHidden.length); };
@@ -1536,18 +1544,19 @@ window.addEventListener('load', function () {
       tick();
     }
 
+    // L et H arment et desarment. Tenir une touche pendant qu'on parle et qu'on
+    // deplace la souris ne tient pas la route en rendez-vous : on choisit un
+    // outil, on s'en sert, on rappuie pour retrouver le curseur.
     var KEYS = { l: 'laser', h: 'ink', s: 'spot' };
     function editable(t) { return t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)); }
     document.addEventListener('keydown', function (e) {
-      var tool = KEYS[(e.key || '').toLowerCase()];
-      if (!tool || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+      var t = KEYS[(e.key || '').toLowerCase()];
+      if (!t || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
       if (editable(e.target) || (e.target && e.target.closest && e.target.closest('#pm-panel'))) return;
       e.preventDefault(); e.stopPropagation();
-      start(tool);
-    }, true);
-    document.addEventListener('keyup', function (e) {
-      var tool = KEYS[(e.key || '').toLowerCase()];
-      if (tool && active === tool && !sticky) { e.preventDefault(); stop(); }
+      if (!bar) mountButtons();
+      toggleSticky(t);
+      if (sticky) showTools();
     }, true);
 
     // Palette flottante en bas a droite, au-dessus du bandeau. Repliee c'est un
@@ -1569,10 +1578,13 @@ window.addEventListener('load', function () {
       + '.deck-tools .dt-round{width:32px;height:32px;border:0;border-radius:50%;background:#f2f6fa;color:#5b7085;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;margin-bottom:21px;transition:background .18s,color .18s}'
       + '.deck-tools .dt-round:hover{background:#e4ecf4;color:#0fa7e2}'
       + '.deck-tools .dt-round svg{width:16px;height:16px}'
-      + '.deck-tools.closed{height:52px;padding:0 6px}'
-      + '.deck-tools.closed .dt-tool,.deck-tools.closed .dt-sep,.deck-tools.closed [data-act="close"]{display:none}'
-      + '.deck-tools.closed .dt-round{margin-bottom:10px}'
-      + '.deck-tools:not(.closed) .dt-open{display:none}'
+      // Rien ne stationne sur la slide : le plateau se montre quand la souris
+      // vient le chercher dans son coin, quand un outil est arme, ou quand on
+      // l'appelle avec T. Sinon il n'existe pas.
+      + '.deck-tools{opacity:0;pointer-events:none;transition:opacity .18s ease}'
+      + '.deck-tools.dt-show{opacity:1;pointer-events:auto}'
+      + '.deck-tools{transform:translateY(8px);transition:opacity .18s ease,transform .18s ease}'
+      + '.deck-tools.dt-show{transform:translateY(0)}'
       + 'canvas.deck-ink.ink-draw{pointer-events:auto;cursor:crosshair}';
     document.head.appendChild(st);
 
@@ -1599,32 +1611,48 @@ window.addEventListener('load', function () {
       + '<rect x="9" y="25" width="20" height="71" rx="5" fill="#fbfdff" stroke="#c9d6e2" stroke-width="1.3"/>'
       + '<rect x="9.6" y="40" width="18.8" height="10" fill="#ff9500"/>'
       + '</svg>';
+    // Un bloc de pense-betes, corner plie, pose a cote des feutres.
+    var TOOL_NOTE =
+      '<svg viewBox="0 0 38 96" xmlns="http://www.w3.org/2000/svg">'
+      + '<rect x="7" y="30" width="24" height="66" rx="3" fill="#f6c445"/>'
+      + '<rect x="7" y="22" width="24" height="66" rx="3" fill="#ffd968"/>'
+      + '<path d="M7 25a3 3 0 0 1 3-3h18a3 3 0 0 1 3 3v6H7z" fill="#f0b429"/>'
+      + '<rect x="12" y="40" width="14" height="2.6" rx="1.3" fill="#b98514"/>'
+      + '<rect x="12" y="48" width="14" height="2.6" rx="1.3" fill="#b98514"/>'
+      + '<rect x="12" y="56" width="9" height="2.6" rx="1.3" fill="#b98514"/>'
+      + '</svg>';
     var bar = null;
     function mountButtons() {
       if (bar) return;
       bar = document.createElement('div');
-      bar.className = 'deck-tools closed';
+      bar.className = 'deck-tools';
       bar.innerHTML =
         '<button class="dt-tool" data-act="laser" aria-label="Laser">' + TOOL_LASER + '</button>'
         + '<button class="dt-tool" data-act="ink" aria-label="Surligneur">' + TOOL_INK + '</button>'
+        + '<button class="dt-tool" data-act="notes" aria-label="Notes">' + TOOL_NOTE + '</button>'
         + '<div class="dt-sep"></div>'
-        + '<button class="dt-round dt-open" data-act="open" aria-label="Outils de présentation">' + svgIco(ICO_PEN) + '</button>'
         + '<button class="dt-round" data-act="close" aria-label="Fermer les outils">' + svgIco('<path d="M18 6 6 18M6 6l12 12"/>') + '</button>';
       document.body.appendChild(bar);
       bar.addEventListener('click', function (e) {
         var b = e.target.closest('button'); if (!b) return;
         var act = b.dataset.act;
-        if (act === 'open') { bar.classList.remove('closed'); return; }
         if (act === 'close') { exitTools(); return; }
+        if (act === 'notes') {
+          // Le clic est un vrai geste utilisateur, donc la fenetre s'ouvre.
+          if (window.pmNotesOpen) window.pmNotesOpen();
+          return;
+        }
         toggleSticky(act);
       });
     }
+    var shown = false;
     function paintButtons() {
       if (!bar) return;
       ['laser', 'ink'].forEach(function (t) {
         var b = bar.querySelector('[data-act="' + t + '"]');
         if (b) b.classList.toggle('on', sticky === t);
       });
+      bar.classList.toggle('dt-show', !!(shown || sticky));
       cv.classList.toggle('ink-draw', sticky === 'ink');
       // Le style inline du canvas bat la feuille de style, donc le curseur se
       // pose sur le body : c'est le seul retour visuel que le feutre est arme.
@@ -1660,23 +1688,27 @@ window.addEventListener('load', function () {
     // T arme et desarme le mode annotation. Une fois un outil choisi il reste en
     // main d'une slide a l'autre, et c'est T qui rend le curseur et nettoie.
     function exitTools() {
+      shown = false;
       clearSticky();
       strokes = []; cur = null; drawing = false;
-      if (bar) bar.classList.add('closed');
+      paintButtons();
       tick();
     }
+    function showTools() { if (!bar) mountButtons(); shown = true; paintButtons(); }
+    // Le bandeau demande, la couche repond.
+    document.addEventListener('ay-tools-toggle', function () {
+      if (shown) exitTools(); else showTools();
+    });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { exitTools(); return; }
       if ((e.key === 't' || e.key === 'T') && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (editable(e.target) || (e.target && e.target.closest && e.target.closest('#pm-panel'))) return;
         e.preventDefault(); e.stopPropagation();
-        if (!bar) mountButtons();
-        if (bar.classList.contains('closed')) bar.classList.remove('closed');
-        else exitTools();
+        if (shown) exitTools(); else showTools();
       }
     }, true);
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountButtons);
-    else mountButtons();
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { mountButtons(); paintButtons(); });
+    else { mountButtons(); paintButtons(); }
     // Quitter la fenêtre en gardant la touche enfoncée ne doit pas figer l'outil.
     window.addEventListener('blur', stop);
     window.addEventListener('resize', function () { if (cv.parentNode) ready(); });
