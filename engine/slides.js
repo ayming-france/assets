@@ -204,10 +204,10 @@ function updateSlide() {
   });
   if (bestNav) bestNav.classList.add('active');
 
-  if (counter) counter.innerHTML = `<span class="current">${currentSlide + 1}</span>/${totalSlides}`;
+  if (counter) counter.innerHTML = `<span class="current">${pmVisibleIndex()}</span>/${pmVisibleTotal()}`;
 
   // Brand banner: update counter, hide on the full-bleed cover slide
-  if (bannerCounter) bannerCounter.textContent = `${currentSlide + 1}/${totalSlides}`;
+  if (bannerCounter) bannerCounter.textContent = `${pmVisibleIndex()}/${pmVisibleTotal()}`;
   if (brandBanner) brandBanner.classList.toggle('is-hidden', slides[currentSlide].classList.contains('cover'));
 
   // Counter animation (conditional: only if intro stat numbers exist)
@@ -277,9 +277,17 @@ function fitSlide() {
   } catch (e) { /* never let auto-fit break navigation */ }
 }
 
-function nextSlide() { if (currentSlide < totalSlides - 1) { currentSlide++; updateSlide(); } }
-function prevSlide() { if (currentSlide > 0) { currentSlide--; updateSlide(); } }
-function goToSlide(i) { if (i >= 0 && i < totalSlides) { currentSlide = i; updateSlide(); } }
+// Une slide masquee depuis l'editeur (icone oeil) est sautee pendant la
+// presentation, pas seulement dans l'export : le commercial la masque parce que
+// le client ne doit pas la voir. L'etat vit sur le DOM (data-pm-hidden), pose
+// par l'editeur, donc lisible ici sans dependre de sa portee.
+function pmSlideHidden(i) { return !!(slides[i] && slides[i].dataset.pmHidden === '1'); }
+function pmSeek(i, step) { while (i >= 0 && i < totalSlides && pmSlideHidden(i)) i += step; return (i >= 0 && i < totalSlides) ? i : -1; }
+function pmVisibleTotal() { return Array.prototype.filter.call(slides, function (s) { return s.dataset.pmHidden !== '1'; }).length; }
+function pmVisibleIndex() { var n = 0; for (var i = 0; i <= currentSlide && i < totalSlides; i++) { if (!pmSlideHidden(i)) n++; } return n || 1; }
+function nextSlide() { const t = pmSeek(currentSlide + 1, 1); if (t !== -1) { currentSlide = t; updateSlide(); } }
+function prevSlide() { const t = pmSeek(currentSlide - 1, -1); if (t !== -1) { currentSlide = t; updateSlide(); } }
+function goToSlide(i) { if (i < 0 || i >= totalSlides) return; let t = pmSeek(i, 1); if (t === -1) t = pmSeek(i, -1); if (t !== -1) { currentSlide = t; updateSlide(); } }
 function toggleFullscreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
 
 // Introduction slide counter animation
@@ -630,7 +638,6 @@ window.addEventListener('load', function () {
     download: ICO('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>', 14),
     save: ICO('<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>', 14),
     activity: ICO('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>', 14),
-    note: ICO('<path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/><path d="M9 13h6"/><path d="M9 17h4"/>', 14),
     grip: ICO('<circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>', 14)
   };
 
@@ -827,12 +834,6 @@ window.addEventListener('load', function () {
       '<div class="pm-oprow"><span class="pm-oplab">Opacité</span><input type="range" id="pm-opacity" min="0" max="100" value="100"><span id="pm-opval">100%</span></div></div>' +
       '<div id="pm-maskedwrap"><div class="pm-modhd">Éléments masqués</div><div id="pm-masked"></div></div>') +
     sec('slides', ICON.layers, 'Slides', '<span id="pm-count" class="pm-count"></span>', '<div id="pm-slides"></div>') +
-    sec('notes', ICON.note, 'Notes', '<span id="pm-ncount" class="pm-count"></span>',
-      '<div class="pm-hint">' + "Une remarque entendue sur la slide affichée ? Notez-la, elle remonte dans le suivi de l'offre." + '</div>' +
-      '<div class="pm-nwrap"><textarea id="pm-ntext" rows="3" placeholder="' + "Ce qui doit changer sur cette slide..." + '"></textarea></div>' +
-      '<div class="pm-row"><button id="pm-nadd" class="pm-btn">Noter sur la slide affichée</button></div>' +
-      '<div id="pm-nlist"></div>' +
-      '<div class="pm-nfoot"><button id="pm-ncopy" class="pm-mini">Copier les notes</button><button id="pm-nclear" class="pm-mini pm-nreset">Tout effacer</button></div>') +
     sec('versions', ICON.save, 'Versions', '',
       '<div class="pm-hint">Sauvegardez vos modifications sous un nom. Vos retouches sont aussi gardées automatiquement après un refresh.</div>' +
       '<div class="pm-vrow"><input id="pm-vname" placeholder="Nom de la version" /><button id="pm-vsave" class="pm-mini">Enregistrer</button></div>' +
@@ -866,9 +867,6 @@ window.addEventListener('load', function () {
     '#pm-panel #pm-maskedwrap{display:none;padding:6px 16px 0}#pm-panel .pm-modhd{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:#7c8ea0;font-weight:700;margin-bottom:4px}#pm-panel .pm-modrow{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0;gap:8px}#pm-panel .pm-modrow span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '#pm-panel .pm-vrow{display:flex;gap:8px;padding:0 16px 8px}#pm-panel #pm-vname{flex:1;border:1px solid #cfd9e3;border-radius:8px;padding:7px 10px;font-size:12px}#pm-panel #pm-saves{padding:0 16px}#pm-panel .pm-reset{margin:8px 16px 0;color:#c0392b;border-color:#e8c4be}' +
     '#pm-panel #pm-slides{display:flex;flex-direction:column;gap:1px;max-height:200px;overflow:auto;padding:0 8px}#pm-panel .pm-srow{display:flex;gap:8px;align-items:center;font-size:12px;padding:4px 8px;border-radius:7px}#pm-panel .pm-srow:hover{background:#f2f6fa}#pm-panel .pm-srow.pm-hidden .pm-sname{opacity:.4;text-decoration:line-through}#pm-panel .pm-eye{cursor:pointer;display:inline-flex}' +
-    '#pm-panel .pm-nwrap{padding:0 16px 8px}#pm-panel #pm-ntext{width:100%;box-sizing:border-box;border:1px solid #cfd9e3;border-radius:8px;padding:8px 10px;font:inherit;font-size:12px;resize:vertical;min-height:58px}' +
-    '#pm-panel #pm-nlist{padding:0 16px}#pm-panel .pm-nrow{position:relative;background:#f6f9fc;border-radius:9px;padding:8px 32px 8px 10px;margin-bottom:6px}#pm-panel .pm-nmeta{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#7c8ea0;font-weight:700;margin-bottom:3px}#pm-panel .pm-ntxt{font-size:12px;line-height:1.45;white-space:pre-wrap}#pm-panel .pm-ndel{position:absolute;top:6px;right:6px;padding:2px 6px;line-height:1}' +
-    '#pm-panel .pm-nfoot{display:flex;gap:8px;padding:4px 16px 0}#pm-panel .pm-nreset{color:#c0392b;border-color:#e8c4be}' +
     '#pm-panel .pm-fixed{border-top:1px solid #eef1f5;padding:12px 16px;background:#fafcfe}#pm-panel .pm-fxhd{display:flex;align-items:center;gap:9px;font-weight:700;font-size:13px;margin-bottom:9px}#pm-panel .pm-fixed .pm-row{padding:0}' +
     '#pm-panel .pm-log{background:#0e1b2a;color:#cfe8ff;border-radius:10px;margin:0 16px;padding:9px;font-family:ui-monospace,monospace;font-size:11px;line-height:1.5;max-height:200px;overflow:auto}#pm-panel .pm-log-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid rgba(255,255,255,.06);padding:2px 0}' +
     '#pm-panel svg{vertical-align:-2px;flex:none}#pm-panel .pm-h svg{opacity:.85}#pm-panel .pm-modrow svg{margin-right:3px}#pm-panel .pm-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#0fa7e2;margin-right:7px;vertical-align:1px}';
@@ -907,39 +905,124 @@ window.addEventListener('load', function () {
   function getNotes() { try { return JSON.parse(localStorage.getItem('pm:notes:' + deckKey) || '[]'); } catch (e) { return []; } }
   function setNotes(a) { try { localStorage.setItem('pm:notes:' + deckKey, JSON.stringify(a)); } catch (e) { } }
   function activeSlide() { return document.querySelector('.slide.active') || slides[0]; }
-  function renderNotes() {
-    var box = document.getElementById('pm-nlist'), a = getNotes(); box.innerHTML = '';
+  // Une note n'est pas une retouche, elle ne vit donc pas dans le panneau de
+  // personnalisation. Elle vit dans une fenetre separee, gardee sur l'ecran du
+  // commercial pendant que le client voit l'onglet du deck : partager un onglet
+  // ou une fenetre, plutot que tout l'ecran, suffit a la garder privee, meme
+  // sans second ecran. Aucun apercu de slide ici, le deck du client garde donc
+  // sa taille, et rien n'est reserve aux slides qui n'ont pas de note.
+  var pmWin = null, pmTick = null;
+  var PRES_CSS = '*{box-sizing:border-box}body{margin:0;font-family:system-ui,Arial,sans-serif;font-size:13px;color:#13324d;background:#f4f8fb;display:flex;flex-direction:column;height:100vh}'
+    + '.hd{background:linear-gradient(135deg,#003d79,#0ab38c);color:#fff;padding:12px 14px}'
+    + '.hd b{font-size:15px;display:block}.hd span{font-size:12px;opacity:.92;display:block;margin-top:3px}'
+    + '.bd{flex:1;overflow:auto;padding:12px 14px}'
+    + 'textarea{width:100%;min-height:92px;border:1px solid #cfd9e3;border-radius:10px;padding:9px 11px;font:inherit;resize:vertical}'
+    + '.gen{display:flex;align-items:center;gap:7px;margin:9px 0;font-size:12px;color:#56697a}'
+    + '.go{width:100%;padding:11px;border:0;border-radius:10px;background:#0fa7e2;color:#fff;font-weight:700;font-size:13px;cursor:pointer}'
+    + '.nrow{position:relative;background:#fff;border:1px solid #e6edf4;border-radius:10px;padding:9px 34px 9px 11px;margin-top:8px}'
+    + '.nmeta{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#7c8ea0;font-weight:700;margin-bottom:3px}'
+    + '.ntxt{white-space:pre-wrap;line-height:1.45}'
+    + '.ndel{position:absolute;top:7px;right:7px;border:1px solid #e8c4be;background:#fff;color:#c0392b;border-radius:7px;padding:1px 6px;cursor:pointer}'
+    + '.ft{border-top:1px solid #e6edf4;background:#fff;padding:10px 14px;display:flex;gap:7px}'
+    + '.ft button{flex:1;font-size:12px;background:#fff;border:1px solid #cfd9e3;border-radius:9px;padding:8px 6px;cursor:pointer;color:#34495c;font-weight:600}'
+    + '.ft button:hover{border-color:#0fa7e2;color:#0fa7e2}'
+    + '.empty{color:#7c8ea0;font-style:italic;font-size:12px;margin-top:12px}';
+  var PRES_BODY = '<div class="hd"><b id="p-slide">Slide</b><span id="p-title"></span></div>'
+    + '<div class="bd"><textarea id="p-text" placeholder="' + "Ce que dit le client, ce qu'il faut changer..." + '"></textarea>'
+    + '<label class="gen"><input type="checkbox" id="p-gen"> ' + "Note générale, sans slide" + '</label>'
+    + '<button class="go" id="p-add">Noter</button><div id="p-list"></div></div>'
+    + '<div class="ft"><button id="p-prev">&#8592; Slide</button><button id="p-next">Slide &#8594;</button>'
+    + '<button id="p-copy">Copier</button><button id="p-dl">' + "Télécharger" + '</button></div>';
+
+  function notesMarkdown() {
+    var a = getNotes(), nl = String.fromCharCode(10);
+    var out = ['# Notes, ' + deckKey + ', ' + new Date().toISOString().slice(0, 10), ''];
+    a.forEach(function (n) {
+      out.push(n.slide ? ('## Slide ' + n.slide + ', ' + n.title) : '## Note générale');
+      out.push(n.text, '');
+    });
+    return out.join(nl);
+  }
+  function presRender() {
+    if (!pmWin || pmWin.closed) return;
+    var d = pmWin.document, box = d.getElementById('p-list'), a = getNotes();
+    box.innerHTML = '';
+    if (!a.length) { var e0 = d.createElement('div'); e0.className = 'empty'; e0.textContent = "Aucune note pour l'instant."; box.appendChild(e0); return; }
     a.forEach(function (n, i) {
-      var r = document.createElement('div'); r.className = 'pm-nrow';
-      r.innerHTML = '<div class="pm-nmeta"></div><div class="pm-ntxt"></div><button class="pm-mini pm-ndel" data-ndel="' + i + '">&#10005;</button>';
-      r.querySelector('.pm-nmeta').textContent = 'Slide ' + n.slide + ' · ' + n.title;
-      r.querySelector('.pm-ntxt').textContent = n.text;
+      var r = d.createElement('div'); r.className = 'nrow';
+      r.innerHTML = '<div class="nmeta"></div><div class="ntxt"></div><button class="ndel" data-ndel="' + i + '">&#10005;</button>';
+      r.querySelector('.nmeta').textContent = n.slide ? ('Slide ' + n.slide + ' · ' + n.title) : 'Note générale';
+      r.querySelector('.ntxt').textContent = n.text;
       box.appendChild(r);
     });
-    var c = document.getElementById('pm-ncount'); if (c) c.textContent = a.length ? a.length : '';
   }
-  document.getElementById('pm-nadd').addEventListener('click', function () {
-    var ta = document.getElementById('pm-ntext'), txt = (ta.value || '').trim();
-    if (!txt) { toast("Écrivez la note avant de l'ajouter."); return; }
-    var sl = activeSlide(), idx = Array.prototype.indexOf.call(slides, sl) + 1, ti = slideTitle(sl);
+  function presSyncHead() {
+    if (!pmWin || pmWin.closed) return;
+    var sl = activeSlide(), idx = Array.prototype.indexOf.call(slides, sl) + 1;
+    pmWin.document.getElementById('p-slide').textContent = 'Slide ' + idx;
+    pmWin.document.getElementById('p-title').textContent = slideTitle(sl);
+  }
+  function presAdd() {
+    var d = pmWin.document, ta = d.getElementById('p-text'), txt = (ta.value || '').trim();
+    if (!txt) { ta.focus(); return; }
+    var general = d.getElementById('p-gen').checked;
+    var sl = activeSlide(), idx = general ? 0 : Array.prototype.indexOf.call(slides, sl) + 1;
+    var ti = general ? 'Note générale' : slideTitle(sl);
     var a = getNotes(); a.push({ slide: idx, title: ti, text: txt, ts: new Date().toISOString() });
-    setNotes(a); ta.value = ''; renderNotes();
+    setNotes(a); ta.value = ''; ta.focus(); presRender();
     track('deck_note', { slide: idx, title: ti, note: txt.slice(0, 500) });
-    toast('Note ajoutée sur la slide ' + idx + '.');
-  });
-  document.getElementById('pm-nlist').addEventListener('click', function (e) {
-    var d = e.target.closest('[data-ndel]'); if (!d) return;
-    var a = getNotes(); a.splice(+d.dataset.ndel, 1); setNotes(a); renderNotes();
-  });
-  document.getElementById('pm-ncopy').addEventListener('click', function () {
-    var a = getNotes(); if (!a.length) { toast('Aucune note à copier.'); return; }
-    var txt = a.map(function (n) { return 'Slide ' + n.slide + ' (' + n.title + ') : ' + n.text; }).join(String.fromCharCode(10));
-    try { navigator.clipboard.writeText(txt); toast(a.length + ' note(s) copiée(s).'); }
-    catch (e) { toast('Copie impossible sur ce navigateur.'); }
-  });
-  document.getElementById('pm-nclear').addEventListener('click', function () {
-    confirmDialog('Effacer toutes les notes de ce deck ?', function () { setNotes([]); renderNotes(); toast('Notes effacées.'); });
-  });
+  }
+  function openPresenter() {
+    if (pmWin && !pmWin.closed) { pmWin.focus(); return; }
+    pmWin = window.open('', 'ay-notes-' + deckKey, 'width=460,height=760');
+    if (!pmWin) { toast('Autorisez les fenêtres pop-up pour ouvrir les notes.'); return; }
+    var d = pmWin.document;
+    d.open();
+    d.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Notes</title><style>' + PRES_CSS + '</style></head><body>' + PRES_BODY + '</body></html>');
+    d.close();
+    d.getElementById('p-add').addEventListener('click', presAdd);
+    d.getElementById('p-text').addEventListener('keydown', function (e) {
+      // Entree envoie la note, Maj+Entree passe a la ligne.
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); presAdd(); }
+    });
+    d.getElementById('p-list').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-ndel]'); if (!b) return;
+      var a = getNotes(); a.splice(+b.dataset.ndel, 1); setNotes(a); presRender();
+    });
+    d.getElementById('p-prev').addEventListener('click', function () { prevSlide(); presSyncHead(); });
+    d.getElementById('p-next').addEventListener('click', function () { nextSlide(); presSyncHead(); });
+    d.getElementById('p-copy').addEventListener('click', function () {
+      if (!getNotes().length) return;
+      try { pmWin.navigator.clipboard.writeText(notesMarkdown()); } catch (e) { }
+    });
+    d.getElementById('p-dl').addEventListener('click', function () {
+      if (!getNotes().length) return;
+      // Le telechargement part de la fenetre des notes, jamais de l'onglet
+      // partage, pour qu'aucune barre de telechargement n'apparaisse chez le client.
+      var blob = new pmWin.Blob([notesMarkdown()], { type: 'text/markdown;charset=utf-8' });
+      var url = pmWin.URL.createObjectURL(blob), a = d.createElement('a');
+      a.href = url; a.download = 'notes-' + deckKey + '-' + new Date().toISOString().slice(0, 10) + '.md';
+      d.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { pmWin.URL.revokeObjectURL(url); }, 2000);
+    });
+    presRender(); presSyncHead();
+    d.getElementById('p-text').focus();
+    // La fenetre suit la slide affichee sans que le commercial ait a y penser.
+    clearInterval(pmTick);
+    pmTick = setInterval(function () {
+      if (!pmWin || pmWin.closed) { clearInterval(pmTick); pmTick = null; return; }
+      presSyncHead();
+    }, 400);
+    track('deck_notes_open', { deck: deckKey });
+  }
+  // N ouvre les notes. Comme E, la touche reste discrete et ne marche pas sur un
+  // lien "?pm=" partage a un client.
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'n' && e.key !== 'N') return;
+    if (/[?&]pm=/.test(location.search)) return;
+    var t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.stopPropagation(); openPresenter();
+  }, true);
 
   // accordion
   panel.querySelectorAll('.pm-achead').forEach(function (h) {
@@ -972,6 +1055,10 @@ window.addEventListener('load', function () {
     slides[i].dataset.pmHidden = hide ? '1' : '';
     state.slidesHidden = Array.prototype.filter.call(slides, function (s) { return s.dataset.pmHidden === '1'; }).map(function (s) { return Array.prototype.indexOf.call(slides, s); });
     eye.innerHTML = hide ? ICON.eyeOff : ICON.eye; eye.closest('.pm-srow').classList.toggle('pm-hidden', hide);
+    // Masquer la slide affichee doit la quitter tout de suite, sinon le client
+    // continue de voir celle que le commercial vient de retirer.
+    if (hide && slides[i].classList.contains('active')) { nextSlide(); if (slides[i].classList.contains('active')) prevSlide(); }
+    else { updateSlide(); }
     track(hide ? 'deck_slide_hidden' : 'deck_slide_shown', { slide: i + 1, title: slideTitle(slides[i]), chapter: slides[i].dataset.chapter || '' }); updateCount(); autosave();
   });
 
@@ -1160,7 +1247,7 @@ window.addEventListener('load', function () {
   }, true);
 
   // restore auto-draft from a previous session, then render lists
-  renderSlides(); renderSaves(); renderNotes();
+  renderSlides(); renderSaves();
   // A "?pm=" link (shared by a rep, or fed to the export pipeline) wins over the
   // local auto-draft, so the deck shows exactly the personalized state encoded.
   try {
