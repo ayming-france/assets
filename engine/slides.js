@@ -456,7 +456,16 @@ document.addEventListener('keydown', e => {
   try {
     const hint = document.createElement('div');
     hint.className = 'deck-help';
-    hint.innerHTML = '<span>&#8592; &#8594; naviguer</span><span>F plein écran</span><span>T outils</span><span>P exporter</span>';
+    // Meme logique que pour la touche E : un client qui a recu un lien « ?pm= »
+    // n'a pas a decouvrir les outils du commercial.
+    var forClient = /[?&]pm=/.test(location.search);
+    hint.innerHTML = '<span>&#8592; &#8594; naviguer</span><span>F plein écran</span>'
+      + (forClient ? '' : '<span>T outils</span>')
+      + '<span>P exporter</span>'
+      + '<span class="deck-help-tour" role="button" tabindex="0" title="Revoir le guide">guide</span>';
+    hint.addEventListener('click', function (e) {
+      if (e.target.closest('.deck-help-tour') && window.ayTour) window.ayTour();
+    });
     document.body.appendChild(hint);
   } catch (e) { /* never let the hint break the deck */ }
 })();
@@ -982,30 +991,44 @@ window.addEventListener('load', function () {
     + '.bd{flex:1;overflow:auto;padding:14px 16px}'
     + 'textarea{width:100%;min-height:96px;border:1px solid #cfd9e3;border-radius:10px;padding:9px 11px;font:inherit;font-size:13px;line-height:1.45;resize:vertical;color:#13324d}'
     + 'textarea:focus{outline:none;border-color:#0fa7e2}'
-    + '.gen{display:flex;align-items:center;gap:8px;margin:10px 0 11px;font-size:12px;color:#56697a;user-select:none;cursor:pointer}'
-    + '.gen input{accent-color:#0fa7e2;width:15px;height:15px;cursor:pointer}'
+    // Deux onglets plutot qu'une case a cocher : le type se voit, et chacun
+    // porte deja la couleur que la note aura une fois posee.
+    + '.seg{display:flex;gap:6px;margin:10px 0 11px}'
+    + '.seg button{flex:1;border:1px solid #dfe7ee;background:#fff;border-radius:9px;padding:8px 6px;font:inherit;font-size:12px;font-weight:600;color:#5b7085;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}'
+    + '.seg button .dot{width:9px;height:9px;border-radius:2px;flex:none}'
+    + '.seg button[data-t="slide"] .dot{background:#ffd968}.seg button[data-t="gen"] .dot{background:#5cb8e8}'
+    + '.seg button.on[data-t="slide"]{background:#fff6d5;border-color:#e8c66a;color:#7a5c0c}'
+    + '.seg button.on[data-t="gen"]{background:#e8f4fd;border-color:#a8d5f0;color:#0d6f9e}'
     + '.go{width:100%;padding:11px;border:0;border-radius:10px;background:#0fa7e2;color:#fff;font-weight:700;font-size:13px;cursor:pointer}'
     + '.go:hover{background:#0d96cb}'
-    + '.hint{font-size:11.5px;color:#7c8ea0;font-style:italic;margin:14px 0 6px}'
-    + '.nrow{position:relative;background:#fff6d5;border-radius:3px;padding:10px 34px 12px 12px;margin-bottom:9px;box-shadow:0 2px 7px rgba(122,92,12,.16)}'
+    + '.hint{font-size:11.5px;color:#7c8ea0;font-style:italic;margin:14px 0 8px}'
+    // Des carres, comme un pense-bete, deux par rangee.
+    + '#p-list{display:grid;grid-template-columns:1fr 1fr;gap:10px}'
+    + '.nrow{position:relative;aspect-ratio:1;display:flex;flex-direction:column;border-radius:3px;padding:10px 11px 14px;box-shadow:0 2px 7px rgba(60,50,10,.16);cursor:pointer}'
+    + '.nrow.gen{cursor:default}'
     + '.nrow::after{content:"";position:absolute;right:0;bottom:0;width:0;height:0;border-style:solid;border-width:0 0 15px 15px;border-color:transparent transparent #fff transparent}'
-    + '.nmeta{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:#a17c17;font-weight:700;margin-bottom:3px}'
-    + '.ntxt{font-size:12.5px;white-space:pre-wrap;line-height:1.45;color:#4a3a10}'
-    + '.ndel{position:absolute;top:6px;right:6px;background:rgba(122,92,12,.12);border:0;border-radius:6px;color:#7a5c0c;padding:2px 6px;line-height:1;cursor:pointer;font-size:11px}'
+    + '.nrow.slide{background:#fff6d5}.nrow.slide .nmeta{color:#a17c17}.nrow.slide .ntxt{color:#4a3a10}'
+    + '.nrow.gen{background:#e8f4fd}.nrow.gen .nmeta{color:#0d6f9e}.nrow.gen .ntxt{color:#123c52}'
+    + '.nmeta{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:5px;padding-right:22px}'
+    + '.ntxt{font-size:12.5px;white-space:pre-wrap;line-height:1.4;overflow:auto;flex:1}'
+    + '.ndel{position:absolute;top:7px;right:7px;background:rgba(60,50,10,.10);border:0;border-radius:6px;color:#6b5a2a;padding:2px 6px;line-height:1;cursor:pointer;font-size:11px;font-family:inherit}'
     + '.ndel:hover{background:rgba(192,57,43,.16);color:#c0392b}'
-    + '.ft{border-top:1px solid #eef1f5;background:#fafcfe;padding:11px 16px;display:flex;gap:8px}'
-    + '.ft button{flex:1;font-size:11.5px;background:#fff;border:1px solid #cfd9e3;border-radius:8px;padding:8px 6px;cursor:pointer;color:#34495c;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px}'
-    + '.ft button:hover{border-color:#0fa7e2;color:#0fa7e2}.ft svg{flex:none}';
+    + '.ndel.arm{background:#c0392b;color:#fff;font-weight:700;padding:2px 8px}'
+    + '.ft{border-top:1px solid #eef1f5;background:#fafcfe;padding:11px 16px}'
+    + '.ft button{width:100%;font-size:12.5px;background:#fff;border:1px solid #cfd9e3;border-radius:9px;padding:10px;cursor:pointer;color:#34495c;font-weight:600;display:flex;align-items:center;justify-content:center;gap:7px;font-family:inherit}'
+    + '.ft button:hover{border-color:#0fa7e2;color:#0fa7e2}.ft svg{flex:none}'
+    + '.ft button:disabled{opacity:.45;cursor:default;border-color:#e6edf4;color:#8fa2b3}';
+  var noteType = 'slide';
   function presBody() {
     return '<div class="hd">' + ICON.note + '<div><b id="p-slide">Slide</b><span id="p-title"></span></div></div>'
       + '<div class="bd"><textarea id="p-text" placeholder="' + "Ce que dit le client, ce qu'il faut changer..." + '"></textarea>'
-      + '<label class="gen"><input type="checkbox" id="p-gen"> ' + "Note générale, sans slide" + '</label>'
+      + '<div class="seg"><button data-t="slide"><span class="dot"></span>Cette slide</button>'
+      + '<button data-t="gen"><span class="dot"></span>' + "Générale" + '</button></div>'
       + '<button class="go" id="p-add">Noter</button>'
       + '<div class="hint" id="p-hint"></div><div id="p-list"></div></div>'
-      + '<div class="ft"><button id="p-prev">' + ICO('<path d="m15 18-6-6 6-6"/>', 13) + 'Slide</button>'
-      + '<button id="p-next">Slide' + ICO('<path d="m9 18 6-6-6-6"/>', 13) + '</button>'
-      + '<button id="p-copy">' + ICO('<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>', 13) + 'Copier</button>'
-      + '<button id="p-dl">' + ICO('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>', 13) + 'Fichier</button></div>';
+      + '<div class="ft"><button id="p-dl">'
+      + ICO('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>', 14)
+      + '<span id="p-dl-label">' + "Télécharger les notes" + '</span></button></div>';
   }
 
   function notesMarkdown() {
@@ -1022,12 +1045,24 @@ window.addEventListener('load', function () {
     var d = pmWin.document, box = d.getElementById('p-list'), a = getNotes();
     var hint = d.getElementById('p-hint');
     hint.textContent = a.length ? (a.length + (a.length > 1 ? ' notes prises' : ' note prise')) : "Aucune note pour l'instant.";
+    var dl = d.getElementById('p-dl'); if (dl) dl.disabled = !a.length;
     box.innerHTML = '';
     a.forEach(function (n, i) {
-      var r = d.createElement('div'); r.className = 'nrow';
+      var r = d.createElement('div');
+      r.className = 'nrow ' + (n.slide ? 'slide' : 'gen');
       r.innerHTML = '<div class="nmeta"></div><div class="ntxt"></div><button class="ndel" data-ndel="' + i + '">&#10005;</button>';
-      r.querySelector('.nmeta').textContent = n.slide ? ('Slide ' + n.slide + ' · ' + n.title) : 'Note générale';
+      // Le titre complet tenait sur trois lignes et mangeait le pense-bete. Le
+      // numero suffit pour se reperer, le titre est deja dans l'en-tete.
+      r.querySelector('.nmeta').textContent = n.slide ? ('Slide ' + n.slide) : 'Générale';
       r.querySelector('.ntxt').textContent = n.text;
+      if (n.slide) {
+        r.title = 'Aller à la slide ' + n.slide;
+        r.addEventListener('click', function (e) {
+          if (e.target.closest('.ndel')) return;
+          goToSlide(n.slide - 1);
+          presSyncHead();
+        });
+      }
       box.appendChild(r);
     });
   }
@@ -1042,12 +1077,18 @@ window.addEventListener('load', function () {
   function presAdd() {
     var d = pmWin.document, ta = d.getElementById('p-text'), txt = (ta.value || '').trim();
     if (!txt) { ta.focus(); return; }
-    var general = d.getElementById('p-gen').checked;
+    var general = noteType === 'gen';
     var sl = activeSlide(), idx = general ? 0 : Array.prototype.indexOf.call(slides, sl) + 1;
     var ti = general ? 'Note générale' : slideTitle(sl);
     var a = getNotes(); a.push({ slide: idx, title: ti, text: txt, ts: new Date().toISOString() });
     setNotes(a); ta.value = ''; ta.focus(); presRender();
     track('deck_note', { slide: idx, title: ti, note: txt.slice(0, 500) });
+  }
+  function presPaintSeg() {
+    if (!pmWin || pmWin.closed) return;
+    pmWin.document.querySelectorAll('.seg button').forEach(function (b) {
+      b.classList.toggle('on', b.dataset.t === noteType);
+    });
   }
   function presMount(w) {
     pmWin = w;
@@ -1059,15 +1100,23 @@ window.addEventListener('load', function () {
       // Entree envoie la note, Maj+Entree passe a la ligne.
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); presAdd(); }
     });
+    d.querySelectorAll('.seg button').forEach(function (b) {
+      b.addEventListener('click', function () { noteType = b.dataset.t; presPaintSeg(); });
+    });
+    // Supprimer demande confirmation : un pense-bete pris en rendez-vous n'a
+    // aucune autre copie tant qu'il n'est pas repris dans le journal de l'offre.
     d.getElementById('p-list').addEventListener('click', function (e) {
       var b = e.target.closest('[data-ndel]'); if (!b) return;
-      var a = getNotes(); a.splice(+b.dataset.ndel, 1); setNotes(a); presRender();
-    });
-    d.getElementById('p-prev').addEventListener('click', function () { prevSlide(); presSyncHead(); });
-    d.getElementById('p-next').addEventListener('click', function () { nextSlide(); presSyncHead(); });
-    d.getElementById('p-copy').addEventListener('click', function () {
-      if (!getNotes().length) return;
-      try { w.navigator.clipboard.writeText(notesMarkdown()); } catch (e) { }
+      e.stopPropagation();
+      if (b.classList.contains('arm')) {
+        var a = getNotes(); a.splice(+b.dataset.ndel, 1); setNotes(a); presRender();
+        return;
+      }
+      d.querySelectorAll('.ndel.arm').forEach(function (o) { o.classList.remove('arm'); o.innerHTML = '&#10005;'; });
+      b.classList.add('arm'); b.textContent = 'Supprimer ?';
+      setTimeout(function () {
+        if (b.classList.contains('arm')) { b.classList.remove('arm'); b.innerHTML = '&#10005;'; }
+      }, 4000);
     });
     d.getElementById('p-dl').addEventListener('click', function () {
       if (!getNotes().length) return;
@@ -1080,7 +1129,7 @@ window.addEventListener('load', function () {
       setTimeout(function () { w.URL.revokeObjectURL(url); }, 2000);
     });
     w.addEventListener('pagehide', function () { pmWin = null; clearInterval(pmTick); pmTick = null; });
-    presRender(); presSyncHead();
+    presPaintSeg(); presRender(); presSyncHead();
     d.getElementById('p-text').focus();
     // La fenetre suit la slide affichee sans que le commercial ait a y penser.
     clearInterval(pmTick);
@@ -1186,7 +1235,7 @@ window.addEventListener('load', function () {
   function pmFilter(node) {
     if (node && node.classList) {
       if (node.id === 'pm-panel') return false;
-      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help', 'deck-ink', 'deck-tools'];
+      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help', 'deck-ink', 'deck-tools', 'driver-overlay', 'driver-popover'];
       for (var i = 0; i < ex.length; i++) if (node.classList.contains(ex[i])) return false;
     }
     return true;
@@ -1614,12 +1663,12 @@ window.addEventListener('load', function () {
     // Un bloc de pense-betes, corner plie, pose a cote des feutres.
     var TOOL_NOTE =
       '<svg viewBox="0 0 38 96" xmlns="http://www.w3.org/2000/svg">'
-      + '<rect x="7" y="30" width="24" height="66" rx="3" fill="#f6c445"/>'
-      + '<rect x="7" y="22" width="24" height="66" rx="3" fill="#ffd968"/>'
-      + '<path d="M7 25a3 3 0 0 1 3-3h18a3 3 0 0 1 3 3v6H7z" fill="#f0b429"/>'
-      + '<rect x="12" y="40" width="14" height="2.6" rx="1.3" fill="#b98514"/>'
-      + '<rect x="12" y="48" width="14" height="2.6" rx="1.3" fill="#b98514"/>'
-      + '<rect x="12" y="56" width="9" height="2.6" rx="1.3" fill="#b98514"/>'
+      + '<rect x="5" y="50" width="28" height="46" fill="#e8a91f"/>'
+      + '<rect x="5" y="46" width="28" height="8" fill="#f0b429"/>'
+      + '<rect x="5" y="24" width="28" height="28" rx="2" fill="#ffd968"/>'
+      + '<rect x="10" y="32" width="18" height="2.8" rx="1.4" fill="#b98514"/>'
+      + '<rect x="10" y="39" width="18" height="2.8" rx="1.4" fill="#b98514"/>'
+      + '<rect x="10" y="46" width="11" height="2.8" rx="1.4" fill="#b98514"/>'
       + '</svg>';
     var bar = null;
     function mountButtons() {
@@ -1717,4 +1766,102 @@ window.addEventListener('load', function () {
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === ' ') { strokes = []; cur = null; drawing = false; tick(); }
     }, true);
   } catch (e) { if (window.console) console.warn('[ink] outils de présentation désactivés:', e); }
+})();
+
+// ===== Guide de prise en main (driver.js, hébergé chez nous) =====
+// Un commercial qui ouvre un deck pour la première fois ne devine ni la touche
+// E, ni T, ni P. Le guide se lance une fois, puis plus jamais, et reste
+// rappelable par « guide » dans l'aide en haut à droite.
+// Deux parcours : le commercial voit tout, le client qui reçoit un lien « ?pm= »
+// ne voit que naviguer, plein écran et télécharger. Jamais l'éditeur.
+(function () {
+  var BASE = 'https://ayming-france.github.io/assets/engine/vendor/driverjs-1.8.0/';
+  var KEY_REP = 'ay-tour-v1', KEY_CLIENT = 'ay-tour-client-v1';
+
+  function isClient() { return /[?&]pm=/.test(location.search); }
+  function key() { return isClient() ? KEY_CLIENT : KEY_REP; }
+  function seen() { try { return localStorage.getItem(key()) === '1'; } catch (e) { return true; } }
+  function markSeen() { try { localStorage.setItem(key(), '1'); } catch (e) { } }
+
+  // La capture des exports ouvre le deck live dans un navigateur neuf, donc sans
+  // rien en memoire : sans ce garde-fou, le guide se lancerait et finirait
+  // imprime dans chaque PDF.
+  function automated() {
+    return !!(navigator.webdriver || /[?&]notour=1/.test(location.search) || window.__ayNoTour);
+  }
+
+  var loading = false;
+  function load(cb) {
+    if (window.driver && window.driver.js) { cb(); return; }
+    if (loading) return;
+    loading = true;
+    var css = document.createElement('link');
+    css.rel = 'stylesheet'; css.href = BASE + 'driver.css';
+    document.head.appendChild(css);
+    var js = document.createElement('script');
+    js.src = BASE + 'driver.js.iife.js';
+    js.onload = function () { loading = false; cb(); };
+    js.onerror = function () { loading = false; };
+    document.head.appendChild(js);
+  }
+
+  function repSteps() {
+    return [
+      { popover: { title: 'Bienvenue', description: "Ce deck fait plus qu'afficher des slides. Une minute pour voir quoi." } },
+      { element: '.chapter-nav', popover: { title: 'Les chapitres', description: "Le volet s'ouvre quand la souris longe le bord gauche. Un clic va directement à la slide.", side: 'right', align: 'start' } },
+      { element: '.banner-controls [data-act="next"]', popover: { title: 'Avancer', description: "Les flèches du clavier et la barre d'espace font la même chose.", side: 'top', align: 'end' } },
+      { element: '.banner-controls [data-act="tools"]', popover: { title: 'Les outils de présentation', description: "Laser pour pointer, surligneur pour marquer une ligne, bloc-notes pour ce que dit le client. Touche T, et vos traits s'effacent tout seuls.", side: 'top', align: 'end' } },
+      { element: '.banner-logo', popover: { title: 'Les exports', description: "Le logo ouvre le téléchargement en PDF, en PowerPoint, et le lien à envoyer au client. Touche P.", side: 'top', align: 'start' } },
+      { element: '.banner-controls [data-act="fs"]', popover: { title: 'Présenter', description: "Le plein écran, touche F. Partagez cette fenêtre plutôt que votre écran, vos notes resteront invisibles.", side: 'top', align: 'end' } },
+      { popover: { title: 'Personnaliser avant un rendez-vous', description: "La touche E ouvre l'éditeur : changer un texte, masquer une slide ou un bloc. Tout reste sur votre navigateur, le deck d'origine ne bouge pas." } },
+      { popover: { title: "C'est tout", description: "Ce guide ne se relancera plus. Pour le revoir, cliquez sur « guide » en haut à droite." } }
+    ];
+  }
+  function clientSteps() {
+    return [
+      { popover: { title: 'Bienvenue', description: 'Deux ou trois choses pour parcourir cette présentation.' } },
+      { element: '.banner-controls [data-act="next"]', popover: { title: 'Avancer', description: "Les flèches du clavier et la barre d'espace font la même chose.", side: 'top', align: 'end' } },
+      { element: '.banner-logo', popover: { title: 'Emporter le document', description: 'Le logo ouvre le téléchargement en PDF et en PowerPoint.', side: 'top', align: 'start' } },
+      { element: '.banner-controls [data-act="fs"]', popover: { title: 'Plein écran', description: 'Pour lire confortablement. Touche F.', side: 'top', align: 'end' } }
+    ];
+  }
+
+  function start(force) {
+    // Le garde-fou ne vise que le lancement automatique. Un clic sur « guide »
+    // est un geste explicite, et aucune capture n'en fait.
+    if (!force && (automated() || seen())) return;
+    load(function () {
+      var steps = (isClient() ? clientSteps() : repSteps()).filter(function (st) {
+        return !st.element || document.querySelector(st.element);
+      });
+      if (!steps.length) return;
+      var d = window.driver.js.driver({
+        showProgress: true,
+        allowClose: true,
+        overlayColor: 'rgba(2,30,60,.62)',
+        nextBtnText: 'Suivant',
+        prevBtnText: 'Retour',
+        doneBtnText: 'Terminer',
+        progressText: '{{current}} sur {{total}}',
+        steps: steps,
+        onDestroyed: function () {
+          markSeen();
+          try { if (window.pmTrack) window.pmTrack('deck_tour_done', { role: isClient() ? 'client' : 'rep' }); } catch (e) { }
+          // On rend la slide d'ou l'on venait : rejouer le guide en plein
+          // rendez-vous ne doit pas ramener tout le monde a la couverture.
+          goToSlide(from);
+        }
+      });
+      // Le bandeau se masque sur la couverture, et il porte la moitie des
+      // etapes : on se place sur une slide ordinaire pour le guide.
+      var from = currentSlide;
+      goToSlide(1);
+      setTimeout(function () { d.drive(); }, 400);
+    });
+  }
+  window.ayTour = function () { start(true); };
+
+  window.addEventListener('load', function () {
+    setTimeout(function () { start(false); }, 1200);
+  });
 })();

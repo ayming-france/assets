@@ -64,6 +64,17 @@
       transform: translateX(0);
     }
 
+    .deck-help .deck-help-tour {
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      /* .deck-help est un bandeau d'aide non cliquable (pointer-events: none) :
+         seul ce lien reprend les evenements, sinon la souris passe au travers et
+         atterrit sur la slide. */
+      pointer-events: auto;
+    }
+    .deck-help .deck-help-tour:hover { color: var(--blue-accent); }
+
     .nav-toggle {
       position: absolute;
       right: 6px;
