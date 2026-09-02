@@ -630,6 +630,7 @@ window.addEventListener('load', function () {
     download: ICO('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>', 14),
     save: ICO('<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>', 14),
     activity: ICO('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>', 14),
+    note: ICO('<path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/><path d="M9 13h6"/><path d="M9 17h4"/>', 14),
     grip: ICO('<circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>', 14)
   };
 
@@ -826,6 +827,12 @@ window.addEventListener('load', function () {
       '<div class="pm-oprow"><span class="pm-oplab">Opacité</span><input type="range" id="pm-opacity" min="0" max="100" value="100"><span id="pm-opval">100%</span></div></div>' +
       '<div id="pm-maskedwrap"><div class="pm-modhd">Éléments masqués</div><div id="pm-masked"></div></div>') +
     sec('slides', ICON.layers, 'Slides', '<span id="pm-count" class="pm-count"></span>', '<div id="pm-slides"></div>') +
+    sec('notes', ICON.note, 'Notes', '<span id="pm-ncount" class="pm-count"></span>',
+      '<div class="pm-hint">' + "Une remarque entendue sur la slide affichée ? Notez-la, elle remonte dans le suivi de l'offre." + '</div>' +
+      '<div class="pm-nwrap"><textarea id="pm-ntext" rows="3" placeholder="' + "Ce qui doit changer sur cette slide..." + '"></textarea></div>' +
+      '<div class="pm-row"><button id="pm-nadd" class="pm-btn">Noter sur la slide affichée</button></div>' +
+      '<div id="pm-nlist"></div>' +
+      '<div class="pm-nfoot"><button id="pm-ncopy" class="pm-mini">Copier les notes</button><button id="pm-nclear" class="pm-mini pm-nreset">Tout effacer</button></div>') +
     sec('versions', ICON.save, 'Versions', '',
       '<div class="pm-hint">Sauvegardez vos modifications sous un nom. Vos retouches sont aussi gardées automatiquement après un refresh.</div>' +
       '<div class="pm-vrow"><input id="pm-vname" placeholder="Nom de la version" /><button id="pm-vsave" class="pm-mini">Enregistrer</button></div>' +
@@ -859,6 +866,9 @@ window.addEventListener('load', function () {
     '#pm-panel #pm-maskedwrap{display:none;padding:6px 16px 0}#pm-panel .pm-modhd{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:#7c8ea0;font-weight:700;margin-bottom:4px}#pm-panel .pm-modrow{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0;gap:8px}#pm-panel .pm-modrow span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '#pm-panel .pm-vrow{display:flex;gap:8px;padding:0 16px 8px}#pm-panel #pm-vname{flex:1;border:1px solid #cfd9e3;border-radius:8px;padding:7px 10px;font-size:12px}#pm-panel #pm-saves{padding:0 16px}#pm-panel .pm-reset{margin:8px 16px 0;color:#c0392b;border-color:#e8c4be}' +
     '#pm-panel #pm-slides{display:flex;flex-direction:column;gap:1px;max-height:200px;overflow:auto;padding:0 8px}#pm-panel .pm-srow{display:flex;gap:8px;align-items:center;font-size:12px;padding:4px 8px;border-radius:7px}#pm-panel .pm-srow:hover{background:#f2f6fa}#pm-panel .pm-srow.pm-hidden .pm-sname{opacity:.4;text-decoration:line-through}#pm-panel .pm-eye{cursor:pointer;display:inline-flex}' +
+    '#pm-panel .pm-nwrap{padding:0 16px 8px}#pm-panel #pm-ntext{width:100%;box-sizing:border-box;border:1px solid #cfd9e3;border-radius:8px;padding:8px 10px;font:inherit;font-size:12px;resize:vertical;min-height:58px}' +
+    '#pm-panel #pm-nlist{padding:0 16px}#pm-panel .pm-nrow{position:relative;background:#f6f9fc;border-radius:9px;padding:8px 32px 8px 10px;margin-bottom:6px}#pm-panel .pm-nmeta{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#7c8ea0;font-weight:700;margin-bottom:3px}#pm-panel .pm-ntxt{font-size:12px;line-height:1.45;white-space:pre-wrap}#pm-panel .pm-ndel{position:absolute;top:6px;right:6px;padding:2px 6px;line-height:1}' +
+    '#pm-panel .pm-nfoot{display:flex;gap:8px;padding:4px 16px 0}#pm-panel .pm-nreset{color:#c0392b;border-color:#e8c4be}' +
     '#pm-panel .pm-fixed{border-top:1px solid #eef1f5;padding:12px 16px;background:#fafcfe}#pm-panel .pm-fxhd{display:flex;align-items:center;gap:9px;font-weight:700;font-size:13px;margin-bottom:9px}#pm-panel .pm-fixed .pm-row{padding:0}' +
     '#pm-panel .pm-log{background:#0e1b2a;color:#cfe8ff;border-radius:10px;margin:0 16px;padding:9px;font-family:ui-monospace,monospace;font-size:11px;line-height:1.5;max-height:200px;overflow:auto}#pm-panel .pm-log-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid rgba(255,255,255,.06);padding:2px 0}' +
     '#pm-panel svg{vertical-align:-2px;flex:none}#pm-panel .pm-h svg{opacity:.85}#pm-panel .pm-modrow svg{margin-right:3px}#pm-panel .pm-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#0fa7e2;margin-right:7px;vertical-align:1px}';
@@ -889,6 +899,47 @@ window.addEventListener('load', function () {
     state.slidesHidden.forEach(function (i) { if (slides[i]) slides[i].dataset.pmHidden = '1'; });
     renderMasked(); renderSlides(); autosave();
   }
+
+  // ---- notes (retours terrain saisis pendant un rendez-vous) ----
+  // Gardées par deck à côté du brouillon de personnalisation, puis reprises
+  // dans le journal de retours de l'offre. Volontairement anonymes : une note
+  // porte la slide visée, jamais qui l'a écrite.
+  function getNotes() { try { return JSON.parse(localStorage.getItem('pm:notes:' + deckKey) || '[]'); } catch (e) { return []; } }
+  function setNotes(a) { try { localStorage.setItem('pm:notes:' + deckKey, JSON.stringify(a)); } catch (e) { } }
+  function activeSlide() { return document.querySelector('.slide.active') || slides[0]; }
+  function renderNotes() {
+    var box = document.getElementById('pm-nlist'), a = getNotes(); box.innerHTML = '';
+    a.forEach(function (n, i) {
+      var r = document.createElement('div'); r.className = 'pm-nrow';
+      r.innerHTML = '<div class="pm-nmeta"></div><div class="pm-ntxt"></div><button class="pm-mini pm-ndel" data-ndel="' + i + '">&#10005;</button>';
+      r.querySelector('.pm-nmeta').textContent = 'Slide ' + n.slide + ' · ' + n.title;
+      r.querySelector('.pm-ntxt').textContent = n.text;
+      box.appendChild(r);
+    });
+    var c = document.getElementById('pm-ncount'); if (c) c.textContent = a.length ? a.length : '';
+  }
+  document.getElementById('pm-nadd').addEventListener('click', function () {
+    var ta = document.getElementById('pm-ntext'), txt = (ta.value || '').trim();
+    if (!txt) { toast("Écrivez la note avant de l'ajouter."); return; }
+    var sl = activeSlide(), idx = Array.prototype.indexOf.call(slides, sl) + 1, ti = slideTitle(sl);
+    var a = getNotes(); a.push({ slide: idx, title: ti, text: txt, ts: new Date().toISOString() });
+    setNotes(a); ta.value = ''; renderNotes();
+    track('deck_note', { slide: idx, title: ti, note: txt.slice(0, 500) });
+    toast('Note ajoutée sur la slide ' + idx + '.');
+  });
+  document.getElementById('pm-nlist').addEventListener('click', function (e) {
+    var d = e.target.closest('[data-ndel]'); if (!d) return;
+    var a = getNotes(); a.splice(+d.dataset.ndel, 1); setNotes(a); renderNotes();
+  });
+  document.getElementById('pm-ncopy').addEventListener('click', function () {
+    var a = getNotes(); if (!a.length) { toast('Aucune note à copier.'); return; }
+    var txt = a.map(function (n) { return 'Slide ' + n.slide + ' (' + n.title + ') : ' + n.text; }).join(String.fromCharCode(10));
+    try { navigator.clipboard.writeText(txt); toast(a.length + ' note(s) copiée(s).'); }
+    catch (e) { toast('Copie impossible sur ce navigateur.'); }
+  });
+  document.getElementById('pm-nclear').addEventListener('click', function () {
+    confirmDialog('Effacer toutes les notes de ce deck ?', function () { setNotes([]); renderNotes(); toast('Notes effacées.'); });
+  });
 
   // accordion
   panel.querySelectorAll('.pm-achead').forEach(function (h) {
@@ -1081,7 +1132,6 @@ window.addEventListener('load', function () {
 
   (function () { var h = document.getElementById('pm-drag'), down = false, ox = 0, oy = 0; h.addEventListener('mousedown', function (e) { down = true; var r = panel.getBoundingClientRect(); panel.style.right = 'auto'; panel.style.left = r.left + 'px'; panel.style.top = r.top + 'px'; ox = e.clientX - r.left; oy = e.clientY - r.top; e.preventDefault(); }); document.addEventListener('mousemove', function (e) { if (!down) return; panel.style.left = (e.clientX - ox) + 'px'; panel.style.top = (e.clientY - oy) + 'px'; }); document.addEventListener('mouseup', function () { down = false; }); })();
 
-  var _repAsked = false;
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'e' && e.key !== 'E') return;
     // A "?pm=" link is what a rep shares with a client: editing is disabled on it,
@@ -1096,9 +1146,9 @@ window.addEventListener('load', function () {
     // (corrects any earlier client tag from previewing a ?pm= link).
     if (opening) {
       try { localStorage.setItem('ay-role', 'rep'); AY_ROLE = 'rep'; } catch (ex) {}
-      // Ask the rep's first name once per page load. The editor opens either
-      // way, this never gates access to it.
-      if (!AY_REP && !_repAsked) { _repAsked = true; askRep(function () {}); }
+      // Ouvrir l'éditeur ne demande plus de prénom : les retouches et les notes
+      // restent anonymes. Le partage d'un lien continue de proposer le prénom,
+      // qui sert l'attribution "?by=" côté analytics.
     } else {
       // Closing the editor must fully return to view mode. Collapse the
       // accordions and clear the active mode so no element stays editable or
@@ -1110,7 +1160,7 @@ window.addEventListener('load', function () {
   }, true);
 
   // restore auto-draft from a previous session, then render lists
-  renderSlides(); renderSaves();
+  renderSlides(); renderSaves(); renderNotes();
   // A "?pm=" link (shared by a rep, or fed to the export pipeline) wins over the
   // local auto-draft, so the deck shows exactly the personalized state encoded.
   try {
