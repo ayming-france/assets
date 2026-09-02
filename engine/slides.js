@@ -638,6 +638,7 @@ window.addEventListener('load', function () {
     download: ICO('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>', 14),
     save: ICO('<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>', 14),
     activity: ICO('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>', 14),
+    note: ICO('<path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/><path d="M9 13h6"/><path d="M9 17h4"/>', 15),
     grip: ICO('<circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>', 14)
   };
 
@@ -912,27 +913,41 @@ window.addEventListener('load', function () {
   // sans second ecran. Aucun apercu de slide ici, le deck du client garde donc
   // sa taille, et rien n'est reserve aux slides qui n'ont pas de note.
   var pmWin = null, pmTick = null;
-  var PRES_CSS = '*{box-sizing:border-box}body{margin:0;font-family:system-ui,Arial,sans-serif;font-size:13px;color:#13324d;background:#f4f8fb;display:flex;flex-direction:column;height:100vh}'
-    + '.hd{background:linear-gradient(135deg,#003d79,#0ab38c);color:#fff;padding:12px 14px}'
-    + '.hd b{font-size:15px;display:block}.hd span{font-size:12px;opacity:.92;display:block;margin-top:3px}'
-    + '.bd{flex:1;overflow:auto;padding:12px 14px}'
-    + 'textarea{width:100%;min-height:92px;border:1px solid #cfd9e3;border-radius:10px;padding:9px 11px;font:inherit;resize:vertical}'
-    + '.gen{display:flex;align-items:center;gap:7px;margin:9px 0;font-size:12px;color:#56697a}'
+  // Habillage repris du panneau de personnalisation : meme degrade d'en-tete,
+  // memes boutons, memes cartes, pour que la fenetre de notes ne ressemble pas
+  // a une page a part.
+  var PRES_CSS = '*{box-sizing:border-box}'
+    + 'body{margin:0;font-family:system-ui,Arial,sans-serif;font-size:13px;color:#13324d;background:#fff;display:flex;flex-direction:column;height:100vh;overflow:hidden}'
+    + '.hd{background:linear-gradient(135deg,#003d79,#0ab38c);color:#fff;padding:13px 16px;display:flex;gap:9px;align-items:flex-start}'
+    + '.hd svg{flex:none;margin-top:1px;opacity:.9}.hd b{font-weight:800;font-size:14px;display:block;line-height:1.2}'
+    + '.hd span{font-size:11.5px;opacity:.88;display:block;margin-top:3px;line-height:1.35}'
+    + '.bd{flex:1;overflow:auto;padding:14px 16px}'
+    + 'textarea{width:100%;min-height:96px;border:1px solid #cfd9e3;border-radius:10px;padding:9px 11px;font:inherit;font-size:13px;line-height:1.45;resize:vertical;color:#13324d}'
+    + 'textarea:focus{outline:none;border-color:#0fa7e2}'
+    + '.gen{display:flex;align-items:center;gap:8px;margin:10px 0 11px;font-size:12px;color:#56697a;user-select:none;cursor:pointer}'
+    + '.gen input{accent-color:#0fa7e2;width:15px;height:15px;cursor:pointer}'
     + '.go{width:100%;padding:11px;border:0;border-radius:10px;background:#0fa7e2;color:#fff;font-weight:700;font-size:13px;cursor:pointer}'
-    + '.nrow{position:relative;background:#fff;border:1px solid #e6edf4;border-radius:10px;padding:9px 34px 9px 11px;margin-top:8px}'
-    + '.nmeta{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#7c8ea0;font-weight:700;margin-bottom:3px}'
-    + '.ntxt{white-space:pre-wrap;line-height:1.45}'
-    + '.ndel{position:absolute;top:7px;right:7px;border:1px solid #e8c4be;background:#fff;color:#c0392b;border-radius:7px;padding:1px 6px;cursor:pointer}'
-    + '.ft{border-top:1px solid #e6edf4;background:#fff;padding:10px 14px;display:flex;gap:7px}'
-    + '.ft button{flex:1;font-size:12px;background:#fff;border:1px solid #cfd9e3;border-radius:9px;padding:8px 6px;cursor:pointer;color:#34495c;font-weight:600}'
-    + '.ft button:hover{border-color:#0fa7e2;color:#0fa7e2}'
-    + '.empty{color:#7c8ea0;font-style:italic;font-size:12px;margin-top:12px}';
-  var PRES_BODY = '<div class="hd"><b id="p-slide">Slide</b><span id="p-title"></span></div>'
-    + '<div class="bd"><textarea id="p-text" placeholder="' + "Ce que dit le client, ce qu'il faut changer..." + '"></textarea>'
-    + '<label class="gen"><input type="checkbox" id="p-gen"> ' + "Note générale, sans slide" + '</label>'
-    + '<button class="go" id="p-add">Noter</button><div id="p-list"></div></div>'
-    + '<div class="ft"><button id="p-prev">&#8592; Slide</button><button id="p-next">Slide &#8594;</button>'
-    + '<button id="p-copy">Copier</button><button id="p-dl">' + "Télécharger" + '</button></div>';
+    + '.go:hover{background:#0d96cb}'
+    + '.hint{font-size:11.5px;color:#7c8ea0;font-style:italic;margin:14px 0 6px}'
+    + '.nrow{position:relative;background:#f6f9fc;border-radius:9px;padding:9px 34px 9px 11px;margin-bottom:7px}'
+    + '.nmeta{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:#7c8ea0;font-weight:700;margin-bottom:3px}'
+    + '.ntxt{font-size:12.5px;white-space:pre-wrap;line-height:1.45}'
+    + '.ndel{position:absolute;top:6px;right:6px;background:#fff;border:1px solid #cfd9e3;border-radius:8px;color:#8296a8;padding:2px 6px;line-height:1;cursor:pointer;font-size:11px}'
+    + '.ndel:hover{border-color:#e8c4be;color:#c0392b}'
+    + '.ft{border-top:1px solid #eef1f5;background:#fafcfe;padding:11px 16px;display:flex;gap:8px}'
+    + '.ft button{flex:1;font-size:11.5px;background:#fff;border:1px solid #cfd9e3;border-radius:8px;padding:8px 6px;cursor:pointer;color:#34495c;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px}'
+    + '.ft button:hover{border-color:#0fa7e2;color:#0fa7e2}.ft svg{flex:none}';
+  function presBody() {
+    return '<div class="hd">' + ICON.note + '<div><b id="p-slide">Slide</b><span id="p-title"></span></div></div>'
+      + '<div class="bd"><textarea id="p-text" placeholder="' + "Ce que dit le client, ce qu'il faut changer..." + '"></textarea>'
+      + '<label class="gen"><input type="checkbox" id="p-gen"> ' + "Note générale, sans slide" + '</label>'
+      + '<button class="go" id="p-add">Noter</button>'
+      + '<div class="hint" id="p-hint"></div><div id="p-list"></div></div>'
+      + '<div class="ft"><button id="p-prev">' + ICO('<path d="m15 18-6-6 6-6"/>', 13) + 'Slide</button>'
+      + '<button id="p-next">Slide' + ICO('<path d="m9 18 6-6-6-6"/>', 13) + '</button>'
+      + '<button id="p-copy">' + ICO('<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>', 13) + 'Copier</button>'
+      + '<button id="p-dl">' + ICO('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>', 13) + 'Fichier</button></div>';
+  }
 
   function notesMarkdown() {
     var a = getNotes(), nl = String.fromCharCode(10);
@@ -946,8 +961,9 @@ window.addEventListener('load', function () {
   function presRender() {
     if (!pmWin || pmWin.closed) return;
     var d = pmWin.document, box = d.getElementById('p-list'), a = getNotes();
+    var hint = d.getElementById('p-hint');
+    hint.textContent = a.length ? (a.length + (a.length > 1 ? ' notes prises' : ' note prise')) : "Aucune note pour l'instant.";
     box.innerHTML = '';
-    if (!a.length) { var e0 = d.createElement('div'); e0.className = 'empty'; e0.textContent = "Aucune note pour l'instant."; box.appendChild(e0); return; }
     a.forEach(function (n, i) {
       var r = d.createElement('div'); r.className = 'nrow';
       r.innerHTML = '<div class="nmeta"></div><div class="ntxt"></div><button class="ndel" data-ndel="' + i + '">&#10005;</button>';
@@ -959,7 +975,9 @@ window.addEventListener('load', function () {
   function presSyncHead() {
     if (!pmWin || pmWin.closed) return;
     var sl = activeSlide(), idx = Array.prototype.indexOf.call(slides, sl) + 1;
-    pmWin.document.getElementById('p-slide').textContent = 'Slide ' + idx;
+    var t = pmWin.document.getElementById('p-slide');
+    if (!t) return;
+    t.textContent = 'Slide ' + idx;
     pmWin.document.getElementById('p-title').textContent = slideTitle(sl);
   }
   function presAdd() {
@@ -972,14 +990,11 @@ window.addEventListener('load', function () {
     setNotes(a); ta.value = ''; ta.focus(); presRender();
     track('deck_note', { slide: idx, title: ti, note: txt.slice(0, 500) });
   }
-  function openPresenter() {
-    if (pmWin && !pmWin.closed) { pmWin.focus(); return; }
-    pmWin = window.open('', 'ay-notes-' + deckKey, 'width=460,height=760');
-    if (!pmWin) { toast('Autorisez les fenêtres pop-up pour ouvrir les notes.'); return; }
-    var d = pmWin.document;
-    d.open();
-    d.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Notes</title><style>' + PRES_CSS + '</style></head><body>' + PRES_BODY + '</body></html>');
-    d.close();
+  function presMount(w) {
+    pmWin = w;
+    var d = w.document;
+    d.head.innerHTML = '<meta charset="utf-8"><title>Notes</title><style>' + PRES_CSS + '</style>';
+    d.body.innerHTML = presBody();
     d.getElementById('p-add').addEventListener('click', presAdd);
     d.getElementById('p-text').addEventListener('keydown', function (e) {
       // Entree envoie la note, Maj+Entree passe a la ligne.
@@ -993,18 +1008,19 @@ window.addEventListener('load', function () {
     d.getElementById('p-next').addEventListener('click', function () { nextSlide(); presSyncHead(); });
     d.getElementById('p-copy').addEventListener('click', function () {
       if (!getNotes().length) return;
-      try { pmWin.navigator.clipboard.writeText(notesMarkdown()); } catch (e) { }
+      try { w.navigator.clipboard.writeText(notesMarkdown()); } catch (e) { }
     });
     d.getElementById('p-dl').addEventListener('click', function () {
       if (!getNotes().length) return;
       // Le telechargement part de la fenetre des notes, jamais de l'onglet
       // partage, pour qu'aucune barre de telechargement n'apparaisse chez le client.
-      var blob = new pmWin.Blob([notesMarkdown()], { type: 'text/markdown;charset=utf-8' });
-      var url = pmWin.URL.createObjectURL(blob), a = d.createElement('a');
+      var blob = new w.Blob([notesMarkdown()], { type: 'text/markdown;charset=utf-8' });
+      var url = w.URL.createObjectURL(blob), a = d.createElement('a');
       a.href = url; a.download = 'notes-' + deckKey + '-' + new Date().toISOString().slice(0, 10) + '.md';
       d.body.appendChild(a); a.click(); a.remove();
-      setTimeout(function () { pmWin.URL.revokeObjectURL(url); }, 2000);
+      setTimeout(function () { w.URL.revokeObjectURL(url); }, 2000);
     });
+    w.addEventListener('pagehide', function () { pmWin = null; clearInterval(pmTick); pmTick = null; });
     presRender(); presSyncHead();
     d.getElementById('p-text').focus();
     // La fenetre suit la slide affichee sans que le commercial ait a y penser.
@@ -1014,6 +1030,23 @@ window.addEventListener('load', function () {
       presSyncHead();
     }, 400);
     track('deck_notes_open', { deck: deckKey });
+  }
+  function openPresenter() {
+    if (pmWin && !pmWin.closed) { pmWin.focus(); return; }
+    // Document Picture-in-Picture : fenetre sans barre d'adresse, toujours
+    // au-dessus du deck. Le repli window.open reste pour les navigateurs qui ne
+    // l'ont pas, au prix d'une barre affichant about:blank.
+    var pip = window.documentPictureInPicture;
+    if (pip && pip.requestWindow) {
+      pip.requestWindow({ width: 420, height: 640 }).then(presMount).catch(function () {
+        var w = window.open('', 'ay-notes-' + deckKey, 'width=460,height=760');
+        if (w) presMount(w); else toast('Autorisez les fenêtres pop-up pour ouvrir les notes.');
+      });
+      return;
+    }
+    var w = window.open('', 'ay-notes-' + deckKey, 'width=460,height=760');
+    if (!w) { toast('Autorisez les fenêtres pop-up pour ouvrir les notes.'); return; }
+    presMount(w);
   }
   // N ouvre les notes. Comme E, la touche reste discrete et ne marche pas sur un
   // lien "?pm=" partage a un client.
