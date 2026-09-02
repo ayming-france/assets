@@ -232,6 +232,54 @@ function updateSlide() {
 // direct children, then scales around the wrapper's centre, handling the nav
 // offset and any off-centre or oversized content. Cover and full-bleed slides
 // have none of these wrappers and are left untouched.
+// La navigation des chapitres tient dans la hauteur disponible plutot que de
+// defiler : on resserre le rythme vertical jusqu'a ce que tout entre. Les
+// valeurs sont posees en style inline plutot qu'en variable CSS, parce qu'un
+// deck peut redefinir ces regles et gagner la cascade.
+// Le dernier membre marque ce qui se resserre en douceur : on mange d'abord le
+// blanc, on ne touche au corps du texte et aux pastilles que si c'est necessaire.
+var NAV_FIT_SPECS = [
+  ['.nav-header', 'marginBottom', 40, 12, false],
+  ['.nav-logo', 'height', 32, 20, true],
+  ['.nav-logo', 'marginBottom', 8, 2, false],
+  ['.nav-section', 'marginBottom', 28, 8, false],
+  ['.nav-section-title', 'marginBottom', 14, 4, false],
+  ['.nav-item', 'paddingTop', 10, 3, false],
+  ['.nav-item', 'paddingBottom', 10, 3, false],
+  ['.nav-item', 'marginBottom', 6, 1, false],
+  ['.nav-item', 'fontSize', 13, 11, true],
+  ['.nav-item-number', 'width', 22, 17, true],
+  ['.nav-item-number', 'height', 22, 17, true],
+  ['.nav-item-number', 'marginRight', 12, 7, false]
+];
+function navApplyFit(nav, k) {
+  var soft = 0.45 + 0.55 * k;
+  nav.style.paddingTop = Math.max(12, 40 * k) + 'px';
+  nav.style.paddingBottom = Math.max(12, 40 * k) + 'px';
+  NAV_FIT_SPECS.forEach(function (spec) {
+    var px = Math.max(spec[3], spec[2] * (spec[4] ? soft : k)) + 'px';
+    nav.querySelectorAll(spec[0]).forEach(function (el) { el.style[spec[1]] = px; });
+  });
+}
+function fitNav() {
+  try {
+    var nav = document.querySelector('.chapter-nav');
+    if (!nav) return;
+    var k = 1;
+    navApplyFit(nav, k);
+    // Les planchers rendent la hauteur non lineaire en k, donc une estimation
+    // par le ratio ne converge pas seule : premiere passe au ratio pour aller
+    // vite, puis on descend par paliers jusqu'a ce que ca rentre vraiment.
+    for (var pass = 0; pass < 14; pass++) {
+      var need = nav.scrollHeight, have = nav.clientHeight;
+      if (need <= have + 1) return;
+      k = Math.max(0.15, pass === 0 ? k * (have / need) * 0.97 : k * 0.93);
+      navApplyFit(nav, k);
+      if (k <= 0.15) break;
+    }
+  } catch (e) { /* la navigation ne doit jamais casser le deck */ }
+}
+
 function fitSlide() {
   try {
     const slide = slides[currentSlide];
@@ -449,9 +497,13 @@ document.addEventListener('touchend', e => {
 let fitResizeTimer;
 window.addEventListener('resize', () => {
   clearTimeout(fitResizeTimer);
-  fitResizeTimer = setTimeout(fitSlide, 100);
+  fitResizeTimer = setTimeout(function () { fitSlide(); fitNav(); }, 100);
 });
-window.addEventListener('load', fitSlide);
+window.addEventListener('load', function () { fitSlide(); fitNav(); });
+// La navigation est deja dans le HTML, on peut la resserrer sans attendre les
+// images : sinon le premier rendu montre une liste trop haute.
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fitNav);
+else fitNav();
 
 // Init
 updateSlide();
@@ -1306,9 +1358,11 @@ window.addEventListener('load', function () {
 // l'échelle l'intérieur de la slide, pas la fenêtre, donc rien à recalculer.
 (function () {
   try {
-    var TRAIL_MS = 320;      // durée de la traînée du laser
-    var INK_HOLD_MS = 5000;  // temps pendant lequel un trait reste opaque
-    var INK_FADE_MS = 1200;  // puis sa disparition
+    var TRAIL_MS = 320;        // traînée vive sous le point du laser
+    var INK_HOLD_MS = 3200;    // le surligneur tient le temps qu'on en parle
+    var INK_FADE_MS = 1000;
+    var LASER_HOLD_MS = 2000;  // un cercle au laser reste le temps d'être vu
+    var LASER_FADE_MS = 800;
     var LASER = '#e8443a', INK = 'rgba(255,149,0,.40)', DIM = 'rgba(4,20,38,.55)';
     var BLOCKS = '.column-card,.value-detail,.feature-item,.option-card,.testimonial-card,.stat-card,.intro-stat-card,td,li';
 
@@ -1373,23 +1427,30 @@ window.addEventListener('load', function () {
         ctx.restore();
       }
 
-      // Surligneur : chaque trait vit sa vie, opaque puis effacé.
+      // Chaque trait vit sa vie, opaque puis efface. Le laser tient moins
+      // longtemps que le surligneur : on entoure, on montre, ca part.
       strokes = strokes.filter(function (st) {
-        var age = st.end ? now - st.end : 0;
-        return !st.end || age < INK_HOLD_MS + INK_FADE_MS;
+        if (!st.end) return true;
+        var life = (st.kind === 'laser' ? LASER_HOLD_MS + LASER_FADE_MS : INK_HOLD_MS + INK_FADE_MS);
+        return now - st.end < life;
       });
       strokes.concat(cur ? [cur] : []).forEach(function (st) {
         if (st.pts.length < 2) return;
+        var laser = st.kind === 'laser';
+        var hold = laser ? LASER_HOLD_MS : INK_HOLD_MS;
+        var fade = laser ? LASER_FADE_MS : INK_FADE_MS;
         var a = 1;
         if (st.end) {
           var age = now - st.end;
-          if (age > INK_HOLD_MS) a = 1 - (age - INK_HOLD_MS) / INK_FADE_MS;
+          if (age > hold) a = 1 - (age - hold) / fade;
         }
         ctx.save();
         ctx.globalAlpha = Math.max(0, a);
-        ctx.strokeStyle = INK; ctx.lineWidth = 16; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        ctx.beginPath(); ctx.moveTo(st.pts[0].x, st.pts[0].y);
-        for (var i = 1; i < st.pts.length; i++) ctx.lineTo(st.pts[i].x, st.pts[i].y);
+        ctx.strokeStyle = laser ? LASER : INK;
+        ctx.lineWidth = laser ? 6 : 16;
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        if (laser) { ctx.shadowColor = LASER; ctx.shadowBlur = 10; }
+        smoothPath(ctx, st.pts);
         ctx.stroke(); ctx.restore();
       });
 
@@ -1414,13 +1475,34 @@ window.addEventListener('load', function () {
       else { cv.style.display = 'none'; ctx.clearRect(0, 0, window.innerWidth, window.innerHeight); }
     }
     function tick() { if (!raf) raf = requestAnimationFrame(draw); }
+    // Un trait tire a la souris est une suite de segments, et ca se voit. En
+    // passant par les milieux avec des quadratiques, la main redevient fluide.
+    function smoothPath(c, pts) {
+      c.beginPath();
+      c.moveTo(pts[0].x, pts[0].y);
+      if (pts.length === 2) { c.lineTo(pts[1].x, pts[1].y); return; }
+      for (var i = 1; i < pts.length - 1; i++) {
+        var mx = (pts[i].x + pts[i + 1].x) / 2, my = (pts[i].y + pts[i + 1].y) / 2;
+        c.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+      }
+      c.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+    }
+    // Les points trop rapproches ne portent que du tremblement.
+    function addPoint(st, x, y) {
+      var p = st.pts[st.pts.length - 1];
+      if (p && Math.abs(p.x - x) + Math.abs(p.y - y) < 3) return;
+      st.pts.push({ x: x, y: y });
+    }
 
     document.addEventListener('mousemove', function (e) {
       pos.x = e.clientX; pos.y = e.clientY;
       if (!active) return;
       var now = performance.now();
-      if (active === 'laser') trail.push({ x: pos.x, y: pos.y, t: now });
-      else if (active === 'ink' && cur && (!sticky || drawing)) cur.pts.push({ x: pos.x, y: pos.y });
+      if (active === 'laser') {
+        trail.push({ x: pos.x, y: pos.y, t: now });
+        if (drawing && cur) addPoint(cur, pos.x, pos.y);
+      }
+      else if (active === 'ink' && cur && (!sticky || drawing)) addPoint(cur, pos.x, pos.y);
       else if (active === 'spot') spot = blockAt(pos.x, pos.y);
       tick();
     }, true);
@@ -1533,7 +1615,7 @@ window.addEventListener('load', function () {
         var b = e.target.closest('button'); if (!b) return;
         var act = b.dataset.act;
         if (act === 'open') { bar.classList.remove('closed'); return; }
-        if (act === 'close') { clearSticky(); bar.classList.add('closed'); return; }
+        if (act === 'close') { exitTools(); return; }
         toggleSticky(act);
       });
     }
@@ -1557,27 +1639,40 @@ window.addEventListener('load', function () {
 
     // En mode colle, le surligneur ecrit au glisser seulement, comme un vrai
     // feutre : deplacer la souris sans appuyer ne doit rien tracer.
+    // Appuyer trace, dans les deux outils : au laser on entoure ce dont on parle
+    // et le cercle tient deux secondes, au surligneur on souligne une ligne.
+    // Sans appuyer, le laser se contente de pointer.
     document.addEventListener('mousedown', function (e) {
-      if (sticky !== 'ink') return;
+      if (!sticky || e.button !== 0) return;
+      if (e.target && e.target.closest && e.target.closest('.deck-tools, #pm-panel')) return;
       e.preventDefault();
-      drawing = true; cur = { pts: [{ x: e.clientX, y: e.clientY }] }; tick();
-    }, true);
-    document.addEventListener('mouseup', function () {
-      if (sticky !== 'ink' || !drawing) return;
-      drawing = false;
-      if (cur) { cur.end = performance.now(); if (cur.pts.length > 1) strokes.push(cur); cur = null; }
-      try { if (window.pmTrack) window.pmTrack('deck_annotate', { tool: 'ink', slide: slideNow().i }); } catch (e) { }
+      drawing = true;
+      cur = { kind: sticky === 'laser' ? 'laser' : 'ink', pts: [{ x: e.clientX, y: e.clientY }] };
       tick();
     }, true);
+    document.addEventListener('mouseup', function () {
+      if (!drawing) return;
+      drawing = false;
+      if (cur) { cur.end = performance.now(); if (cur.pts.length > 1) strokes.push(cur); cur = null; }
+      try { if (window.pmTrack) window.pmTrack('deck_annotate', { tool: sticky || 'ink', slide: slideNow().i }); } catch (e) { }
+      tick();
+    }, true);
+    // T arme et desarme le mode annotation. Une fois un outil choisi il reste en
+    // main d'une slide a l'autre, et c'est T qui rend le curseur et nettoie.
+    function exitTools() {
+      clearSticky();
+      strokes = []; cur = null; drawing = false;
+      if (bar) bar.classList.add('closed');
+      tick();
+    }
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { clearSticky(); if (bar) bar.classList.add('closed'); return; }
+      if (e.key === 'Escape') { exitTools(); return; }
       if ((e.key === 't' || e.key === 'T') && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (editable(e.target) || (e.target && e.target.closest && e.target.closest('#pm-panel'))) return;
         e.preventDefault(); e.stopPropagation();
         if (!bar) mountButtons();
-        var opening = bar.classList.contains('closed');
-        bar.classList.toggle('closed', !opening);
-        if (!opening) clearSticky();
+        if (bar.classList.contains('closed')) bar.classList.remove('closed');
+        else exitTools();
       }
     }, true);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountButtons);
@@ -1587,7 +1682,7 @@ window.addEventListener('load', function () {
     window.addEventListener('resize', function () { if (cv.parentNode) ready(); });
     // Changer de slide efface l'encre de la précédente.
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === ' ') { strokes = []; cur = null; clearSticky(); tick(); }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === ' ') { strokes = []; cur = null; drawing = false; tick(); }
     }, true);
   } catch (e) { if (window.console) console.warn('[ink] outils de présentation désactivés:', e); }
 })();

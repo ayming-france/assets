@@ -45,27 +45,18 @@
       height: 100vh;
       background: var(--bg-light);
       border-right: 1px solid var(--bg-subtle);
-      padding: 40px 24px;
       z-index: 300; /* above the brand banner (200) so the band never hides nav items */
       display: flex;
       flex-direction: column;
       transform: translateX(calc(-1 * var(--nav-width) + var(--nav-collapsed)));
       transition: transform 0.3s ease;
-      /* Scroll when the chapter list is taller than the viewport (many slides on
-         a short window), so lower nav items stay reachable instead of overflowing
-         off-screen. Scrollbar only appears when needed. */
-      overflow-y: auto;
-      overflow-x: hidden;
-      overscroll-behavior: contain;
-    }
-
-    .chapter-nav::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    .chapter-nav::-webkit-scrollbar-thumb {
-      background: rgba(0,69,109,0.18);
-      border-radius: 3px;
+      /* La liste des chapitres tient dans la hauteur disponible, elle ne defile
+         jamais : fitNav() resserre le rythme vertical en JS jusqu'a ce que tout
+         entre, les valeurs ci-dessous etant le cas au large. Une barre de
+         defilement ici reste visible en permanence sur macOS et abime le bord
+         gauche du deck. */
+      overflow: hidden;
+      padding: 40px 24px;
     }
 
     .chapter-nav:hover,
@@ -151,7 +142,10 @@
       margin-bottom: 6px;
       border-radius: 8px;
       cursor: pointer;
-      transition: all 0.2s ease;
+      /* Seules la couleur et le fond s'animent : avec "all", le resserrement de
+         fitNav s'animait aussi, et toute mesure prise juste apres lisait encore
+         l'ancienne valeur. */
+      transition: background 0.2s ease, color 0.2s ease;
       font-size: 13px;
       color: var(--text-gray);
     }
