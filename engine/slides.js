@@ -357,7 +357,16 @@ function animateIntroCounters() {
     const match = text.match(/(\d[\d\s]*)/);
     if (match) {
       const target = parseInt(match[1].replace(/\s/g, ''));
-      const suffix = text.replace(match[1], '');
+      // Ce qui precede le nombre doit rester devant. « replace » rendait tout le
+      // reste comme suffixe, donc « Jusqu'a 1 500 EUR » s'affichait
+      // « 1 500Jusqu'a EUR » pendant et apres l'animation.
+      // Le motif avale les espaces qui suivent le nombre : on les rend au
+      // suffixe, sinon « 1 500 EUR » ressort colle en « 1 500EUR ».
+      const digits = match[1].replace(/\s+$/, '');
+      const at = text.indexOf(digits);
+      const prefix = text.slice(0, at);
+      const suffix = text.slice(at + digits.length);
+      el.dataset.prefix = prefix;
       animateCounter(el, target, suffix);
     }
   });
@@ -369,7 +378,7 @@ function animateCounter(element, target, suffix, duration = 800) {
     const elapsed = currentTime - startTime;
     const progress = Math.min(elapsed / duration, 1);
     const current = Math.floor(target * progress);
-    element.textContent = current.toLocaleString('fr-FR') + suffix;
+    element.textContent = (element.dataset.prefix || '') + current.toLocaleString('fr-FR') + suffix;
     if (progress < 1) requestAnimationFrame(update);
   }
   requestAnimationFrame(update);
@@ -1383,7 +1392,7 @@ window.addEventListener('load', function () {
     // Stat counters (animateIntroCounters) re-run on each slide entry and count
     // 0->target over ~800ms; freeze them at their CURRENT value so an edited
     // number is preserved (not reset, not half-counted). Restored after capture.
-    try { window.animateCounter = function (el, target, suffix) { el.textContent = (typeof target === 'number' ? target.toLocaleString('fr-FR') : target) + (suffix || ''); }; } catch (e) { }
+    try { window.animateCounter = function (el, target, suffix) { el.textContent = (el.dataset.prefix || '') + (typeof target === 'number' ? target.toLocaleString('fr-FR') : target) + (suffix || ''); }; } catch (e) { }
     for (var k = 0; k < slides.length; k++) if (state.slidesHidden.indexOf(k) < 0) visible.push(k);
     try {
       for (var j = 0; j < visible.length; j++) {

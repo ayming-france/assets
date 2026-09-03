@@ -1449,10 +1449,27 @@
       padding: 16px 70px;
       text-align: center;
       border-right: 1px solid #e0e0e0;
+      /* Les cartes s'alignent par le bas : un intitule comme « Jusqu'a » pousse
+         alors vers le haut au lieu de descendre son chiffre, et les trois
+         nombres restent sur la meme ligne. */
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
     }
 
     .intro-stat-card:last-child {
       border-right: none;
+    }
+
+    /* Le chiffre bleu ne porte que le nombre. Une nuance comme « Jusqu'a »
+       vient au-dessus, en petit et en gris, pour ne pas concurrencer le
+       chiffre ni allonger la ligne qui doit rester sur un seul rang. */
+    .intro-stat-prefix {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-gray);
+      line-height: 1;
+      margin-bottom: 6px;
     }
 
     .intro-stat-number {
