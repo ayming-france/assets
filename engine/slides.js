@@ -174,6 +174,7 @@ let bannerCounter = null;
       +   '<button class="banner-btn" data-act="prev" aria-label="Précédent">' + svg('<polyline points="15 18 9 12 15 6"/>') + '</button>'
       +   '<span class="banner-counter"></span>'
       +   '<button class="banner-btn" data-act="next" aria-label="Suivant">' + svg('<polyline points="9 18 15 12 9 6"/>') + '</button>'
+      +   '<button class="banner-btn" data-act="help" aria-label="Revoir le guide" title="Revoir le guide">' + svg('<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/>') + '</button>'
       +   '<button class="banner-btn" data-act="tools" aria-label="Outils de présentation (T)" title="Outils de présentation (T)">' + svg('<path d="m9 11-6 6v3h3l6-6"/><path d="m15 5 4 4"/><path d="M13 3.5 20.5 11l-5 5L8 8.5z"/>') + '</button>'
       +   '<button class="banner-btn" data-act="fs" aria-label="Plein écran">' + svg('<path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/>') + '</button>'
       + '</div>';
@@ -187,6 +188,9 @@ let bannerCounter = null;
     // l'intention, celle-ci l'ecoute.
     banner.querySelector('[data-act="tools"]').addEventListener('click', function () {
       document.dispatchEvent(new CustomEvent('ay-tools-toggle'));
+    });
+    banner.querySelector('[data-act="help"]').addEventListener('click', function () {
+      if (window.ayTour) window.ayTour();
     });
   } catch (e) { /* never let the banner break navigation */ }
 })();
@@ -461,11 +465,7 @@ document.addEventListener('keydown', e => {
     var forClient = /[?&]pm=/.test(location.search);
     hint.innerHTML = '<span>&#8592; &#8594; naviguer</span><span>F plein écran</span>'
       + (forClient ? '' : '<span>T outils</span>')
-      + '<span>P exporter</span>'
-      + '<span class="deck-help-tour" role="button" tabindex="0" title="Revoir le guide">guide</span>';
-    hint.addEventListener('click', function (e) {
-      if (e.target.closest('.deck-help-tour') && window.ayTour) window.ayTour();
-    });
+      + '<span>P exporter</span>';
     document.body.appendChild(hint);
   } catch (e) { /* never let the hint break the deck */ }
 })();
@@ -1805,25 +1805,112 @@ window.addEventListener('load', function () {
     document.head.appendChild(js);
   }
 
+  // Ouvrir pour de vrai ce dont on parle : un guide qui decrit un panneau sans
+  // le montrer n'apprend rien. Chaque etape ouvre son element, l'etape suivante
+  // le referme.
+  function pop() { return document.querySelector('.pdf-popover'); }
+  function openPop() { var p = pop(); if (p) p.classList.add('visible'); }
+  function closePop() { var p = pop(); if (p) p.classList.remove('visible'); }
+  function toolsShown() { return !!document.querySelector('.deck-tools.dt-show'); }
+  function openTools() { if (!toolsShown()) document.dispatchEvent(new CustomEvent('ay-tools-toggle')); }
+  function closeTools() { if (toolsShown()) document.dispatchEvent(new CustomEvent('ay-tools-toggle')); }
+  function editorOpen() { var p = document.getElementById('pm-panel'); return !!(p && p.style.display !== 'none'); }
+  function toggleEditor() { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'e', bubbles: true })); }
+  function openEditor() { if (!editorOpen()) toggleEditor(); }
+  function closeEditor() { if (editorOpen()) toggleEditor(); }
+  function closeAll() { closePop(); closeTools(); closeEditor(); }
+
+  // Une petite vignette vaut mieux qu'une phrase de plus : les trois
+  // instruments, dessines comme dans le plateau.
+  var WELCOME_ART =
+    '<div style="display:flex;gap:14px;justify-content:center;align-items:flex-end;background:#f4f8fb;border-radius:10px;padding:14px 10px 0;margin:2px 0 10px">'
+    + '<svg viewBox="0 0 38 70" width="30" height="55"><path d="M19 4 27 28H11z" fill="#5b7085"/><circle cx="19" cy="10" r="4.4" fill="#e8443a"/><rect x="11" y="26" width="16" height="6" rx="1.5" fill="#cfd9e3"/><rect x="10" y="31" width="18" height="39" rx="4" fill="#22384c"/><rect x="10" y="46" width="18" height="7" fill="#e8443a"/></svg>'
+    + '<svg viewBox="0 0 38 70" width="30" height="55"><path d="M13 7 25 3v14H13z" fill="#ff9500"/><path d="M11 17h16l2 9H9z" fill="#e6edf4"/><rect x="9" y="25" width="20" height="45" rx="5" fill="#fbfdff" stroke="#c9d6e2" stroke-width="1.3"/><rect x="9.6" y="40" width="18.8" height="10" fill="#ff9500"/></svg>'
+    + '<svg viewBox="0 0 38 70" width="30" height="55"><rect x="5" y="40" width="28" height="30" fill="#e8a91f"/><rect x="5" y="36" width="28" height="8" fill="#f0b429"/><rect x="5" y="14" width="28" height="28" rx="2" fill="#ffd968"/><rect x="10" y="22" width="18" height="2.8" rx="1.4" fill="#b98514"/><rect x="10" y="29" width="18" height="2.8" rx="1.4" fill="#b98514"/><rect x="10" y="36" width="11" height="2.8" rx="1.4" fill="#b98514"/></svg>'
+    + '</div>';
+
   function repSteps() {
     return [
-      { popover: { title: 'Bienvenue', description: "Ce deck fait plus qu'afficher des slides. Une minute pour voir quoi." } },
+      { popover: { title: 'Bienvenue', description: WELCOME_ART
+        + "Ce deck fait plus qu'afficher des slides. En une minute : naviguer, annoter pendant que vous parlez, l'emporter en PDF ou en PowerPoint, et le personnaliser avant un rendez-vous." } },
       { element: '.chapter-nav', popover: { title: 'Les chapitres', description: "Le volet s'ouvre quand la souris longe le bord gauche. Un clic va directement à la slide.", side: 'right', align: 'start' } },
-      { element: '.banner-controls [data-act="next"]', popover: { title: 'Avancer', description: "Les flèches du clavier et la barre d'espace font la même chose.", side: 'top', align: 'end' } },
-      { element: '.banner-controls [data-act="tools"]', popover: { title: 'Les outils de présentation', description: "Laser pour pointer, surligneur pour marquer une ligne, bloc-notes pour ce que dit le client. Touche T, et vos traits s'effacent tout seuls.", side: 'top', align: 'end' } },
-      { element: '.banner-logo', popover: { title: 'Les exports', description: "Le logo ouvre le téléchargement en PDF, en PowerPoint, et le lien à envoyer au client. Touche P.", side: 'top', align: 'start' } },
-      { element: '.banner-controls [data-act="fs"]', popover: { title: 'Présenter', description: "Le plein écran, touche F. Partagez cette fenêtre plutôt que votre écran, vos notes resteront invisibles.", side: 'top', align: 'end' } },
-      { popover: { title: 'Personnaliser avant un rendez-vous', description: "La touche E ouvre l'éditeur : changer un texte, masquer une slide ou un bloc. Tout reste sur votre navigateur, le deck d'origine ne bouge pas." } },
-      { popover: { title: "C'est tout", description: "Ce guide ne se relancera plus. Pour le revoir, cliquez sur « guide » en haut à droite." } }
+      { element: '.banner-controls [data-act="next"]', popover: { title: 'Avancer', description: "Ces flèches, celles du clavier et la barre d'espace font la même chose.", side: 'top', align: 'end' } },
+      { element: '.banner-controls [data-act="tools"]', popover: { title: 'Vos outils', description: "Ce bouton, ou la touche T, sort le plateau. Regardez en bas à droite.", side: 'top', align: 'end' },
+        onHighlightStarted: openTools },
+      { element: '.deck-tools [data-act="laser"]', popover: { title: 'Le laser', description: "Un point rouge suit votre curseur. En appuyant et en glissant, vous entourez ce dont vous parlez, et le trait s'efface au bout de deux secondes.", side: 'top', align: 'end' },
+        onHighlightStarted: openTools },
+      { element: '.deck-tools [data-act="ink"]', popover: { title: 'Le surligneur', description: "Il écrit seulement quand vous glissez en maintenant le bouton, comme un vrai feutre. Le trait tient trois secondes puis part tout seul.", side: 'top', align: 'end' },
+        onHighlightStarted: openTools },
+      { element: '.deck-tools [data-act="notes"]', popover: { title: 'Le bloc-notes', description: "Ce que dit le client, noté sur la slide affichée, dans une fenêtre à part que le client ne voit pas. Vous nous les envoyez ensuite en un fichier.", side: 'top', align: 'end' },
+        onHighlightStarted: openTools, onDeselected: closeTools },
+      { element: '.banner-logo', popover: { title: 'Emporter le deck', description: "Le logo ouvre trois possibilités. Les voici une par une.", side: 'top', align: 'start' },
+        onHighlightStarted: openPop },
+      { element: '.pdf-popover a:nth-child(1)', popover: { title: 'En PDF', description: "Le document tel qu'il est à l'écran. Si vous l'avez personnalisé, le PDF reprend vos modifications.", side: 'top', align: 'start' },
+        onHighlightStarted: openPop },
+      { element: '.pdf-popover a:nth-child(2)', popover: { title: 'En PowerPoint', description: "Le même, une image par slide, pour le glisser dans une présentation existante.", side: 'top', align: 'start' },
+        onHighlightStarted: openPop },
+      { element: '.pdf-popover a:nth-child(3)', popover: { title: 'Le lien à envoyer', description: "Un lien qui porte votre version personnalisée. Le client l'ouvre dans son navigateur, sans rien installer, et ne voit aucun de vos outils.", side: 'top', align: 'start' },
+        onHighlightStarted: openPop, onDeselected: closePop },
+      { element: '.banner-controls [data-act="fs"]', popover: { title: 'Présenter', description: "Le plein écran, touche F. En visio, partagez cette fenêtre plutôt que votre écran : vos notes resteront invisibles.", side: 'top', align: 'end' } },
+      { element: '#pm-panel', popover: { title: "Personnaliser avant un rendez-vous", description: "La touche E ouvre cet éditeur : changer un texte, masquer une slide ou un bloc. Tout reste sur votre navigateur, le deck d'origine ne bouge pas.", side: 'left', align: 'start' },
+        onHighlightStarted: openEditor, onDeselected: closeEditor },
+      { popover: { title: "Vous êtes prêt", description: "Ce guide ne se relancera plus. Le point d'interrogation en bas à droite le rejoue quand vous voulez." } }
     ];
   }
   function clientSteps() {
     return [
-      { popover: { title: 'Bienvenue', description: 'Deux ou trois choses pour parcourir cette présentation.' } },
-      { element: '.banner-controls [data-act="next"]', popover: { title: 'Avancer', description: "Les flèches du clavier et la barre d'espace font la même chose.", side: 'top', align: 'end' } },
-      { element: '.banner-logo', popover: { title: 'Emporter le document', description: 'Le logo ouvre le téléchargement en PDF et en PowerPoint.', side: 'top', align: 'start' } },
-      { element: '.banner-controls [data-act="fs"]', popover: { title: 'Plein écran', description: 'Pour lire confortablement. Touche F.', side: 'top', align: 'end' } }
+      { popover: { title: 'Bienvenue', description: "Quelques repères pour parcourir cette présentation." } },
+      { element: '.banner-controls [data-act="next"]', popover: { title: 'Avancer', description: "Ces flèches, celles du clavier et la barre d'espace font la même chose.", side: 'top', align: 'end' } },
+      { element: '.banner-logo', popover: { title: 'Emporter le document', description: "Le logo ouvre le téléchargement.", side: 'top', align: 'start' },
+        onHighlightStarted: openPop },
+      { element: '.pdf-popover a:nth-child(1)', popover: { title: 'En PDF', description: "La présentation complète, à garder ou à faire circuler.", side: 'top', align: 'start' },
+        onHighlightStarted: openPop, onDeselected: closePop },
+      { element: '.banner-controls [data-act="fs"]', popover: { title: 'Plein écran', description: "Pour lire confortablement. Touche F.", side: 'top', align: 'end' } },
+      { popover: { title: 'Bonne lecture', description: "Le point d'interrogation en bas à droite rouvre ces repères." } }
     ];
+  }
+
+  // Une quarantaine de lignes plutot qu'une bibliotheque de plus. Se tait si la
+  // personne a demande moins d'animations.
+  function confetti() {
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      var cv = document.createElement('canvas');
+      cv.className = 'deck-confetti';
+      cv.style.cssText = 'position:fixed;inset:0;z-index:100001;pointer-events:none';
+      var r = window.devicePixelRatio || 1, W = window.innerWidth, H = window.innerHeight;
+      cv.width = W * r; cv.height = H * r; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+      document.body.appendChild(cv);
+      var c = cv.getContext('2d'); c.setTransform(r, 0, 0, r, 0, 0);
+      var COLORS = ['#11a9e6', '#0ab38c', '#ffd968', '#ff9500', '#003d79'];
+      var bits = [];
+      for (var i = 0; i < 130; i++) {
+        bits.push({
+          x: W / 2 + (Math.random() - 0.5) * W * 0.5,
+          y: H * 0.42 + (Math.random() - 0.5) * 60,
+          vx: (Math.random() - 0.5) * 9,
+          vy: -6 - Math.random() * 9,
+          w: 5 + Math.random() * 6, h: 8 + Math.random() * 7,
+          rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.35,
+          col: COLORS[(Math.random() * COLORS.length) | 0]
+        });
+      }
+      var t0 = performance.now();
+      (function frame(now) {
+        var age = now - t0;
+        c.clearRect(0, 0, W, H);
+        bits.forEach(function (b) {
+          b.vy += 0.34; b.x += b.vx; b.y += b.vy; b.rot += b.vr; b.vx *= 0.995;
+          c.save();
+          c.globalAlpha = Math.max(0, 1 - age / 2200);
+          c.translate(b.x, b.y); c.rotate(b.rot);
+          c.fillStyle = b.col; c.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+          c.restore();
+        });
+        if (age < 2200) requestAnimationFrame(frame);
+        else cv.remove();
+      })(t0);
+    } catch (e) { /* jamais bloquant */ }
   }
 
   function start(force) {
@@ -1835,6 +1922,7 @@ window.addEventListener('load', function () {
         return !st.element || document.querySelector(st.element);
       });
       if (!steps.length) return;
+      var reachedEnd = false;
       var d = window.driver.js.driver({
         showProgress: true,
         allowClose: true,
@@ -1844,12 +1932,18 @@ window.addEventListener('load', function () {
         doneBtnText: 'Terminer',
         progressText: '{{current}} sur {{total}}',
         steps: steps,
+        onHighlighted: function (el, step, opts) {
+          try { reachedEnd = opts.state.activeIndex === steps.length - 1; } catch (e) { }
+        },
         onDestroyed: function () {
           markSeen();
-          try { if (window.pmTrack) window.pmTrack('deck_tour_done', { role: isClient() ? 'client' : 'rep' }); } catch (e) { }
+          closeAll();
+          try { if (window.pmTrack) window.pmTrack('deck_tour_done', { role: isClient() ? 'client' : 'rep', completed: reachedEnd }); } catch (e) { }
           // On rend la slide d'ou l'on venait : rejouer le guide en plein
           // rendez-vous ne doit pas ramener tout le monde a la couverture.
           goToSlide(from);
+          // Aller au bout merite mieux qu'une fenetre qui disparait.
+          if (reachedEnd) confetti();
         }
       });
       // Le bandeau se masque sur la couverture, et il porte la moitie des
