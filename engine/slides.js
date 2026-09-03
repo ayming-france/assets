@@ -1423,6 +1423,11 @@ window.addEventListener('load', function () {
     var LASER_HOLD_MS = 2000;  // un cercle au laser reste le temps d'être vu
     var LASER_FADE_MS = 800;
     var LASER = '#e8443a', INK = 'rgba(255,149,0,.40)', DIM = 'rgba(4,20,38,.55)';
+    // Le curseur du surligneur montre l'epaisseur reelle du trait.
+    var INK_CURSOR = "url(\"data:image/svg+xml;utf8,"
+      + "<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'>"
+      + "<circle cx='13' cy='13' r='8.5' fill='rgba(255,149,0,0.30)' stroke='%23ff9500' stroke-width='1.6'/>"
+      + "<circle cx='13' cy='13' r='1.4' fill='%23ff9500'/></svg>\") 13 13, crosshair";
     var BLOCKS = '.column-card,.value-detail,.feature-item,.option-card,.testimonial-card,.stat-card,.intro-stat-card,td,li';
 
     var cv = document.createElement('canvas');
@@ -1706,8 +1711,11 @@ window.addEventListener('load', function () {
       bar.classList.toggle('dt-show', !!(shown || sticky));
       cv.classList.toggle('ink-draw', sticky === 'ink');
       // Le style inline du canvas bat la feuille de style, donc le curseur se
-      // pose sur le body : c'est le seul retour visuel que le feutre est arme.
-      document.body.style.cursor = (sticky === 'ink') ? 'crosshair' : '';
+      // pose sur le body. Laser : on cache la fleche, sinon on voit deux
+      // pointeurs pour une seule main. Surligneur : un rond de la largeur du
+      // trait, plutot que la mire d'un logiciel de retouche.
+      document.body.style.cursor = sticky === 'laser' ? 'none'
+        : sticky === 'ink' ? INK_CURSOR : '';
     }
     function toggleSticky(tool) {
       if (sticky === tool) { sticky = null; stop(); }
