@@ -1995,10 +1995,10 @@ window.addEventListener('load', function () {
     + '.driver-popover .driver-popover-next-btn{background:#0fa7e2;color:#fff}'
     + '.driver-popover .driver-popover-next-btn:hover{background:#0d96cb}'
     + '.driver-popover .driver-popover-close-btn{color:#93a6b6;font-size:22px}'
-    // L'invite « cliquez ici » respire et attire l'oeil vers l'element vise.
+    // L'invite dit ou regarder, elle ne bouge pas : le seul element qui clignote
+    // est la cible elle-meme (classe ay-poke). Deux pouls sur un ecran font
+    // regarder le mauvais, et la phrase dit « le bouton qui clignote ».
     + '.driver-popover .doit{display:flex;align-items:center;gap:8px;margin:11px 0 0;color:#0a6f9c;font-size:13px;font-weight:600}'
-    + '.driver-popover .doit i{width:8px;height:8px;border-radius:50%;background:#0fa7e2;animation:ayPulse 1.25s ease-in-out infinite;flex:none}'
-    + '@keyframes ayPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.6);opacity:.4}}'
     // Quand une etape attend un geste, le seul bleu de l'ecran est la cible.
     + '.driver-popover.ay-await .driver-popover-next-btn{background:#eef3f8;color:#7b8fa1;font-weight:600}'
     + '.driver-popover.ay-await .driver-popover-next-btn:hover{background:#e2ebf3;color:#4b6579}'
@@ -2050,7 +2050,7 @@ window.addEventListener('load', function () {
     try { if (edrv) edrv.destroy(); } catch (e) { }
     quiet = false; drv = null; edrv = null;
   }
-  function doit(txt) { return '<div class="doit"><i></i>' + txt + '</div>'; }
+  function doit(txt) { return '<div class="doit">' + txt + '</div>'; }
   // Une etape qui attend un vrai geste. Le pouls se pose sur l'element vise, pas
   // dans la fenetre : une invite encadree se fait cliquer a la place de la cible.
   // Le bouton reste, libelle « Passer » et sans couleur, pour que personne ne
