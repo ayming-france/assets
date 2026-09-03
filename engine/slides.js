@@ -606,6 +606,17 @@ window.addEventListener('load', function () {
     if (AY_RECIPIENT) sessionStorage.setItem('ay-to', AY_RECIPIENT);
     else AY_RECIPIENT = sessionStorage.getItem('ay-to') || '';
   } catch (e) {}
+  // Stable company key from "?siren=", present when the rep picked the entreprise
+  // in the share dialog's SIRENE autocomplete. The recipient NAME stays the display
+  // label and the identify key (history stays continuous), the SIREN is what lets
+  // two spellings of one company be recognised as the same company.
+  var AY_SIREN = '';
+  try {
+    var _ms = location.search.match(/[?&]siren=(\d{9})/);
+    AY_SIREN = _ms ? _ms[1] : '';
+    if (AY_SIREN) sessionStorage.setItem('ay-siren', AY_SIREN);
+    else AY_SIREN = sessionStorage.getItem('ay-siren') || '';
+  } catch (e) {}
   // Rep identity: the commercial's own first name, remembered locally on their
   // browser so every event they trigger carries "who". A share link can also
   // carry "?by=<prénom>" so a client's later events are credited to the rep who
@@ -630,7 +641,7 @@ window.addEventListener('load', function () {
     if (AY_ROLE === 'rep' && AY_REP) repTag = AY_REP;
     else if (AY_ROLE === 'client') { try { repTag = sessionStorage.getItem('ay-by') || ''; } catch (e) {} }
     // Bridge every deck event into Umami, tagged with role + deck name (+ company + rep).
-    try { if (window.umami && window.umami.track) window.umami.track(event, Object.assign({ role: AY_ROLE, deck: deckKey }, AY_RECIPIENT ? { recipient: AY_RECIPIENT } : {}, repTag ? { rep: repTag } : {}, detail || {})); } catch (e) { }
+    try { if (window.umami && window.umami.track) window.umami.track(event, Object.assign({ role: AY_ROLE, deck: deckKey }, AY_RECIPIENT ? { recipient: AY_RECIPIENT } : {}, AY_SIREN ? { siren: AY_SIREN } : {}, repTag ? { rep: repTag } : {}, detail || {})); } catch (e) { }
     var l = document.getElementById('pm-log');
     if (l) { var d = document.createElement('div'); d.className = 'pm-log-line'; d.innerHTML = '<span class="pm-dot"></span>'; d.appendChild(document.createTextNode(event + '  ' + JSON.stringify(detail || {}))); l.prepend(d); }
   }
@@ -742,6 +753,19 @@ window.addEventListener('load', function () {
   function blank() { return { text: {}, masked: [], opacity: {}, slidesHidden: [] }; }
   var state = blank();
   function autosave() { try { localStorage.setItem('pm:draft:' + deckKey, JSON.stringify(state)); } catch (e) { } }
+  // La version chargee est ce qui identifie le client du moment. Les notes
+  // s'estampillent avec, sinon celles de La Poste et celles de Bobcat finissent
+  // dans le meme tas, separees par rien.
+  var curVersion = '';
+  try { curVersion = localStorage.getItem('pm:version:' + deckKey) || ''; } catch (e) { }
+  function setVersion(name) {
+    curVersion = name || '';
+    try {
+      if (curVersion) localStorage.setItem('pm:version:' + deckKey, curVersion);
+      else localStorage.removeItem('pm:version:' + deckKey);
+    } catch (e) { }
+    renderSaves(); presRender(); presSyncHead();
+  }
   function getSaves() { try { return JSON.parse(localStorage.getItem('pm:saves:' + deckKey) || '{}'); } catch (e) { return {}; } }
   function setSaves(o) { try { localStorage.setItem('pm:saves:' + deckKey, JSON.stringify(o)); } catch (e) { } }
   // UTF-8 safe base64 of the state -> a shareable "?pm=" link. The export
@@ -918,7 +942,7 @@ window.addEventListener('load', function () {
   css.textContent =
     '#pm-panel{position:fixed;top:14px;right:14px;width:300px;max-height:92vh;flex-direction:column;z-index:99999;background:#fff;border-radius:16px;box-shadow:0 18px 50px rgba(2,30,60,.32);font-family:system-ui,Arial,sans-serif;font-size:13px;color:#13324d;border:1px solid rgba(0,61,121,.08);overflow:hidden}' +
     '.pm-toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(10px);z-index:100000;background:#003d79;color:#fff;font-family:system-ui,Arial,sans-serif;font-size:13px;font-weight:600;padding:11px 20px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.28);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}.pm-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}' +
-    '.pm-ovl{position:fixed;inset:0;z-index:100000;background:rgba(8,24,44,.45);display:flex;align-items:center;justify-content:center;font-family:system-ui,Arial,sans-serif}.pm-dlg{background:#fff;border-radius:16px;padding:22px;max-width:340px;box-shadow:0 24px 70px rgba(0,0,0,.32)}.pm-dlg-msg{font-size:14px;color:#13324d;margin-bottom:18px;line-height:1.5}.pm-dlg-btns{display:flex;gap:10px;justify-content:flex-end}.pm-dlg button{font-size:13px;font-weight:700;border-radius:9px;padding:9px 18px;cursor:pointer;border:0}.pm-dlg-cancel{background:#eef3f8;color:#34495c}.pm-dlg-ok{background:#c0392b;color:#fff}.pm-dlg-input{width:100%;box-sizing:border-box;border:1px solid #cfd9e3;border-radius:9px;padding:10px 12px;font-size:14px;margin-bottom:16px;font-family:inherit}.pm-dlg-input:focus{outline:none;border-color:#0fa7e2}.pm-dlg-go{background:#0fa7e2!important;color:#fff!important}.pm-share{max-width:400px;padding:26px;text-align:left}.pm-share-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#11a9e6,#0ab38c);color:#fff;margin-bottom:15px}.pm-dlg-title{font-size:17px;font-weight:800;color:#0e2438;margin-bottom:6px}.pm-dlg-sub{font-size:13px;color:#5b7085;line-height:1.5;margin-bottom:16px}.pm-dlg-go:hover{filter:brightness(1.06)}.pm-dlg-cancel:hover{background:#e3ebf2}' +
+    '.pm-ovl{position:fixed;inset:0;z-index:100000;background:rgba(8,24,44,.45);display:flex;align-items:center;justify-content:center;font-family:system-ui,Arial,sans-serif}.pm-dlg{background:#fff;border-radius:16px;padding:22px;max-width:340px;box-shadow:0 24px 70px rgba(0,0,0,.32)}.pm-dlg-msg{font-size:14px;color:#13324d;margin-bottom:18px;line-height:1.5}.pm-dlg-btns{display:flex;gap:10px;justify-content:flex-end}.pm-dlg button{font-size:13px;font-weight:700;border-radius:9px;padding:9px 18px;cursor:pointer;border:0}.pm-dlg-cancel{background:#eef3f8;color:#34495c}.pm-dlg-ok{background:#c0392b;color:#fff}.pm-dlg-input{width:100%;box-sizing:border-box;border:1px solid #cfd9e3;border-radius:9px;padding:10px 12px;font-size:14px;margin-bottom:16px;font-family:inherit}.pm-dlg-input:focus{outline:none;border-color:#0fa7e2}.pm-dlg-go{background:#0fa7e2!important;color:#fff!important}.pm-share{max-width:400px;padding:26px;text-align:left}.pm-share-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#11a9e6,#0ab38c);color:#fff;margin-bottom:15px}.pm-dlg-title{font-size:17px;font-weight:800;color:#0e2438;margin-bottom:6px}.pm-dlg-sub{font-size:13px;color:#5b7085;line-height:1.5;margin-bottom:16px}.pm-dlg-go:hover{filter:brightness(1.06)}.pm-dlg-cancel:hover{background:#e3ebf2}.pm-ac-wrap{position:relative;margin-bottom:16px}.pm-ac-wrap .pm-dlg-input{margin-bottom:0}.pm-ac{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:2;background:#fff;border:1px solid #cfd9e3;border-radius:10px;box-shadow:0 14px 32px rgba(8,24,44,.18);max-height:236px;overflow:auto;display:none}.pm-ac.on{display:block}.pm-ac-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid #eef3f8;font-size:14px;line-height:1.35;color:#13324d}.pm-ac-item:last-child{border-bottom:0}.pm-ac-item.hi,.pm-ac-item:hover{background:#eaf6fd}.pm-ac-sub{display:block;font-size:12px;color:#6b8296;margin-top:1px}' +
     '#pm-dlpop{position:fixed;bottom:58px;left:14px;z-index:100000;background:#fff;border-radius:12px;box-shadow:0 12px 40px rgba(2,30,60,.3);display:none;flex-direction:column;overflow:hidden;border:1px solid rgba(0,61,121,.08);font-family:system-ui,Arial,sans-serif}#pm-dlpop.show{display:flex}#pm-dlpop .pm-dlbtn{display:flex;align-items:center;gap:9px;padding:12px 18px;background:#fff;border:0;font-size:13px;font-weight:600;color:#003d79;cursor:pointer;white-space:nowrap}#pm-dlpop .pm-dlbtn:hover{background:#f2f6fa}#pm-dlpop .pm-dlbtn+.pm-dlbtn{border-top:1px solid #eef1f5}#pm-dlpop svg{vertical-align:-2px}' +
     '#pm-panel .pm-h{font-weight:800;font-size:14px;padding:13px 16px;display:flex;gap:8px;align-items:center;cursor:grab;background:linear-gradient(135deg,#003d79,#0ab38c);color:#fff;user-select:none}' +
     '#pm-panel .pm-tag{background:rgba(255,255,255,.25);font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;margin-left:auto}' +
@@ -933,6 +957,7 @@ window.addEventListener('load', function () {
     '#pm-panel .pm-mini{font-size:11.5px;background:#fff;border:1px solid #cfd9e3;border-radius:8px;padding:7px 11px;cursor:pointer;color:#34495c;font-weight:600}#pm-panel .pm-mini:hover{border-color:#0fa7e2;color:#0fa7e2}' +
     '#pm-panel .pm-oprow{display:flex;align-items:center;gap:8px}#pm-panel .pm-oplab{font-size:11px;color:#56697a}#pm-panel #pm-opacity{flex:1}#pm-panel #pm-opval{width:42px;text-align:right;font-weight:700}' +
     '#pm-panel #pm-maskedwrap{display:none;padding:6px 16px 0}#pm-panel .pm-modhd{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:#7c8ea0;font-weight:700;margin-bottom:4px}#pm-panel .pm-modrow{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0;gap:8px}#pm-panel .pm-modrow span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '#pm-panel .pm-vactive{background:#eaf7fd;border-radius:8px;padding:3px 8px;margin:0 -8px}#pm-panel .pm-vactive .pm-vname-txt{color:#0a6f9c}' +
     '#pm-panel .pm-vrow{display:flex;gap:8px;padding:0 16px 8px}#pm-panel #pm-vname{flex:1;border:1px solid #cfd9e3;border-radius:8px;padding:7px 10px;font-size:12px}#pm-panel #pm-saves{padding:0 16px}#pm-panel .pm-reset{margin:8px 16px 0;color:#c0392b;border-color:#e8c4be}' +
     '#pm-panel #pm-slides{display:flex;flex-direction:column;gap:1px;max-height:200px;overflow:auto;padding:0 8px}#pm-panel .pm-srow{display:flex;gap:8px;align-items:center;font-size:12px;padding:4px 8px;border-radius:7px}#pm-panel .pm-srow:hover{background:#f2f6fa}#pm-panel .pm-srow.pm-hidden .pm-sname{opacity:.4;text-decoration:line-through}#pm-panel .pm-eye{cursor:pointer;display:inline-flex}' +
     '#pm-panel .pm-fixed{border-top:1px solid #eef1f5;padding:12px 16px;background:#fafcfe}#pm-panel .pm-fxhd{display:flex;align-items:center;gap:9px;font-weight:700;font-size:13px;margin-bottom:9px}#pm-panel .pm-fixed .pm-row{padding:0}' +
@@ -954,7 +979,13 @@ window.addEventListener('load', function () {
   }
   function renderSaves() {
     var box = document.getElementById('pm-saves'), o = getSaves(); box.innerHTML = '';
-    Object.keys(o).forEach(function (name) { var r = document.createElement('div'); r.className = 'pm-modrow'; r.innerHTML = '<span>' + ICON.save + ' ' + name + '</span><span><button class="pm-mini" data-load="' + name + '">Charger</button> <button class="pm-mini" data-del="' + name + '">✕</button></span>'; box.appendChild(r); });
+    Object.keys(o).forEach(function (name) {
+      var r = document.createElement('div');
+      r.className = 'pm-modrow' + (name === curVersion ? ' pm-vactive' : '');
+      r.innerHTML = '<span>' + ICON.save + ' <b class="pm-vname-txt"></b></span><span><button class="pm-mini" data-load="' + name + '">Charger</button> <button class="pm-mini" data-del="' + name + '">✕</button></span>';
+      r.querySelector('.pm-vname-txt').textContent = name;
+      box.appendChild(r);
+    });
   }
 
   function applyState(st) {
@@ -988,6 +1019,10 @@ window.addEventListener('load', function () {
     + '.hd{background:linear-gradient(135deg,#003d79,#0ab38c);color:#fff;padding:13px 16px;display:flex;gap:9px;align-items:flex-start}'
     + '.hd svg{flex:none;margin-top:1px;opacity:.9}.hd b{font-weight:800;font-size:14px;display:block;line-height:1.2}'
     + '.hd span{font-size:11.5px;opacity:.88;display:block;margin-top:3px;line-height:1.35}'
+    + '.vbar{background:#eaf7fd;color:#0a6f9c;font-size:11.5px;font-weight:700;padding:7px 16px;border-bottom:1px solid #d6ecf7}'
+    + '.ngroup{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#7c8ea0;margin:14px 0 7px;grid-column:1/-1}'
+    + '.ngroup:first-child{margin-top:2px}'
+    + '.ngroup.on{color:#0a6f9c}'
     + '.bd{flex:1;overflow:auto;padding:14px 16px}'
     + 'textarea{width:100%;min-height:96px;border:1px solid #cfd9e3;border-radius:10px;padding:9px 11px;font:inherit;font-size:13px;line-height:1.45;resize:vertical;color:#13324d}'
     + 'textarea:focus{outline:none;border-color:#0fa7e2}'
@@ -1021,6 +1056,7 @@ window.addEventListener('load', function () {
   var noteType = 'slide';
   function presBody() {
     return '<div class="hd">' + ICON.note + '<div><b id="p-slide">Slide</b><span id="p-title"></span></div></div>'
+      + '<div class="vbar" id="p-version"></div>'
       + '<div class="bd"><textarea id="p-text" placeholder="' + "Ce que dit le client, ce qu'il faut changer..." + '"></textarea>'
       + '<div class="seg"><button data-t="slide"><span class="dot"></span>Cette slide</button>'
       + '<button data-t="gen"><span class="dot"></span>' + "Générale" + '</button></div>'
@@ -1034,9 +1070,18 @@ window.addEventListener('load', function () {
   function notesMarkdown() {
     var a = getNotes(), nl = String.fromCharCode(10);
     var out = ['# Notes, ' + deckKey + ', ' + new Date().toISOString().slice(0, 10), ''];
+    var order = [], groups = {};
     a.forEach(function (n) {
-      out.push(n.slide ? ('## Slide ' + n.slide + ', ' + n.title) : '## Note générale');
-      out.push(n.text, '');
+      var k = n.version || '';
+      if (!groups[k]) { groups[k] = []; order.push(k); }
+      groups[k].push(n);
+    });
+    order.forEach(function (k) {
+      out.push('## ' + (k || 'Sans version'), '');
+      groups[k].forEach(function (n) {
+        out.push(n.slide ? ('### Slide ' + n.slide + ', ' + n.title) : '### Note générale');
+        out.push(n.text, '');
+      });
     });
     return out.join(nl);
   }
@@ -1047,23 +1092,38 @@ window.addEventListener('load', function () {
     hint.textContent = a.length ? (a.length + (a.length > 1 ? ' notes prises' : ' note prise')) : "Aucune note pour l'instant.";
     var dl = d.getElementById('p-dl'); if (dl) dl.disabled = !a.length;
     box.innerHTML = '';
+    // Rangees par client : une note prise pour La Poste n'a rien a faire a cote
+    // d'une note prise pour Bobcat. L'ordre suit celui des notes.
+    var order = [], groups = {};
     a.forEach(function (n, i) {
-      var r = d.createElement('div');
-      r.className = 'nrow ' + (n.slide ? 'slide' : 'gen');
-      r.innerHTML = '<div class="nmeta"></div><div class="ntxt"></div><button class="ndel" data-ndel="' + i + '">&#10005;</button>';
-      // Le titre complet tenait sur trois lignes et mangeait le pense-bete. Le
-      // numero suffit pour se reperer, le titre est deja dans l'en-tete.
-      r.querySelector('.nmeta').textContent = n.slide ? ('Slide ' + n.slide) : 'Générale';
-      r.querySelector('.ntxt').textContent = n.text;
-      if (n.slide) {
-        r.title = 'Aller à la slide ' + n.slide;
-        r.addEventListener('click', function (e) {
-          if (e.target.closest('.ndel')) return;
-          goToSlide(n.slide - 1);
-          presSyncHead();
-        });
-      }
-      box.appendChild(r);
+      var k = n.version || '';
+      if (!groups[k]) { groups[k] = []; order.push(k); }
+      groups[k].push({ n: n, i: i });
+    });
+    order.forEach(function (k) {
+      var h = d.createElement('div');
+      h.className = 'ngroup' + (k === curVersion && k ? ' on' : '');
+      h.textContent = k || 'Sans version';
+      box.appendChild(h);
+      groups[k].forEach(function (item) {
+        var n = item.n, i = item.i;
+        var r = d.createElement('div');
+        r.className = 'nrow ' + (n.slide ? 'slide' : 'gen');
+        r.innerHTML = '<div class="nmeta"></div><div class="ntxt"></div><button class="ndel" data-ndel="' + i + '">&#10005;</button>';
+        // Le titre complet tenait sur trois lignes et mangeait le pense-bete. Le
+        // numero suffit pour se reperer, le titre est deja dans l'en-tete.
+        r.querySelector('.nmeta').textContent = n.slide ? ('Slide ' + n.slide) : 'Générale';
+        r.querySelector('.ntxt').textContent = n.text;
+        if (n.slide) {
+          r.title = 'Aller à la slide ' + n.slide;
+          r.addEventListener('click', function (e) {
+            if (e.target.closest('.ndel')) return;
+            goToSlide(n.slide - 1);
+            presSyncHead();
+          });
+        }
+        box.appendChild(r);
+      });
     });
   }
   function presSyncHead() {
@@ -1073,6 +1133,8 @@ window.addEventListener('load', function () {
     if (!t) return;
     t.textContent = 'Slide ' + idx;
     pmWin.document.getElementById('p-title').textContent = slideTitle(sl);
+    var v = pmWin.document.getElementById('p-version');
+    if (v) v.textContent = curVersion ? ('Notes pour ' + curVersion) : 'Aucune version chargée';
   }
   function presAdd() {
     var d = pmWin.document, ta = d.getElementById('p-text'), txt = (ta.value || '').trim();
@@ -1080,9 +1142,9 @@ window.addEventListener('load', function () {
     var general = noteType === 'gen';
     var sl = activeSlide(), idx = general ? 0 : Array.prototype.indexOf.call(slides, sl) + 1;
     var ti = general ? 'Note générale' : slideTitle(sl);
-    var a = getNotes(); a.push({ slide: idx, title: ti, text: txt, ts: new Date().toISOString() });
+    var a = getNotes(); a.push({ slide: idx, title: ti, text: txt, version: curVersion, ts: new Date().toISOString() });
     setNotes(a); ta.value = ''; ta.focus(); presRender();
-    track('deck_note', { slide: idx, title: ti, note: txt.slice(0, 500) });
+    track('deck_note', { slide: idx, title: ti, version: curVersion, note: txt.slice(0, 500) });
   }
   function presPaintSeg() {
     if (!pmWin || pmWin.closed) return;
@@ -1206,13 +1268,19 @@ window.addEventListener('load', function () {
   // versions
   document.getElementById('pm-vsave').addEventListener('click', function () {
     var name = (document.getElementById('pm-vname').value || '').trim(); if (!name) { toast('Donnez un nom à la version.'); return; }
-    var o = getSaves(); var existed = !!o[name]; o[name] = state; setSaves(o); renderSaves();
+    var o = getSaves(); var existed = !!o[name]; o[name] = state; setSaves(o);
+    setVersion(name);
     track('deck_version_save', { name: name, overwrite: existed }); toast(existed ? 'Version « ' + name + ' » écrasée.' : 'Version « ' + name + ' » enregistrée.');
   });
   document.getElementById('pm-saves').addEventListener('click', function (e) {
     var l = e.target.closest('[data-load]'), d = e.target.closest('[data-del]');
-    if (l) { var o = getSaves(); if (o[l.dataset.load]) { applyState(JSON.parse(JSON.stringify(o[l.dataset.load]))); track('deck_version_load', { name: l.dataset.load }); } }
-    else if (d) { var o2 = getSaves(); delete o2[d.dataset.del]; setSaves(o2); renderSaves(); }
+    if (l) { var o = getSaves(); if (o[l.dataset.load]) { applyState(JSON.parse(JSON.stringify(o[l.dataset.load]))); setVersion(l.dataset.load); track('deck_version_load', { name: l.dataset.load }); } }
+    else if (d) {
+      var o2 = getSaves(); delete o2[d.dataset.del]; setSaves(o2);
+      // Supprimer la version ne supprime pas les notes prises pour ce client :
+      // elles gardent son nom, c'est tout ce qui les rattache a lui.
+      if (curVersion === d.dataset.del) setVersion(''); else renderSaves();
+    }
   });
   document.getElementById('pm-vreset').addEventListener('click', function () { confirmDialog('Effacer toutes vos modifications sur ce deck ?', function () { localStorage.removeItem('pm:draft:' + deckKey); location.reload(); }); });
 
@@ -1338,25 +1406,88 @@ window.addEventListener('load', function () {
       + '<div class="pm-share-icon">' + ICO('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>', 20) + '</div>'
       + '<div class="pm-dlg-title">Partager ce deck</div>'
       + '<div class="pm-dlg-sub">Indiquez l’entreprise destinataire pour suivre la consultation. N’entrez jamais le nom d’une personne.</div>'
-      + '<input class="pm-dlg-input" type="text" placeholder="Nom de l’entreprise">'
+      + '<div class="pm-ac-wrap"><input class="pm-dlg-input" type="text" placeholder="Nom de l’entreprise" autocomplete="off" spellcheck="false"><div class="pm-ac"></div></div>'
       + '<div class="pm-dlg-btns"><button class="pm-dlg-cancel">Annuler</button><button class="pm-dlg-go">Copier le lien</button></div>'
       + '</div>';
     var input = ov.querySelector('.pm-dlg-input');
+    var acBox = ov.querySelector('.pm-ac');
     document.body.appendChild(ov);
+    // Company autocomplete on the public SIRENE search (recherche-entreprises, no
+    // key and no auth). Picking an entreprise spells the company the same way on
+    // every share and attaches its SIREN, so one company stops reaching the
+    // analytics under three spellings. A name the API does not know still works:
+    // the field stays free text and the SIREN is simply absent.
+    var acList = [], acHi = -1, acTimer = null, acPicked = null, acSeq = 0;
+    function acEsc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+    function acOpen() { return acBox.className.indexOf('on') >= 0; }
+    function acClose() { acBox.className = 'pm-ac'; acBox.innerHTML = ''; acList = []; acHi = -1; }
+    function acRender() {
+      if (!acList.length) { acClose(); return; }
+      acBox.innerHTML = acList.map(function (r, i) {
+        var city = (r.siege && r.siege.libelle_commune) || '';
+        var sub = city && r.siren ? city + ' · ' + r.siren : (city || r.siren || '');
+        return '<div class="pm-ac-item' + (i === acHi ? ' hi' : '') + '" data-i="' + i + '">'
+          + acEsc(r.nom_complet || r.nom_raison_sociale || '')
+          + '<span class="pm-ac-sub">' + acEsc(sub) + '</span></div>';
+      }).join('');
+      acBox.className = 'pm-ac on';
+    }
+    function acPick(i) {
+      var r = acList[i]; if (!r) return;
+      acPicked = { name: (r.nom_complet || r.nom_raison_sociale || '').trim(), siren: r.siren || '' };
+      input.value = acPicked.name;
+      acClose();
+    }
+    function acSearch(q) {
+      var seq = ++acSeq;
+      fetch('https://recherche-entreprises.api.gouv.fr/search?per_page=6&etat_administratif=A&q=' + encodeURIComponent(q))
+        .then(function (r) { return r.json(); })
+        // Only the latest keystroke wins, a slow earlier response must never
+        // repaint the list under a rep who has kept typing.
+        .then(function (d) { if (seq !== acSeq) return; acList = (d && d.results) || []; acHi = -1; acRender(); })
+        .catch(function () { if (seq === acSeq) acClose(); });
+    }
+    input.addEventListener('input', function () {
+      acPicked = null;
+      var q = input.value.trim();
+      clearTimeout(acTimer);
+      if (q.length < 3) { acClose(); return; }
+      acTimer = setTimeout(function () { acSearch(q); }, 250);
+    });
+    // mousedown rather than click, so the input never loses focus before the pick lands.
+    acBox.addEventListener('mousedown', function (e) {
+      var it = e.target.closest && e.target.closest('.pm-ac-item');
+      if (it) { e.preventDefault(); acPick(+it.getAttribute('data-i')); }
+    });
     function close() { ov.remove(); }
     function go() {
-      var name = input.value.trim();
+      var name = acPicked ? acPicked.name : input.value.trim();
+      var siren = acPicked ? acPicked.siren : '';
       var link = pmLink();
       if (name) link += (link.indexOf('?') >= 0 ? '&' : '?') + 'to=' + encodeURIComponent(name);
+      if (siren) link += '&siren=' + encodeURIComponent(siren);
       if (AY_REP) link += '&by=' + encodeURIComponent(AY_REP);
       copyLink(link);
-      track('deck_link_share', { hidden_count: state.slidesHidden.length, recipient: name || '' });
+      track('deck_link_share', Object.assign({ hidden_count: state.slidesHidden.length, recipient: name || '' }, siren ? { siren: siren } : {}));
       toast(name ? ('Lien pour « ' + name + ' » copié.') : 'Lien copié.');
       close();
     }
     ov.querySelector('.pm-dlg-cancel').addEventListener('click', close);
     ov.querySelector('.pm-dlg-go').addEventListener('click', go);
-    input.addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Enter') go(); else if (e.key === 'Escape') close(); });
+    input.addEventListener('keydown', function (e) {
+      e.stopPropagation();
+      if (acOpen() && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+        e.preventDefault();
+        acHi += (e.key === 'ArrowDown' ? 1 : -1);
+        if (acHi < 0) acHi = acList.length - 1;
+        if (acHi >= acList.length) acHi = 0;
+        acRender();
+        return;
+      }
+      // Escape closes the suggestion list first, the dialog only on a second press.
+      if (e.key === 'Enter') { if (acOpen() && acHi >= 0) { acPick(acHi); return; } go(); }
+      else if (e.key === 'Escape') { if (acOpen()) { acClose(); return; } close(); }
+    });
     ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
     setTimeout(function () { input.focus(); }, 50);
   }
