@@ -465,7 +465,7 @@ document.addEventListener('keydown', e => {
     var forClient = /[?&]pm=/.test(location.search);
     hint.innerHTML = '<span>&#8592; &#8594; naviguer</span><span>F plein écran</span>'
       + (forClient ? '' : '<span>T outils</span>')
-      + '<span>P exporter</span>';
+      + '<span>P partager</span>';
     document.body.appendChild(hint);
   } catch (e) { /* never let the hint break the deck */ }
 })();
@@ -540,9 +540,12 @@ updateSlide();
     // when unmodified, or a browser-captured personalized file when the rep has
     // edited (window.pm* exposed by the personalization editor). Plus a link to
     // share the personalized live version. No need to open the editor to download.
-    const LINK_ICON =
+    // Flèche qui sort de la boîte, l'inverse exact de la flèche de
+    // téléchargement juste en dessous. Les deux gestes se lisent donc d'un coup
+    // d'oeil, l'un envoie vers l'extérieur, l'autre ramène un fichier.
+    const SHARE_ICON =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-      '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+      '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
     const formats = [
       { file: 'deck.pdf', ext: 'pdf', label: 'Télécharger en PDF', fn: 'pmExportPdf' },
       { file: 'deck.pptx', ext: 'pptx', label: 'Télécharger en PowerPoint', fn: 'pmExportPptx' },
@@ -559,7 +562,7 @@ updateSlide();
       const cl = document.createElement('a');
       cl.href = '#';
       cl.className = 'primary';
-      cl.innerHTML = '<span class="pop-ico">' + LINK_ICON + '</span>'
+      cl.innerHTML = '<span class="pop-ico">' + SHARE_ICON + '</span>'
         + '<span class="pop-txt"><span>Envoyer le lien</span>'
         + '<span class="pop-sub">Vous voyez ce que le client a lu</span></span>';
       cl.addEventListener('click', e => { e.preventDefault(); if (window.pmCopyLink) window.pmCopyLink(); pop.classList.remove('visible'); });
@@ -2093,7 +2096,7 @@ window.addEventListener('load', function () {
   function repSteps() {
     return [
       { popover: { title: 'Bienvenue', description: ART_WELCOME
-        + "En deux minutes, comment utiliser cet outil d'aide à la vente : naviguer, annoter pendant que vous parlez, exporter, et adapter le deck à chaque client." } },
+        + "En deux minutes, comment utiliser cet outil d'aide à la vente : naviguer, annoter pendant que vous parlez, partager, et adapter le deck à chaque client." } },
 
       { element: '.chapter-nav', popover: { title: 'Les chapitres', description:
         "Le volet s'ouvre quand la souris longe le bord gauche. Un clic va directement à la slide.", side: 'right', align: 'start' } },
@@ -2118,7 +2121,7 @@ window.addEventListener('load', function () {
         "Note ce que dit le client sur la slide affichée, en rendez-vous comme en préparation. Il s'ouvre dans une fenêtre séparée : partagez l'onglet du deck et vos notes restent invisibles.", side: 'top', align: 'end' },
         onHighlightStarted: openTools, onDeselected: closeTools },
 
-      { element: '.banner-logo', popover: { title: 'Remettre le deck', description:
+      { element: '.banner-logo', popover: { title: 'Partager le deck', description:
         "Trois façons de le remettre au client, dont une seule vous dit ce qu'il en a fait."
         + doit('Cliquez le logo qui clignote'), side: 'top', align: 'start', nextBtnText: 'Passer', popoverClass: 'ay-await' },
         onHighlightStarted: awaits('.banner-logo'), onDeselected: unpoke('.banner-logo') },
@@ -2159,7 +2162,7 @@ window.addEventListener('load', function () {
         onHighlightStarted: openEditor, onDeselected: closeEditor },
 
       { popover: { title: "C'est prêt", description: ART_DONE
-        + "L'éditeur avec <span class='kbd'>E</span>, les outils avec <span class='kbd'>T</span>, les exports avec <span class='kbd'>P</span>. Le <strong>?</strong> du bandeau rejoue ce guide." } }
+        + "L'éditeur avec <span class='kbd'>E</span>, les outils avec <span class='kbd'>T</span>, le partage avec <span class='kbd'>P</span>. Le <strong>?</strong> du bandeau rejoue ce guide." } }
     ];
   }
 
