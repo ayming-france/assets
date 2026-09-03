@@ -2924,6 +2924,10 @@
   flex: none;
 }
 .pdf-popover a.primary .pop-ico svg { width: 16px; height: 16px; }
+/* La pastille du lien fait 30px, la fleche de telechargement 18px. Sans cette
+   marge, les trois libelles ne partent pas du meme bord : les icones se
+   centrent sur le meme axe et les textes s'alignent. */
+.pdf-popover a:not(.primary) svg { margin: 0 6px; }
 .pdf-popover a.primary .pop-txt { display: flex; flex-direction: column; gap: 2px; }
 .pdf-popover a.primary .pop-sub {
   font-size: 12px;
