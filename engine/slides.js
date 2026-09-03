@@ -1816,9 +1816,14 @@ window.addEventListener('load', function () {
     + '.driver-popover .driver-popover-next-btn:hover{background:#0d96cb}'
     + '.driver-popover .driver-popover-close-btn{color:#93a6b6;font-size:22px}'
     // L'invite « cliquez ici » respire et attire l'oeil vers l'element vise.
-    + '.driver-popover .doit{display:flex;align-items:center;gap:9px;margin:13px 0 2px;padding:10px 13px;border-radius:10px;background:#eaf7fd;color:#0a6f9c;font-size:13px;font-weight:700}'
-    + '.driver-popover .doit i{width:9px;height:9px;border-radius:50%;background:#0fa7e2;animation:ayPulse 1.25s ease-in-out infinite;flex:none}'
-    + '@keyframes ayPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.6);opacity:.4}}';
+    + '.driver-popover .doit{display:flex;align-items:center;gap:8px;margin:11px 0 0;color:#0a6f9c;font-size:13px;font-weight:600}'
+    + '.driver-popover .doit i{width:8px;height:8px;border-radius:50%;background:#0fa7e2;animation:ayPulse 1.25s ease-in-out infinite;flex:none}'
+    + '@keyframes ayPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.6);opacity:.4}}'
+    // Quand une etape attend un geste, le seul bleu de l'ecran est la cible.
+    + '.driver-popover.ay-await .driver-popover-next-btn{background:#eef3f8;color:#7b8fa1;font-weight:600}'
+    + '.driver-popover.ay-await .driver-popover-next-btn:hover{background:#e2ebf3;color:#4b6579}'
+    + '.ay-poke{animation:ayPoke 1.3s ease-in-out infinite}'
+    + '@keyframes ayPoke{0%,100%{box-shadow:0 0 0 0 rgba(15,167,226,.6)}50%{box-shadow:0 0 0 11px rgba(15,167,226,0)}}';
 
   var loading = false, skinned = false;
   function skin() {
@@ -1866,16 +1871,26 @@ window.addEventListener('load', function () {
     quiet = false; drv = null; edrv = null;
   }
   function doit(txt) { return '<div class="doit"><i></i>' + txt + '</div>'; }
-  // Une etape qui attend un vrai geste. Le bouton reste, libelle « Passer », pour
-  // que personne ne se retrouve coince s'il ne trouve pas l'element.
-  function awaits(sel, evt) {
+  // Une etape qui attend un vrai geste. Le pouls se pose sur l'element vise, pas
+  // dans la fenetre : une invite encadree se fait cliquer a la place de la cible.
+  // Le bouton reste, libelle « Passer » et sans couleur, pour que personne ne
+  // soit coince s'il ne trouve pas l'element.
+  function poke(sel, on) {
+    var el = document.querySelector(sel);
+    if (el) el.classList.toggle('ay-poke', !!on);
+  }
+  function awaits(sel) {
     return function () {
-      var el = sel ? document.querySelector(sel) : document;
+      var el = document.querySelector(sel);
       if (!el) return;
-      var go = function () { setTimeout(function () { if (drv) drv.moveNext(); }, 460); };
-      el.addEventListener(evt || 'click', go, { once: true });
+      poke(sel, true);
+      el.addEventListener('click', function () {
+        poke(sel, false);
+        setTimeout(function () { if (drv) drv.moveNext(); }, 460);
+      }, { once: true });
     };
   }
+  function unpoke(sel) { return function () { poke(sel, false); }; }
   var ART_WELCOME =
     '<span class="art" style="display:flex;gap:16px;justify-content:center;align-items:flex-end;background:linear-gradient(135deg,#eef7fc,#e9f7f2);padding:16px 10px 0">'
     + '<svg viewBox="0 0 38 70" width="30" height="56"><path d="M19 4 27 28H11z" fill="#5b7085"/><circle cx="19" cy="10" r="4.4" fill="#e8443a"/><rect x="11" y="26" width="16" height="6" rx="1.5" fill="#cfd9e3"/><rect x="10" y="31" width="18" height="39" rx="4" fill="#22384c"/><rect x="10" y="46" width="18" height="7" fill="#e8443a"/></svg>'
@@ -1895,72 +1910,79 @@ window.addEventListener('load', function () {
     + '<circle cx="44" cy="8" r="2.6" fill="#7fdcc4"/><circle cx="76" cy="7" r="2.6" fill="#ffd968"/>'
     + '</svg></span>';
 
+  // Chaque etape dit ce que fait l'element, en une ou deux phrases. Le guide
+  // n'a pas a etre drole, il a a etre clair.
+  var TOOLS_BTN = '.banner-controls [data-act="tools"]';
   function repSteps() {
     return [
-      { popover: { title: 'On fait le tour ensemble', description: ART_WELCOME
-        + "Une minute, et ce deck cesse d'être une suite de slides : <strong>vous menez le rendez-vous</strong>, vous l'adaptez au client que vous avez en face, et vous en repartez avec ce qu'il vous a dit. On y va." } },
+      { popover: { title: 'Bienvenue', description: ART_WELCOME
+        + "En deux minutes, comment utiliser cet outil d'aide à la vente : naviguer, annoter pendant que vous parlez, exporter, et adapter le deck à chaque client." } },
 
-      { element: '.chapter-nav', popover: { title: 'Aller droit au point qui les intéresse', description:
-        "Le volet des chapitres s'ouvre quand la souris longe le bord gauche. Un clic et vous y êtes, sans faire défiler vingt slides devant le client.", side: 'right', align: 'start' } },
+      { element: '.chapter-nav', popover: { title: 'Les chapitres', description:
+        "Le volet s'ouvre quand la souris longe le bord gauche. Un clic va directement à la slide.", side: 'right', align: 'start' } },
 
       { element: '.banner-controls [data-act="next"]', popover: { title: 'Avancer', description:
-        "Ces flèches, celles du clavier et la <span class=\"kbd\">barre d'espace</span> font la même chose.", side: 'top', align: 'end' } },
+        "Ces flèches, les <span class='kbd'>&#8592;</span> <span class='kbd'>&#8594;</span> du clavier et la <span class='kbd'>barre d'espace</span> changent de slide.", side: 'top', align: 'end' } },
 
-      { element: '.banner-controls [data-act="tools"]', popover: { title: 'Vos outils pendant que vous parlez', description:
-        "Un client décroche dès qu'il ne sait plus où regarder. Ces outils gardent son oeil là où vous êtes."
-        + doit('Cliquez ce bouton pour les sortir'), side: 'top', align: 'end', nextBtnText: 'Passer' },
-        onHighlightStarted: awaits('.banner-controls [data-act="tools"]') },
+      { element: TOOLS_BTN, popover: { title: 'Les outils', description:
+        "Laser, surligneur et bloc-notes, à utiliser pendant que vous présentez."
+        + doit('Cliquez le bouton qui clignote'), side: 'top', align: 'end', nextBtnText: 'Passer', popoverClass: 'ay-await' },
+        onHighlightStarted: awaits(TOOLS_BTN), onDeselected: unpoke(TOOLS_BTN) },
 
       { element: '.deck-tools [data-act="laser"]', popover: { title: 'Le laser', description:
-        "Un point rouge suit votre curseur, bien plus visible que la flèche en visio. <strong>Appuyez et glissez</strong> pour entourer un chiffre : le trait <span class='ls'>s'efface tout seul</span> au bout de deux secondes.", side: 'top', align: 'end' },
+        "Un point rouge suit votre curseur. Appuyez et glissez pour entourer un chiffre : le trait <span class='ls'>s'efface après deux secondes</span>.", side: 'top', align: 'end' },
         onHighlightStarted: openTools },
 
       { element: '.deck-tools [data-act="ink"]', popover: { title: 'Le surligneur', description:
-        "Pour la ligne dont vous parlez quand il vous demande « où ça ? ». Il n'écrit qu'en glissant, comme un vrai feutre, et <span class='hl'>le trait part de lui-même</span>. Une slide de marque ne peut pas finir barbouillée.", side: 'top', align: 'end' },
+        "Glissez en maintenant le bouton pour souligner une ligne. Le trait <span class='hl'>s'efface après trois secondes</span>.", side: 'top', align: 'end' },
         onHighlightStarted: openTools },
 
       { element: '.deck-tools [data-act="notes"]', popover: { title: 'Le bloc-notes', description:
-        "Ce que dit le client, noté sur la slide affichée, <strong>pendant le rendez-vous ou en le préparant</strong>. Il s'ouvre dans <strong>sa propre fenêtre</strong> : en visio, partagez l'onglet du deck et vos notes restent invisibles.", side: 'top', align: 'end' },
+        "Note ce que dit le client sur la slide affichée, en rendez-vous comme en préparation. Il s'ouvre dans une fenêtre séparée : partagez l'onglet du deck et vos notes restent invisibles.", side: 'top', align: 'end' },
         onHighlightStarted: openTools, onDeselected: closeTools },
 
-      { element: '.banner-logo', popover: { title: "Lui laisser quelque chose", description:
-        "Trois façons de le lui remettre, selon ce qu'il vous demande."
-        + doit('Cliquez le logo pour les voir'), side: 'top', align: 'start', nextBtnText: 'Passer' },
-        onHighlightStarted: awaits('.banner-logo') },
+      { element: '.banner-logo', popover: { title: 'Les exports', description:
+        "Trois façons de remettre le deck au client."
+        + doit('Cliquez le logo qui clignote'), side: 'top', align: 'start', nextBtnText: 'Passer', popoverClass: 'ay-await' },
+        onHighlightStarted: awaits('.banner-logo'), onDeselected: unpoke('.banner-logo') },
 
       { element: '.pdf-popover a:nth-child(1)', popover: { title: 'En PDF', description:
-        "Le document tel qu'il est à l'écran. Si vous l'avez personnalisé, <strong>le PDF reprend vos modifications</strong>.", side: 'top', align: 'start' },
+        "Le deck tel qu'il est à l'écran, vos personnalisations comprises.", side: 'top', align: 'start' },
         onHighlightStarted: openPop },
 
       { element: '.pdf-popover a:nth-child(2)', popover: { title: 'En PowerPoint', description:
-        "Le même, une image par slide. De quoi <strong>le fondre dans une présentation existante</strong> ou répondre à un client qui exige du .pptx.", side: 'top', align: 'start' },
+        "Une image par slide, à fusionner dans une présentation existante ou à envoyer au client qui exige du .pptx.", side: 'top', align: 'start' },
         onHighlightStarted: openPop },
 
       { element: '.pdf-popover a:nth-child(3)', popover: { title: 'Le lien à envoyer', description:
-        "Un lien qui porte votre version personnalisée : <strong>pas de pièce jointe</strong>, rien à installer pour lui, et rien qui reste bloqué par sa messagerie. Et parce qu'il l'ouvre en ligne, <strong>vous voyez comment il le lit</strong> : quelles slides, combien de temps, combien de fois.", side: 'top', align: 'start' },
+        "Envoie votre version personnalisée sans pièce jointe. Vous voyez ensuite quelles slides le client a lues, et combien de temps.", side: 'top', align: 'start' },
         onHighlightStarted: openPop, onDeselected: closePop },
 
-      { element: '.banner-controls [data-act="fs"]', popover: { title: 'Présenter', description:
-        "Le plein écran, touche <span class=\"kbd\">F</span>. Le deck occupe l'écran, sans navigateur autour.", side: 'top', align: 'end' } },
+      { element: '.banner-controls [data-act="fs"]', popover: { title: 'Plein écran', description:
+        "Touche <span class='kbd'>F</span>. Le deck occupe l'écran, sans navigateur autour.", side: 'top', align: 'end' } },
 
-      { element: '#pm-panel', popover: { title: "Adapter le deck à ce client", description:
-        "La touche <span class='kbd'>E</span> ouvre cet éditeur. Quatre choses à y faire, et le deck d'origine ne bouge jamais.",
+      { element: '#pm-panel', popover: { title: "L'éditeur", description:
+        "Touche <span class='kbd'>E</span>. Quatre réglages pour adapter le deck à un client. Le deck d'origine ne change pas.",
         side: 'left', align: 'start' }, onHighlightStarted: openEditor },
-      { element: '#pm-panel .pm-acc[data-sec="text"]', popover: { title: 'Changer un texte', description:
-        "Ouvrez <strong>Texte</strong>, puis cliquez le mot directement sur la slide et tapez. Son nom, son secteur, son chiffre.", side: 'left', align: 'start' },
+
+      { element: '#pm-panel .pm-acc[data-sec="text"]', popover: { title: 'Texte', description:
+        "Cliquez un mot directement sur la slide et tapez.", side: 'left', align: 'start' },
         onHighlightStarted: openEditor },
-      { element: '#pm-panel .pm-acc[data-sec="visual"]', popover: { title: 'Retirer ce qui ne le concerne pas', description:
-        "<strong>Visuel</strong> masque une carte ou une colonne. Les cartes restantes se recentrent toutes seules.", side: 'left', align: 'start' },
+
+      { element: '#pm-panel .pm-acc[data-sec="visual"]', popover: { title: 'Visuel', description:
+        "Masque une carte ou une colonne. Les autres se recentrent automatiquement.", side: 'left', align: 'start' },
         onHighlightStarted: openEditor },
-      { element: '#pm-panel .pm-acc[data-sec="slides"]', popover: { title: 'Masquer une slide entière', description:
-        "L'oeil retire la slide de la présentation <strong>et</strong> de l'export. Vous ne passerez pas devant par accident.", side: 'left', align: 'start' },
+
+      { element: '#pm-panel .pm-acc[data-sec="slides"]', popover: { title: 'Slides', description:
+        "L'oeil retire une slide de la présentation <strong>et</strong> de l'export.", side: 'left', align: 'start' },
         onHighlightStarted: openEditor },
-      { element: '#pm-panel .pm-acc[data-sec="versions"]', popover: { title: 'Une version par client', description:
-        "Nommez votre version et enregistrez-la. Avant le rendez-vous suivant, <strong>rechargez celle du bon client d'un seul clic</strong>.", side: 'left', align: 'start' },
+
+      { element: '#pm-panel .pm-acc[data-sec="versions"]', popover: { title: 'Versions', description:
+        "Enregistrez une version par client et rechargez-la d'un clic avant le rendez-vous.", side: 'left', align: 'start' },
         onHighlightStarted: openEditor, onDeselected: closeEditor },
 
-      { popover: { title: 'À vous de jouer', description: ART_DONE
-        + "Vous ouvrirez l'éditeur avec <span class=\"kbd\">E</span>, les outils avec <span class=\"kbd\">T</span>, les exports avec <span class=\"kbd\">P</span>. Et le <strong>?</strong> du bandeau rejoue ce guide quand vous voulez." } }
+      { popover: { title: "C'est prêt", description: ART_DONE
+        + "L'éditeur avec <span class='kbd'>E</span>, les outils avec <span class='kbd'>T</span>, les exports avec <span class='kbd'>P</span>. Le <strong>?</strong> du bandeau rejoue ce guide." } }
     ];
   }
 
