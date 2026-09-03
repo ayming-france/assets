@@ -1855,7 +1855,15 @@ window.addEventListener('load', function () {
   function closeEditor() { if (editorOpen()) toggleEditor(); }
   function closeAll() { closePop(); closeTools(); closeEditor(); }
 
-  var drv = null;
+  // Deux guides ouverts en meme temps est le bug qu'on a vu : le bouton « ? »
+  // lancait un second parcours par dessus celui qui tournait. Un seul vit.
+  var drv = null, edrv = null, quiet = false;
+  function killTours() {
+    quiet = true;
+    try { if (drv) drv.destroy(); } catch (e) { }
+    try { if (edrv) edrv.destroy(); } catch (e) { }
+    quiet = false; drv = null; edrv = null;
+  }
   function doit(txt) { return '<div class="doit"><i></i>' + txt + '</div>'; }
   // Une etape qui attend un vrai geste. Le bouton reste, libelle « Passer », pour
   // que personne ne se retrouve coince s'il ne trouve pas l'element.
@@ -1888,8 +1896,8 @@ window.addEventListener('load', function () {
 
   function repSteps() {
     return [
-      { popover: { title: 'On vous montre le terrain', description: ART_WELCOME
-        + "Une minute ensemble, et vous saurez tenir un rendez-vous avec ce deck : <strong>montrer du doigt pendant que vous parlez</strong>, <strong>noter ce que dit le client</strong>, <strong>l'envoyer</strong> dans le format qu'il demande, et <strong>l'adapter</strong> avant chaque rendez-vous." } },
+      { popover: { title: 'On fait le tour ensemble', description: ART_WELCOME
+        + "Une minute, et ce deck cesse d'être une suite de slides : <strong>vous menez le rendez-vous</strong>, vous l'adaptez au client que vous avez en face, et vous en repartez avec ce qu'il vous a dit. On y va." } },
 
       { element: '.chapter-nav', popover: { title: 'Aller droit au point qui les intéresse', description:
         "Le volet des chapitres s'ouvre quand la souris longe le bord gauche. Un clic et vous y êtes, sans faire défiler vingt slides devant le client.", side: 'right', align: 'start' } },
@@ -1992,7 +2000,11 @@ window.addEventListener('load', function () {
     // d'interrogation est un geste explicite, et aucune capture n'en fait.
     if (!force && (automated() || seen(KEY_REP))) return;
     if (isClient()) return;
+    killTours();
     load(function () {
+      whenReady(function () { build(); });
+    });
+    function build() {
       var steps = repSteps().filter(function (st) {
         return !st.element || document.querySelector(st.element);
       });
@@ -2018,11 +2030,12 @@ window.addEventListener('load', function () {
           } catch (e) { }
         },
         onDestroyed: function () {
+          drv = null;
+          if (quiet) return;
           markSeen(KEY_REP);
           closeAll();
           try { if (window.pmTrack) window.pmTrack('deck_tour_done', { completed: celebrated }); } catch (e) { }
           goToSlide(from);
-          drv = null;
         }
       });
       // Le bandeau se masque sur la couverture, et il porte la moitie des
@@ -2030,7 +2043,18 @@ window.addEventListener('load', function () {
       var from = currentSlide;
       goToSlide(1);
       setTimeout(function () { drv.drive(); }, 400);
-    });
+    }
+  }
+  // Le panneau d'edition et la fenetre des exports arrivent apres le reste, l'un
+  // au DOMContentLoaded, l'autre au retour de ses requetes. Partir trop tot fait
+  // disparaitre leurs etapes sans le dire.
+  function whenReady(cb) {
+    var tries = 0;
+    (function poll() {
+      var ok = document.getElementById('pm-panel') && document.querySelector('.pdf-popover');
+      if (ok || tries++ > 30) { cb(); return; }
+      setTimeout(poll, 120);
+    })();
   }
   window.ayTour = function () { start(true); };
 
@@ -2062,8 +2086,9 @@ window.addEventListener('load', function () {
         nextBtnText: 'Suivant', prevBtnText: 'Retour', doneBtnText: 'Compris',
         progressText: '{{current}} sur {{total}}',
         steps: steps,
-        onDestroyed: function () { markSeen(KEY_EDIT); }
+        onDestroyed: function () { edrv = null; if (!quiet) markSeen(KEY_EDIT); }
       });
+      edrv = d2;
       setTimeout(function () { d2.drive(); }, 420);
     });
   }
