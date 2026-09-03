@@ -884,6 +884,20 @@ window.addEventListener('load', function () {
       if (v > topSecs) { topSecs = v; top = +k; }
     }
     if (total > 3600) total = 3600;
+    // Le temps réel passé sur CHAQUE slide, pas seulement leur nombre. Le
+    // compteur les tenait déjà toutes, sans seuil, et les jetait au moment de
+    // l'envoi : un rapport pouvait donc dire combien de slides avaient retenu
+    // le lecteur, jamais lesquelles ni combien de temps. Format compact
+    // « 1:5,2:12 », les slides sans temps sont absentes. La colonne de la base
+    // accepte 500 caractères, un deck de quarante slides en occupe environ 200,
+    // et la coupure protège un deck hors norme sans casser le reste.
+    var parts = [];
+    for (var k2 in _readMap) {
+      if (_readMap.hasOwnProperty(k2) && _readMap[k2] > 0) parts.push([+k2 + 1, _readMap[k2]]);
+    }
+    parts.sort(function (a, b) { return a[0] - b[0]; });
+    var perSlide = parts.map(function (p) { return p[0] + ':' + p[1]; }).join(',');
+    if (perSlide.length > 480) perSlide = perSlide.slice(0, perSlide.lastIndexOf(',', 480));
     return {
       max_slide: _maxSlide + 1,
       slides_seen: slidesSeen,
@@ -891,7 +905,8 @@ window.addEventListener('load', function () {
       pct_read: Math.round(100 * slidesSeen / slides.length),
       seconds_total: total,
       top_slide: top + 1,
-      top_seconds: topSecs
+      top_seconds: topSecs,
+      slides: perSlide
     };
   }
   function sendReadSummary() {
