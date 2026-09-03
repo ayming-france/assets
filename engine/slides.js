@@ -1999,6 +1999,17 @@ window.addEventListener('load', function () {
     // est la cible elle-meme (classe ay-poke). Deux pouls sur un ecran font
     // regarder le mauvais, et la phrase dit « le bouton qui clignote ».
     + '.driver-popover .doit{display:flex;align-items:center;gap:8px;margin:11px 0 0;color:#0a6f9c;font-size:13px;font-weight:600}'
+    // Le remerciement de la derniere etape, en retrait sous un filet : il parle
+    // de nous et non du deck, il ne doit pas se lire comme une consigne de plus.
+    + '.driver-popover .thx{margin:14px 0 0;padding-top:12px;border-top:1px solid #e6eef5;font-size:13px;line-height:1.5;color:#5b7085}'
+    + '.driver-popover .thx a{color:#0fa7e2;font-weight:700;text-decoration:none}'
+    + '.driver-popover .thx a:hover{text-decoration:underline}'
+    // Le voile de driver.js est pose a z-index 10000, la barre d'outils a 99100.
+    // Elle passait donc par-dessus l'assombrissement et restait allumee a chaque
+    // etape, ce qui donne trois zones claires quand une seule est designee. On la
+    // redescend le temps du guide : dans le trou du voile elle ressort en clair
+    // comme n'importe quelle cible, ailleurs elle s'assombrit avec le reste.
+    + 'html.driver-active .deck-tools{z-index:9990}'
     // Quand une etape attend un geste, le seul bleu de l'ecran est la cible.
     + '.driver-popover.ay-await .driver-popover-next-btn{background:#eef3f8;color:#7b8fa1;font-weight:600}'
     + '.driver-popover.ay-await .driver-popover-next-btn:hover{background:#e2ebf3;color:#4b6579}'
@@ -2162,7 +2173,8 @@ window.addEventListener('load', function () {
         onHighlightStarted: openEditor, onDeselected: closeEditor },
 
       { popover: { title: "C'est prêt", description: ART_DONE
-        + "L'éditeur avec <span class='kbd'>E</span>, les outils avec <span class='kbd'>T</span>, le partage avec <span class='kbd'>P</span>. Le <strong>?</strong> du bandeau rejoue ce guide." } }
+        + "L'éditeur avec <span class='kbd'>E</span>, les outils avec <span class='kbd'>T</span>, le partage avec <span class='kbd'>P</span>. Le <strong>?</strong> du bandeau rejoue ce guide."
+        + "<p class='thx'>Merci d'avoir pris ces deux minutes. Vos retours sur les supports sont les bienvenus, ce qui manque comme ce qui gêne. Écrivez-moi à <a href='mailto:jencarnacion@ayming.com?subject=Retour%20sur%20les%20supports'>jencarnacion@ayming.com</a>.</p>" } }
     ];
   }
 
