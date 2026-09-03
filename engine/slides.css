@@ -2902,6 +2902,35 @@
 .pdf-popover a:hover { color: var(--blue-primary); }
 .pdf-popover a + a { border-top: 1px solid rgba(0, 0, 0, 0.08); }
 .pdf-popover svg { width: 18px; height: 18px; flex-shrink: 0; }
+/* Le lien est l'action principale du menu : il part en tete, avec la pastille
+   de marque et une ligne qui dit ce qu'il apporte. Les telechargements gardent
+   leur ligne sobre en dessous. */
+.pdf-popover a.primary {
+  align-items: flex-start;
+  padding: 15px 20px;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(180deg, #f4fbff, #e9f6fd);
+}
+.pdf-popover a.primary:hover { background: linear-gradient(180deg, #eaf6fd, #dceffa); }
+.pdf-popover a.primary .pop-ico {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--brand-horizontal, linear-gradient(90deg, #0fa7e2, #0ab38c));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.pdf-popover a.primary .pop-ico svg { width: 16px; height: 16px; }
+.pdf-popover a.primary .pop-txt { display: flex; flex-direction: column; gap: 2px; }
+.pdf-popover a.primary .pop-sub {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-gray);
+  white-space: nowrap;
+}
 
 /* ==== Shared "Clients par secteur" slide (rendered by slides.js into [data-shared="clients"]) ==== */
 .clients-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:13px 15px; width:100%; max-width:1060px; margin:0 auto; }

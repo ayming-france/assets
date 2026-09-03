@@ -523,10 +523,11 @@ else fitNav();
 // Init
 updateSlide();
 
-// Download popover: discreet affordance. If a deck.pdf and/or deck.pptx file
-// exists alongside the deck's index.html, clicking the Ayming logo in the brand
-// banner toggles a small download popover with one link per available format.
-// Decks without either file are unaffected.
+// Remise du deck : clicking the Ayming logo in the brand banner opens a small
+// menu whose first and primary entry is the shareable link, followed by the PDF
+// and PowerPoint downloads. All three entries always exist, the HEAD probe only
+// decides whether a download serves the static file sitting next to index.html
+// or a freshly captured personalized one.
 (function () {
   try {
     const logo = document.querySelector('.banner-logo');
@@ -551,6 +552,18 @@ updateSlide();
     ).then(oks => {
       const pop = document.createElement('div');
       pop.className = 'pdf-popover';
+      // The link comes FIRST and looks like the main action, because it is the
+      // only way out of here that reports back: a PDF sent as an attachment is
+      // read in silence. The two downloads stay underneath for the client who
+      // asks for a file.
+      const cl = document.createElement('a');
+      cl.href = '#';
+      cl.className = 'primary';
+      cl.innerHTML = '<span class="pop-ico">' + LINK_ICON + '</span>'
+        + '<span class="pop-txt"><span>Envoyer le lien</span>'
+        + '<span class="pop-sub">Vous voyez ce que le client a lu</span></span>';
+      cl.addEventListener('click', e => { e.preventDefault(); if (window.pmCopyLink) window.pmCopyLink(); pop.classList.remove('visible'); });
+      pop.appendChild(cl);
       formats.forEach((f, i) => {
         const a = document.createElement('a');
         a.href = f.file; a.setAttribute('download', title + '.' + f.ext);
@@ -563,10 +576,6 @@ updateSlide();
         });
         pop.appendChild(a);
       });
-      const cl = document.createElement('a');
-      cl.href = '#'; cl.innerHTML = LINK_ICON + 'Copier le lien';
-      cl.addEventListener('click', e => { e.preventDefault(); if (window.pmCopyLink) window.pmCopyLink(); pop.classList.remove('visible'); });
-      pop.appendChild(cl);
       document.body.appendChild(pop);
       logo.style.cursor = 'pointer';
       logo.addEventListener('click', e => { e.stopPropagation(); pop.classList.toggle('visible'); });
@@ -2109,21 +2118,21 @@ window.addEventListener('load', function () {
         "Note ce que dit le client sur la slide affichée, en rendez-vous comme en préparation. Il s'ouvre dans une fenêtre séparée : partagez l'onglet du deck et vos notes restent invisibles.", side: 'top', align: 'end' },
         onHighlightStarted: openTools, onDeselected: closeTools },
 
-      { element: '.banner-logo', popover: { title: 'Les exports', description:
-        "Trois façons de remettre le deck au client."
+      { element: '.banner-logo', popover: { title: 'Remettre le deck', description:
+        "Trois façons de le remettre au client, dont une seule vous dit ce qu'il en a fait."
         + doit('Cliquez le logo qui clignote'), side: 'top', align: 'start', nextBtnText: 'Passer', popoverClass: 'ay-await' },
         onHighlightStarted: awaits('.banner-logo'), onDeselected: unpoke('.banner-logo') },
 
-      { element: '.pdf-popover a:nth-child(1)', popover: { title: 'En PDF', description:
-        "Le deck tel qu'il est à l'écran, vos personnalisations comprises.", side: 'top', align: 'start' },
+      { element: '.pdf-popover a:nth-child(1)', popover: { title: 'Le lien, à privilégier', description:
+        "Envoie votre version personnalisée sans pièce jointe. Vous saurez ensuite s'il l'a ouverte, quand, jusqu'où il est allé et sur quelles slides il s'est arrêté. Indiquez l'entreprise quand elle vous est demandée, la liste vous la propose.", side: 'top', align: 'start' },
         onHighlightStarted: openPop },
 
-      { element: '.pdf-popover a:nth-child(2)', popover: { title: 'En PowerPoint', description:
+      { element: '.pdf-popover a:nth-child(2)', popover: { title: 'En PDF', description:
+        "Le deck tel qu'il est à l'écran, vos personnalisations comprises. Une pièce jointe se lit hors ligne, donc rien ne vous revient.", side: 'top', align: 'start' },
+        onHighlightStarted: openPop },
+
+      { element: '.pdf-popover a:nth-child(3)', popover: { title: 'En PowerPoint', description:
         "Une image par slide, à fusionner dans une présentation existante ou à envoyer au client qui exige du .pptx.", side: 'top', align: 'start' },
-        onHighlightStarted: openPop },
-
-      { element: '.pdf-popover a:nth-child(3)', popover: { title: 'Le lien à envoyer', description:
-        "Envoie votre version personnalisée sans pièce jointe. Vous voyez ensuite quelles slides le client a lues, et combien de temps.", side: 'top', align: 'start' },
         onHighlightStarted: openPop, onDeselected: closePop },
 
       { element: '.banner-controls [data-act="fs"]', popover: { title: 'Plein écran', description:
