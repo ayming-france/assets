@@ -1038,8 +1038,10 @@ window.addEventListener('load', function () {
     + '.go:hover{background:#0d96cb}'
     + '.hint{font-size:11.5px;color:#7c8ea0;font-style:italic;margin:14px 0 8px}'
     // Des carres, comme un pense-bete, deux par rangee.
-    + '#p-list{display:grid;grid-template-columns:1fr 1fr;gap:10px}'
-    + '.nrow{position:relative;aspect-ratio:1;display:flex;flex-direction:column;border-radius:3px;padding:10px 11px 14px;box-shadow:0 2px 7px rgba(60,50,10,.16);cursor:pointer}'
+    // Colonnes qui se multiplient avec la largeur plutot que deux qui s'etirent :
+    // un carre de 500 px de cote pour trois mots n'est pas un pense-bete.
+    + '#p-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}'
+    + '.nrow{position:relative;aspect-ratio:1;max-height:210px;display:flex;flex-direction:column;border-radius:3px;padding:10px 11px 14px;box-shadow:0 2px 7px rgba(60,50,10,.16);cursor:pointer}'
     + '.nrow.gen{cursor:default}'
     + '.nrow::after{content:"";position:absolute;right:0;bottom:0;width:0;height:0;border-style:solid;border-width:0 0 15px 15px;border-color:transparent transparent #fff transparent}'
     + '.nrow.slide{background:#fff6d5}.nrow.slide .nmeta{color:#a17c17}.nrow.slide .ntxt{color:#4a3a10}'
@@ -1296,7 +1298,32 @@ window.addEventListener('load', function () {
     catch (e) { return 'https://ayming-france.github.io/assets/engine/'; }
   })();
   function pmLoadScript(src) { return new Promise(function (res, rej) { if (document.querySelector('script[data-pm="' + src + '"]')) return res(); var s = document.createElement('script'); s.src = src; s.dataset.pm = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
-  function copyLink(link) { try { if (navigator.clipboard) navigator.clipboard.writeText(link); } catch (e) { } }
+  // Copying can fail for reasons the rep never sees: the clipboard permission
+  // refused, the document not focused, an older browser. A silent failure is the
+  // worst outcome, since the success toast sends them off to paste whatever the
+  // clipboard held before. So the write reports back, execCommand is the
+  // fallback, and the caller says the truth either way. Always a Promise.
+  function copyLink(link) {
+    function legacy() {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = link;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = document.execCommand('copy');
+        ta.remove();
+        return ok;
+      } catch (e) { return false; }
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(link).then(function () { return true; }, legacy);
+      }
+    } catch (e) { }
+    return Promise.resolve(legacy());
+  }
   var PM_W_IN = 13.333; // page width in inches; height derived from the capture aspect
   // Exclude editor chrome + the logo popover from the captured image. They stay
   // visible on screen (so the popover keeps showing progress) but aren't baked in.
@@ -1467,9 +1494,11 @@ window.addEventListener('load', function () {
       if (name) link += (link.indexOf('?') >= 0 ? '&' : '?') + 'to=' + encodeURIComponent(name);
       if (siren) link += '&siren=' + encodeURIComponent(siren);
       if (AY_REP) link += '&by=' + encodeURIComponent(AY_REP);
-      copyLink(link);
       track('deck_link_share', Object.assign({ hidden_count: state.slidesHidden.length, recipient: name || '' }, siren ? { siren: siren } : {}));
-      toast(name ? ('Lien pour « ' + name + ' » copié.') : 'Lien copié.');
+      copyLink(link).then(function (ok) {
+        if (ok) toast(name ? ('Lien pour « ' + name + ' » copié.') : 'Lien copié.');
+        else toast('Copie impossible, autorisez le presse-papiers dans le navigateur.');
+      });
       close();
     }
     ov.querySelector('.pm-dlg-cancel').addEventListener('click', close);
