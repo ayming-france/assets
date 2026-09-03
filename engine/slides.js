@@ -1377,6 +1377,8 @@ window.addEventListener('load', function () {
     // (corrects any earlier client tag from previewing a ?pm= link).
     if (opening) {
       try { localStorage.setItem('ay-role', 'rep'); AY_ROLE = 'rep'; } catch (ex) {}
+      // Le guide contextuel de l'editeur ecoute cette annonce.
+      document.dispatchEvent(new CustomEvent('ay-editor-open'));
       // Ouvrir l'éditeur ne demande plus de prénom : les retouches et les notes
       // restent anonymes. Le partage d'un lien continue de proposer le prénom,
       // qui sert l'attribution "?by=" côté analytics.
@@ -1768,20 +1770,19 @@ window.addEventListener('load', function () {
   } catch (e) { if (window.console) console.warn('[ink] outils de présentation désactivés:', e); }
 })();
 
-// ===== Guide de prise en main (driver.js, hébergé chez nous) =====
-// Un commercial qui ouvre un deck pour la première fois ne devine ni la touche
+// ===== Guide de prise en main (driver.js, héberge chez nous) =====
+// Un commercial qui ouvre un deck pour la premiere fois ne devine ni la touche
 // E, ni T, ni P. Le guide se lance une fois, puis plus jamais, et reste
-// rappelable par « guide » dans l'aide en haut à droite.
-// Deux parcours : le commercial voit tout, le client qui reçoit un lien « ?pm= »
-// ne voit que naviguer, plein écran et télécharger. Jamais l'éditeur.
+// rappelable par le point d'interrogation du bandeau.
+// Il ne s'adresse qu'au commercial : un client qui recoit un lien « ?pm= » lit
+// une presentation, il n'a rien a apprendre et rien a nous renvoyer.
 (function () {
   var BASE = 'https://ayming-france.github.io/assets/engine/vendor/driverjs-1.8.0/';
-  var KEY_REP = 'ay-tour-v1', KEY_CLIENT = 'ay-tour-client-v1';
+  var KEY_REP = 'ay-tour-v2', KEY_EDIT = 'ay-tour-editor-v1';
 
   function isClient() { return /[?&]pm=/.test(location.search); }
-  function key() { return isClient() ? KEY_CLIENT : KEY_REP; }
-  function seen() { try { return localStorage.getItem(key()) === '1'; } catch (e) { return true; } }
-  function markSeen() { try { localStorage.setItem(key(), '1'); } catch (e) { } }
+  function seen(k) { try { return localStorage.getItem(k) === '1'; } catch (e) { return true; } }
+  function markSeen(k) { try { localStorage.setItem(k, '1'); } catch (e) { } }
 
   // La capture des exports ouvre le deck live dans un navigateur neuf, donc sans
   // rien en memoire : sans ce garde-fou, le guide se lancerait et finirait
@@ -1789,9 +1790,45 @@ window.addEventListener('load', function () {
   function automated() {
     return !!(navigator.webdriver || /[?&]notour=1/.test(location.search) || window.__ayNoTour);
   }
+  function tourRunning() { return !!document.querySelector('.driver-popover'); }
 
-  var loading = false;
+  // Les fenetres de driver.js sortent blanches et sans hierarchie. On leur pose
+  // la typographie et les couleurs du deck, sinon le guide a l'air d'un plugin
+  // colle sur la marque.
+  // driver.css arrive apres nous : on double la classe et on prefixe, pour
+  // gagner par specificite plutot que par ordre de chargement.
+  var SKIN = ''
+    + '.driver-popover.driver-popover{border-radius:16px;box-shadow:0 24px 60px rgba(2,30,60,.30);padding:0;max-width:400px;min-width:290px;font-family:Lato,system-ui,Arial,sans-serif;border-top:4px solid #0fa7e2}'
+    + '.driver-popover .driver-popover-title{font-family:inherit;font-size:19px;line-height:1.25;font-weight:800;color:#00456d;letter-spacing:-.2px;padding:20px 22px 0;margin:0;display:block}'
+    + '.driver-popover .driver-popover-description{font-family:inherit;font-size:14px;line-height:1.55;color:#3d5568;padding:9px 22px 2px;margin:0}'
+    + '.driver-popover .driver-popover-description strong{color:#00456d;font-weight:700}'
+    + '.driver-popover .driver-popover-description em{font-style:normal;background:linear-gradient(180deg,transparent 62%,#ffe08a 62%);font-weight:600;color:#2b3f52}'
+    + '.driver-popover .driver-popover-description .art{display:block;margin:4px 0 12px;border-radius:12px;overflow:hidden}'
+    + '.driver-popover .driver-popover-description .kbd{display:inline-block;min-width:20px;text-align:center;border:1px solid #cfd9e3;border-bottom-width:2px;border-radius:5px;padding:0 5px;font-size:12px;font-weight:700;color:#00456d;background:#f6f9fc}'
+    + '.driver-popover .driver-popover-footer{padding:14px 22px 18px;margin:0;gap:8px}'
+    + '.driver-popover .driver-popover-progress-text{font-size:12px;color:#8fa2b3;font-weight:700}'
+    + '.driver-popover .driver-popover-navigation-btns{gap:8px}'
+    + '.driver-popover .driver-popover-footer button{font-family:inherit;font-size:13px;font-weight:700;border-radius:9px;padding:9px 16px;text-shadow:none;border:0;box-shadow:none;cursor:pointer}'
+    + '.driver-popover .driver-popover-prev-btn{background:#eef3f8;color:#4b6579}'
+    + '.driver-popover .driver-popover-prev-btn:hover{background:#e2ebf3}'
+    + '.driver-popover .driver-popover-next-btn{background:#0fa7e2;color:#fff}'
+    + '.driver-popover .driver-popover-next-btn:hover{background:#0d96cb}'
+    + '.driver-popover .driver-popover-close-btn{color:#93a6b6;font-size:22px}'
+    // L'invite « cliquez ici » respire et attire l'oeil vers l'element vise.
+    + '.driver-popover .doit{display:flex;align-items:center;gap:9px;margin:13px 0 2px;padding:10px 13px;border-radius:10px;background:#eaf7fd;color:#0a6f9c;font-size:13px;font-weight:700}'
+    + '.driver-popover .doit i{width:9px;height:9px;border-radius:50%;background:#0fa7e2;animation:ayPulse 1.25s ease-in-out infinite;flex:none}'
+    + '@keyframes ayPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.6);opacity:.4}}';
+
+  var loading = false, skinned = false;
+  function skin() {
+    if (skinned) return;
+    skinned = true;
+    var st = document.createElement('style');
+    st.textContent = SKIN;
+    document.head.appendChild(st);
+  }
   function load(cb) {
+    skin();
     if (window.driver && window.driver.js) { cb(); return; }
     if (loading) return;
     loading = true;
@@ -1805,9 +1842,7 @@ window.addEventListener('load', function () {
     document.head.appendChild(js);
   }
 
-  // Ouvrir pour de vrai ce dont on parle : un guide qui decrit un panneau sans
-  // le montrer n'apprend rien. Chaque etape ouvre son element, l'etape suivante
-  // le referme.
+  // ---- ouvrir pour de vrai ce dont on parle ----
   function pop() { return document.querySelector('.pdf-popover'); }
   function openPop() { var p = pop(); if (p) p.classList.add('visible'); }
   function closePop() { var p = pop(); if (p) p.classList.remove('visible'); }
@@ -1820,58 +1855,97 @@ window.addEventListener('load', function () {
   function closeEditor() { if (editorOpen()) toggleEditor(); }
   function closeAll() { closePop(); closeTools(); closeEditor(); }
 
-  // Une petite vignette vaut mieux qu'une phrase de plus : les trois
-  // instruments, dessines comme dans le plateau.
-  var WELCOME_ART =
-    '<div style="display:flex;gap:14px;justify-content:center;align-items:flex-end;background:#f4f8fb;border-radius:10px;padding:14px 10px 0;margin:2px 0 10px">'
-    + '<svg viewBox="0 0 38 70" width="30" height="55"><path d="M19 4 27 28H11z" fill="#5b7085"/><circle cx="19" cy="10" r="4.4" fill="#e8443a"/><rect x="11" y="26" width="16" height="6" rx="1.5" fill="#cfd9e3"/><rect x="10" y="31" width="18" height="39" rx="4" fill="#22384c"/><rect x="10" y="46" width="18" height="7" fill="#e8443a"/></svg>'
-    + '<svg viewBox="0 0 38 70" width="30" height="55"><path d="M13 7 25 3v14H13z" fill="#ff9500"/><path d="M11 17h16l2 9H9z" fill="#e6edf4"/><rect x="9" y="25" width="20" height="45" rx="5" fill="#fbfdff" stroke="#c9d6e2" stroke-width="1.3"/><rect x="9.6" y="40" width="18.8" height="10" fill="#ff9500"/></svg>'
-    + '<svg viewBox="0 0 38 70" width="30" height="55"><rect x="5" y="40" width="28" height="30" fill="#e8a91f"/><rect x="5" y="36" width="28" height="8" fill="#f0b429"/><rect x="5" y="14" width="28" height="28" rx="2" fill="#ffd968"/><rect x="10" y="22" width="18" height="2.8" rx="1.4" fill="#b98514"/><rect x="10" y="29" width="18" height="2.8" rx="1.4" fill="#b98514"/><rect x="10" y="36" width="11" height="2.8" rx="1.4" fill="#b98514"/></svg>'
-    + '</div>';
+  var drv = null;
+  function doit(txt) { return '<div class="doit"><i></i>' + txt + '</div>'; }
+  // Une etape qui attend un vrai geste. Le bouton reste, libelle « Passer », pour
+  // que personne ne se retrouve coince s'il ne trouve pas l'element.
+  function awaits(sel, evt) {
+    return function () {
+      var el = sel ? document.querySelector(sel) : document;
+      if (!el) return;
+      var go = function () { setTimeout(function () { if (drv) drv.moveNext(); }, 460); };
+      el.addEventListener(evt || 'click', go, { once: true });
+    };
+  }
+  var ART_WELCOME =
+    '<span class="art" style="display:flex;gap:16px;justify-content:center;align-items:flex-end;background:linear-gradient(135deg,#eef7fc,#e9f7f2);padding:16px 10px 0">'
+    + '<svg viewBox="0 0 38 70" width="30" height="56"><path d="M19 4 27 28H11z" fill="#5b7085"/><circle cx="19" cy="10" r="4.4" fill="#e8443a"/><rect x="11" y="26" width="16" height="6" rx="1.5" fill="#cfd9e3"/><rect x="10" y="31" width="18" height="39" rx="4" fill="#22384c"/><rect x="10" y="46" width="18" height="7" fill="#e8443a"/></svg>'
+    + '<svg viewBox="0 0 38 70" width="30" height="56"><path d="M13 7 25 3v14H13z" fill="#ff9500"/><path d="M11 17h16l2 9H9z" fill="#e6edf4"/><rect x="9" y="25" width="20" height="45" rx="5" fill="#fff" stroke="#c9d6e2" stroke-width="1.3"/><rect x="9.6" y="40" width="18.8" height="10" fill="#ff9500"/></svg>'
+    + '<svg viewBox="0 0 38 70" width="30" height="56"><rect x="5" y="40" width="28" height="30" fill="#e8a91f"/><rect x="5" y="36" width="28" height="8" fill="#f0b429"/><rect x="5" y="14" width="28" height="28" rx="2" fill="#ffd968"/><rect x="10" y="22" width="18" height="2.8" rx="1.4" fill="#b98514"/><rect x="10" y="29" width="18" height="2.8" rx="1.4" fill="#b98514"/><rect x="10" y="36" width="11" height="2.8" rx="1.4" fill="#b98514"/></svg>'
+    + '</span>';
+  var ART_DONE =
+    '<span class="art" style="display:block;background:linear-gradient(135deg,#003d79,#0ab38c);padding:18px 0;text-align:center">'
+    + '<svg viewBox="0 0 120 74" width="150" height="92">'
+    + '<circle cx="60" cy="37" r="21" fill="#fff"/>'
+    + '<path d="M51 37.5 57.5 44 70 31" fill="none" stroke="#0ab38c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<rect x="18" y="10" width="6" height="9" rx="1.5" fill="#ffd968" transform="rotate(-20 21 14)"/>'
+    + '<rect x="96" y="14" width="6" height="9" rx="1.5" fill="#ff9500" transform="rotate(25 99 18)"/>'
+    + '<rect x="30" y="52" width="6" height="9" rx="1.5" fill="#7fdcc4" transform="rotate(35 33 56)"/>'
+    + '<rect x="88" y="50" width="6" height="9" rx="1.5" fill="#ffd968" transform="rotate(-30 91 54)"/>'
+    + '<circle cx="14" cy="40" r="3" fill="#ff9500"/><circle cx="106" cy="38" r="3" fill="#ffd968"/>'
+    + '<circle cx="44" cy="8" r="2.6" fill="#7fdcc4"/><circle cx="76" cy="7" r="2.6" fill="#ffd968"/>'
+    + '</svg></span>';
 
   function repSteps() {
     return [
-      { popover: { title: 'Bienvenue', description: WELCOME_ART
-        + "Ce deck fait plus qu'afficher des slides. En une minute : naviguer, annoter pendant que vous parlez, l'emporter en PDF ou en PowerPoint, et le personnaliser avant un rendez-vous." } },
-      { element: '.chapter-nav', popover: { title: 'Les chapitres', description: "Le volet s'ouvre quand la souris longe le bord gauche. Un clic va directement à la slide.", side: 'right', align: 'start' } },
-      { element: '.banner-controls [data-act="next"]', popover: { title: 'Avancer', description: "Ces flèches, celles du clavier et la barre d'espace font la même chose.", side: 'top', align: 'end' } },
-      { element: '.banner-controls [data-act="tools"]', popover: { title: 'Vos outils', description: "Ce bouton, ou la touche T, sort le plateau. Regardez en bas à droite.", side: 'top', align: 'end' },
+      { popover: { title: 'On vous montre le terrain', description: ART_WELCOME
+        + "Une minute ensemble, et vous saurez tenir un rendez-vous avec ce deck : <strong>montrer du doigt pendant que vous parlez</strong>, <strong>noter ce que dit le client</strong>, <strong>l'envoyer</strong> dans le format qu'il demande, et <strong>l'adapter</strong> avant chaque rendez-vous." } },
+
+      { element: '.chapter-nav', popover: { title: 'Aller droit au point qui les intéresse', description:
+        "Le volet des chapitres s'ouvre quand la souris longe le bord gauche. Un clic et vous y êtes, sans faire défiler vingt slides devant le client.", side: 'right', align: 'start' } },
+
+      { element: '.banner-controls [data-act="next"]', popover: { title: 'Avancer', description:
+        "Ces flèches, celles du clavier et la <span class=\"kbd\">barre d'espace</span> font la même chose.", side: 'top', align: 'end' } },
+
+      { element: '.banner-controls [data-act="tools"]', popover: { title: 'Vos outils pendant que vous parlez', description:
+        "Un client décroche dès qu'il ne sait plus où regarder. Ces outils gardent son oeil là où vous êtes."
+        + doit('Cliquez ce bouton pour les sortir'), side: 'top', align: 'end', nextBtnText: 'Passer' },
+        onHighlightStarted: awaits('.banner-controls [data-act="tools"]') },
+
+      { element: '.deck-tools [data-act="laser"]', popover: { title: 'Le laser', description:
+        "Un point rouge suit votre curseur, bien plus visible que la flèche en visio. <strong>Appuyez et glissez</strong> pour entourer un chiffre : le trait <em>s'efface tout seul</em> au bout de deux secondes.", side: 'top', align: 'end' },
         onHighlightStarted: openTools },
-      { element: '.deck-tools [data-act="laser"]', popover: { title: 'Le laser', description: "Un point rouge suit votre curseur. En appuyant et en glissant, vous entourez ce dont vous parlez, et le trait s'efface au bout de deux secondes.", side: 'top', align: 'end' },
+
+      { element: '.deck-tools [data-act="ink"]', popover: { title: 'Le surligneur', description:
+        "Pour la ligne dont vous parlez quand il vous demande « où ça ? ». Il n'écrit qu'en glissant, comme un vrai feutre, et <em>le trait part de lui-même</em>. Une slide de marque ne peut pas finir barbouillée.", side: 'top', align: 'end' },
         onHighlightStarted: openTools },
-      { element: '.deck-tools [data-act="ink"]', popover: { title: 'Le surligneur', description: "Il écrit seulement quand vous glissez en maintenant le bouton, comme un vrai feutre. Le trait tient trois secondes puis part tout seul.", side: 'top', align: 'end' },
-        onHighlightStarted: openTools },
-      { element: '.deck-tools [data-act="notes"]', popover: { title: 'Le bloc-notes', description: "Ce que dit le client, noté sur la slide affichée, dans une fenêtre à part que le client ne voit pas. Vous nous les envoyez ensuite en un fichier.", side: 'top', align: 'end' },
+
+      { element: '.deck-tools [data-act="notes"]', popover: { title: 'Le bloc-notes', description:
+        "Ce que dit le client, noté sur la slide affichée, <strong>pendant le rendez-vous ou en le préparant</strong>. Il s'ouvre dans <strong>sa propre fenêtre</strong> : en visio, partagez l'onglet du deck et vos notes restent invisibles.", side: 'top', align: 'end' },
         onHighlightStarted: openTools, onDeselected: closeTools },
-      { element: '.banner-logo', popover: { title: 'Emporter le deck', description: "Le logo ouvre trois possibilités. Les voici une par une.", side: 'top', align: 'start' },
+
+      { element: '.banner-logo', popover: { title: "Lui laisser quelque chose", description:
+        "Trois façons de le lui remettre, selon ce qu'il vous demande."
+        + doit('Cliquez le logo pour les voir'), side: 'top', align: 'start', nextBtnText: 'Passer' },
+        onHighlightStarted: awaits('.banner-logo') },
+
+      { element: '.pdf-popover a:nth-child(1)', popover: { title: 'En PDF', description:
+        "Le document tel qu'il est à l'écran. Si vous l'avez personnalisé, <strong>le PDF reprend vos modifications</strong>.", side: 'top', align: 'start' },
         onHighlightStarted: openPop },
-      { element: '.pdf-popover a:nth-child(1)', popover: { title: 'En PDF', description: "Le document tel qu'il est à l'écran. Si vous l'avez personnalisé, le PDF reprend vos modifications.", side: 'top', align: 'start' },
+
+      { element: '.pdf-popover a:nth-child(2)', popover: { title: 'En PowerPoint', description:
+        "Le même, une image par slide. De quoi <strong>le fondre dans une présentation existante</strong> ou répondre à un client qui exige du .pptx.", side: 'top', align: 'start' },
         onHighlightStarted: openPop },
-      { element: '.pdf-popover a:nth-child(2)', popover: { title: 'En PowerPoint', description: "Le même, une image par slide, pour le glisser dans une présentation existante.", side: 'top', align: 'start' },
-        onHighlightStarted: openPop },
-      { element: '.pdf-popover a:nth-child(3)', popover: { title: 'Le lien à envoyer', description: "Un lien qui porte votre version personnalisée. Le client l'ouvre dans son navigateur, sans rien installer, et ne voit aucun de vos outils.", side: 'top', align: 'start' },
+
+      { element: '.pdf-popover a:nth-child(3)', popover: { title: 'Le lien à envoyer', description:
+        "Un lien qui porte votre version personnalisée : <strong>pas de pièce jointe</strong>, rien à installer pour lui, et rien qui reste bloqué par sa messagerie. Et parce qu'il l'ouvre en ligne, <strong>vous voyez comment il le lit</strong> : quelles slides, combien de temps, combien de fois.", side: 'top', align: 'start' },
         onHighlightStarted: openPop, onDeselected: closePop },
-      { element: '.banner-controls [data-act="fs"]', popover: { title: 'Présenter', description: "Le plein écran, touche F. En visio, partagez cette fenêtre plutôt que votre écran : vos notes resteront invisibles.", side: 'top', align: 'end' } },
-      { element: '#pm-panel', popover: { title: "Personnaliser avant un rendez-vous", description: "La touche E ouvre cet éditeur : changer un texte, masquer une slide ou un bloc. Tout reste sur votre navigateur, le deck d'origine ne bouge pas.", side: 'left', align: 'start' },
+
+      { element: '.banner-controls [data-act="fs"]', popover: { title: 'Présenter', description:
+        "Le plein écran, touche <span class=\"kbd\">F</span>. Le deck occupe l'écran, sans navigateur autour.", side: 'top', align: 'end' } },
+
+      { element: '#pm-panel', popover: { title: "Adapter le deck à ce client", description:
+        "<strong>Texte</strong> : cliquez n'importe quel mot de la slide et tapez, son nom, son secteur, son chiffre.<br><strong>Visuel</strong> : masquez un bloc ou une carte qui ne le concerne pas.<br><strong>Slides</strong> : l'oeil retire une slide de la présentation <em>et</em> de l'export.<br><strong>Versions</strong> : <em>enregistrez une version par client</em> et rechargez-la d'un clic avant le rendez-vous. Le deck d'origine, lui, ne bouge jamais.",
+        side: 'left', align: 'start' },
         onHighlightStarted: openEditor, onDeselected: closeEditor },
-      { popover: { title: "Vous êtes prêt", description: "Ce guide ne se relancera plus. Le point d'interrogation en bas à droite le rejoue quand vous voulez." } }
-    ];
-  }
-  function clientSteps() {
-    return [
-      { popover: { title: 'Bienvenue', description: "Quelques repères pour parcourir cette présentation." } },
-      { element: '.banner-controls [data-act="next"]', popover: { title: 'Avancer', description: "Ces flèches, celles du clavier et la barre d'espace font la même chose.", side: 'top', align: 'end' } },
-      { element: '.banner-logo', popover: { title: 'Emporter le document', description: "Le logo ouvre le téléchargement.", side: 'top', align: 'start' },
-        onHighlightStarted: openPop },
-      { element: '.pdf-popover a:nth-child(1)', popover: { title: 'En PDF', description: "La présentation complète, à garder ou à faire circuler.", side: 'top', align: 'start' },
-        onHighlightStarted: openPop, onDeselected: closePop },
-      { element: '.banner-controls [data-act="fs"]', popover: { title: 'Plein écran', description: "Pour lire confortablement. Touche F.", side: 'top', align: 'end' } },
-      { popover: { title: 'Bonne lecture', description: "Le point d'interrogation en bas à droite rouvre ces repères." } }
+
+      { popover: { title: 'À vous de jouer', description: ART_DONE
+        + "Vous ouvrirez l'éditeur avec <span class=\"kbd\">E</span>, les outils avec <span class=\"kbd\">T</span>, les exports avec <span class=\"kbd\">P</span>. Et le <strong>?</strong> du bandeau rejoue ce guide quand vous voulez." } }
     ];
   }
 
-  // Une quarantaine de lignes plutot qu'une bibliotheque de plus. Se tait si la
-  // personne a demande moins d'animations.
+  // Quarante lignes plutot qu'une bibliotheque de plus. Se tait si la personne a
+  // demande moins d'animations.
   function confetti() {
     try {
       if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -1884,12 +1958,12 @@ window.addEventListener('load', function () {
       var c = cv.getContext('2d'); c.setTransform(r, 0, 0, r, 0, 0);
       var COLORS = ['#11a9e6', '#0ab38c', '#ffd968', '#ff9500', '#003d79'];
       var bits = [];
-      for (var i = 0; i < 130; i++) {
+      for (var i = 0; i < 150; i++) {
         bits.push({
-          x: W / 2 + (Math.random() - 0.5) * W * 0.5,
-          y: H * 0.42 + (Math.random() - 0.5) * 60,
-          vx: (Math.random() - 0.5) * 9,
-          vy: -6 - Math.random() * 9,
+          x: W / 2 + (Math.random() - 0.5) * W * 0.55,
+          y: H * 0.45 + (Math.random() - 0.5) * 70,
+          vx: (Math.random() - 0.5) * 10,
+          vy: -7 - Math.random() * 9,
           w: 5 + Math.random() * 6, h: 8 + Math.random() * 7,
           rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.35,
           col: COLORS[(Math.random() * COLORS.length) | 0]
@@ -1902,28 +1976,29 @@ window.addEventListener('load', function () {
         bits.forEach(function (b) {
           b.vy += 0.34; b.x += b.vx; b.y += b.vy; b.rot += b.vr; b.vx *= 0.995;
           c.save();
-          c.globalAlpha = Math.max(0, 1 - age / 2200);
+          c.globalAlpha = Math.max(0, 1 - age / 2600);
           c.translate(b.x, b.y); c.rotate(b.rot);
           c.fillStyle = b.col; c.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
           c.restore();
         });
-        if (age < 2200) requestAnimationFrame(frame);
+        if (age < 2600) requestAnimationFrame(frame);
         else cv.remove();
       })(t0);
     } catch (e) { /* jamais bloquant */ }
   }
 
   function start(force) {
-    // Le garde-fou ne vise que le lancement automatique. Un clic sur « guide »
-    // est un geste explicite, et aucune capture n'en fait.
-    if (!force && (automated() || seen())) return;
+    // Le garde-fou ne vise que le lancement automatique. Un clic sur le point
+    // d'interrogation est un geste explicite, et aucune capture n'en fait.
+    if (!force && (automated() || seen(KEY_REP))) return;
+    if (isClient()) return;
     load(function () {
-      var steps = (isClient() ? clientSteps() : repSteps()).filter(function (st) {
+      var steps = repSteps().filter(function (st) {
         return !st.element || document.querySelector(st.element);
       });
       if (!steps.length) return;
-      var reachedEnd = false;
-      var d = window.driver.js.driver({
+      var celebrated = false;
+      drv = window.driver.js.driver({
         showProgress: true,
         allowClose: true,
         overlayColor: 'rgba(2,30,60,.62)',
@@ -1933,27 +2008,69 @@ window.addEventListener('load', function () {
         progressText: '{{current}} sur {{total}}',
         steps: steps,
         onHighlighted: function (el, step, opts) {
-          try { reachedEnd = opts.state.activeIndex === steps.length - 1; } catch (e) { }
+          try {
+            // Les confettis tombent sur la derniere carte, pas apres sa
+            // disparition : la felicitation doit se voir.
+            if (opts.state.activeIndex === steps.length - 1 && !celebrated) {
+              celebrated = true;
+              setTimeout(confetti, 220);
+            }
+          } catch (e) { }
         },
         onDestroyed: function () {
-          markSeen();
+          markSeen(KEY_REP);
           closeAll();
-          try { if (window.pmTrack) window.pmTrack('deck_tour_done', { role: isClient() ? 'client' : 'rep', completed: reachedEnd }); } catch (e) { }
-          // On rend la slide d'ou l'on venait : rejouer le guide en plein
-          // rendez-vous ne doit pas ramener tout le monde a la couverture.
+          try { if (window.pmTrack) window.pmTrack('deck_tour_done', { completed: celebrated }); } catch (e) { }
           goToSlide(from);
-          // Aller au bout merite mieux qu'une fenetre qui disparait.
-          if (reachedEnd) confetti();
+          drv = null;
         }
       });
       // Le bandeau se masque sur la couverture, et il porte la moitie des
       // etapes : on se place sur une slide ordinaire pour le guide.
       var from = currentSlide;
       goToSlide(1);
-      setTimeout(function () { d.drive(); }, 400);
+      setTimeout(function () { drv.drive(); }, 400);
     });
   }
   window.ayTour = function () { start(true); };
+
+  // ---- guide contextuel de l'editeur ----
+  // Le panneau a cinq sections dont aucune ne dit ce qu'elle fait tant qu'on ne
+  // l'a pas ouverte. Ce guide se declenche la premiere fois qu'on ouvre
+  // l'editeur, et jamais pendant le guide general, qui l'ouvre lui aussi.
+  function editorSteps() {
+    return [
+      { element: '#pm-panel .pm-acc[data-sec="text"]', popover: { title: 'Changer un texte', description:
+        "Ouvrez <strong>Texte</strong>, puis cliquez directement le mot sur la slide et tapez. Titre, chiffre, nom du client : tout se modifie sur place.", side: 'left', align: 'start' } },
+      { element: '#pm-panel .pm-acc[data-sec="visual"]', popover: { title: 'Retirer ce qui ne le concerne pas', description:
+        "Ouvrez <strong>Visuel</strong> et cliquez une carte ou une colonne pour la masquer. Les cartes restantes se recentrent toutes seules.", side: 'left', align: 'start' } },
+      { element: '#pm-panel .pm-acc[data-sec="slides"]', popover: { title: 'Masquer une slide entière', description:
+        "L'oeil retire la slide de la présentation <em>et</em> de l'export. Vous ne passerez pas devant par accident.", side: 'left', align: 'start' } },
+      { element: '#pm-panel .pm-acc[data-sec="versions"]', popover: { title: 'Une version par client', description:
+        "Donnez un nom à votre version et enregistrez-la. Avant le rendez-vous suivant, <strong>rechargez celle du bon client d'un seul clic</strong>. Le deck d'origine ne bouge jamais.", side: 'left', align: 'start' } }
+    ];
+  }
+  function startEditorTour(force) {
+    if (!force && (automated() || seen(KEY_EDIT))) return;
+    if (isClient() || tourRunning()) return;
+    load(function () {
+      var steps = editorSteps().filter(function (st) { return document.querySelector(st.element); });
+      if (!steps.length) return;
+      var d2 = window.driver.js.driver({
+        showProgress: true, allowClose: true,
+        overlayColor: 'rgba(2,30,60,.55)',
+        nextBtnText: 'Suivant', prevBtnText: 'Retour', doneBtnText: 'Compris',
+        progressText: '{{current}} sur {{total}}',
+        steps: steps,
+        onDestroyed: function () { markSeen(KEY_EDIT); }
+      });
+      setTimeout(function () { d2.drive(); }, 420);
+    });
+  }
+  window.ayEditorTour = function () { startEditorTour(true); };
+  document.addEventListener('ay-editor-open', function () {
+    setTimeout(function () { startEditorTour(false); }, 380);
+  });
 
   window.addEventListener('load', function () {
     setTimeout(function () { start(false); }, 1200);
