@@ -1802,7 +1802,8 @@ window.addEventListener('load', function () {
     + '.driver-popover .driver-popover-title{font-family:inherit;font-size:19px;line-height:1.25;font-weight:800;color:#00456d;letter-spacing:-.2px;padding:20px 22px 0;margin:0;display:block}'
     + '.driver-popover .driver-popover-description{font-family:inherit;font-size:14px;line-height:1.55;color:#3d5568;padding:9px 22px 2px;margin:0}'
     + '.driver-popover .driver-popover-description strong{color:#00456d;font-weight:700}'
-    + '.driver-popover .driver-popover-description em{font-style:normal;background:linear-gradient(180deg,transparent 62%,#ffe08a 62%);font-weight:600;color:#2b3f52}'
+    + '.driver-popover .driver-popover-description .hl{background:linear-gradient(180deg,transparent 62%,#ffd08a 62%);font-weight:600;color:#2b3f52}'
+    + '.driver-popover .driver-popover-description .ls{color:#c0392b;font-weight:700;box-shadow:inset 0 -2px 0 #e8443a}'
     + '.driver-popover .driver-popover-description .art{display:block;margin:4px 0 12px;border-radius:12px;overflow:hidden}'
     + '.driver-popover .driver-popover-description .kbd{display:inline-block;min-width:20px;text-align:center;border:1px solid #cfd9e3;border-bottom-width:2px;border-radius:5px;padding:0 5px;font-size:12px;font-weight:700;color:#00456d;background:#f6f9fc}'
     + '.driver-popover .driver-popover-footer{padding:14px 22px 18px;margin:0;gap:8px}'
@@ -1911,11 +1912,11 @@ window.addEventListener('load', function () {
         onHighlightStarted: awaits('.banner-controls [data-act="tools"]') },
 
       { element: '.deck-tools [data-act="laser"]', popover: { title: 'Le laser', description:
-        "Un point rouge suit votre curseur, bien plus visible que la flèche en visio. <strong>Appuyez et glissez</strong> pour entourer un chiffre : le trait <em>s'efface tout seul</em> au bout de deux secondes.", side: 'top', align: 'end' },
+        "Un point rouge suit votre curseur, bien plus visible que la flèche en visio. <strong>Appuyez et glissez</strong> pour entourer un chiffre : le trait <span class='ls'>s'efface tout seul</span> au bout de deux secondes.", side: 'top', align: 'end' },
         onHighlightStarted: openTools },
 
       { element: '.deck-tools [data-act="ink"]', popover: { title: 'Le surligneur', description:
-        "Pour la ligne dont vous parlez quand il vous demande « où ça ? ». Il n'écrit qu'en glissant, comme un vrai feutre, et <em>le trait part de lui-même</em>. Une slide de marque ne peut pas finir barbouillée.", side: 'top', align: 'end' },
+        "Pour la ligne dont vous parlez quand il vous demande « où ça ? ». Il n'écrit qu'en glissant, comme un vrai feutre, et <span class='hl'>le trait part de lui-même</span>. Une slide de marque ne peut pas finir barbouillée.", side: 'top', align: 'end' },
         onHighlightStarted: openTools },
 
       { element: '.deck-tools [data-act="notes"]', popover: { title: 'Le bloc-notes', description:
@@ -1943,8 +1944,19 @@ window.addEventListener('load', function () {
         "Le plein écran, touche <span class=\"kbd\">F</span>. Le deck occupe l'écran, sans navigateur autour.", side: 'top', align: 'end' } },
 
       { element: '#pm-panel', popover: { title: "Adapter le deck à ce client", description:
-        "<strong>Texte</strong> : cliquez n'importe quel mot de la slide et tapez, son nom, son secteur, son chiffre.<br><strong>Visuel</strong> : masquez un bloc ou une carte qui ne le concerne pas.<br><strong>Slides</strong> : l'oeil retire une slide de la présentation <em>et</em> de l'export.<br><strong>Versions</strong> : <em>enregistrez une version par client</em> et rechargez-la d'un clic avant le rendez-vous. Le deck d'origine, lui, ne bouge jamais.",
-        side: 'left', align: 'start' },
+        "La touche <span class='kbd'>E</span> ouvre cet éditeur. Quatre choses à y faire, et le deck d'origine ne bouge jamais.",
+        side: 'left', align: 'start' }, onHighlightStarted: openEditor },
+      { element: '#pm-panel .pm-acc[data-sec="text"]', popover: { title: 'Changer un texte', description:
+        "Ouvrez <strong>Texte</strong>, puis cliquez le mot directement sur la slide et tapez. Son nom, son secteur, son chiffre.", side: 'left', align: 'start' },
+        onHighlightStarted: openEditor },
+      { element: '#pm-panel .pm-acc[data-sec="visual"]', popover: { title: 'Retirer ce qui ne le concerne pas', description:
+        "<strong>Visuel</strong> masque une carte ou une colonne. Les cartes restantes se recentrent toutes seules.", side: 'left', align: 'start' },
+        onHighlightStarted: openEditor },
+      { element: '#pm-panel .pm-acc[data-sec="slides"]', popover: { title: 'Masquer une slide entière', description:
+        "L'oeil retire la slide de la présentation <strong>et</strong> de l'export. Vous ne passerez pas devant par accident.", side: 'left', align: 'start' },
+        onHighlightStarted: openEditor },
+      { element: '#pm-panel .pm-acc[data-sec="versions"]', popover: { title: 'Une version par client', description:
+        "Nommez votre version et enregistrez-la. Avant le rendez-vous suivant, <strong>rechargez celle du bon client d'un seul clic</strong>.", side: 'left', align: 'start' },
         onHighlightStarted: openEditor, onDeselected: closeEditor },
 
       { popover: { title: 'À vous de jouer', description: ART_DONE
@@ -2033,6 +2045,9 @@ window.addEventListener('load', function () {
           drv = null;
           if (quiet) return;
           markSeen(KEY_REP);
+          // Le tour complet montre deja les quatre sections de l'editeur : pas
+          // la peine de les rejouer a la premiere ouverture du panneau.
+          if (celebrated) markSeen(KEY_EDIT);
           closeAll();
           try { if (window.pmTrack) window.pmTrack('deck_tour_done', { completed: celebrated }); } catch (e) { }
           goToSlide(from);
@@ -2069,7 +2084,7 @@ window.addEventListener('load', function () {
       { element: '#pm-panel .pm-acc[data-sec="visual"]', popover: { title: 'Retirer ce qui ne le concerne pas', description:
         "Ouvrez <strong>Visuel</strong> et cliquez une carte ou une colonne pour la masquer. Les cartes restantes se recentrent toutes seules.", side: 'left', align: 'start' } },
       { element: '#pm-panel .pm-acc[data-sec="slides"]', popover: { title: 'Masquer une slide entière', description:
-        "L'oeil retire la slide de la présentation <em>et</em> de l'export. Vous ne passerez pas devant par accident.", side: 'left', align: 'start' } },
+        "L'oeil retire la slide de la présentation <strong>et</strong> de l'export. Vous ne passerez pas devant par accident.", side: 'left', align: 'start' } },
       { element: '#pm-panel .pm-acc[data-sec="versions"]', popover: { title: 'Une version par client', description:
         "Donnez un nom à votre version et enregistrez-la. Avant le rendez-vous suivant, <strong>rechargez celle du bon client d'un seul clic</strong>. Le deck d'origine ne bouge jamais.", side: 'left', align: 'start' } }
     ];
