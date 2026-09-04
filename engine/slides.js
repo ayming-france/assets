@@ -175,11 +175,14 @@ const PARTNERS_SLIDE = {
     }).join('');
 
     var tiles = PARTNERS_SLIDE.items.map(function (it) {
+        // Chargement differe : la slide est la derniere du deck et n'est souvent
+      // jamais atteinte. Sans cela, vingt-quatre images partent a l'ouverture de
+      // n'importe quel deck et retardent la fin du chargement pour tout le monde.
       // Le nom sert de repli visible : un logo introuvable laisse une tuile
       // lisible au lieu d'un cadre vide.
       var img = it.f
         ? '<img src="' + PARTNERS_SLIDE.base + it.f + '" alt="' + esc(it.n) + '"' +
-          (it.c ? ' class="' + it.c + '"' : '') +
+          (it.c ? ' class="' + it.c + '"' : '') + ' loading="lazy" decoding="async"' +
           ' onerror="var p=this.parentNode;this.remove();if(p)p.classList.add(\'no-logo\')">'
         : '';
       return '<div class="partner-tile' + (it.f ? '' : ' no-logo') + '" data-m="' + it.m.join(' ') +
