@@ -125,29 +125,29 @@ const PARTNERS_SLIDE = {
   items: [
     { n: 'UNA', s: 'una', f: 'una.png', m: ['ESS'] },
     { n: 'FHP Val de Loire - Océan', s: 'fhp-val-de-loire-ocean', f: 'fhp-val-de-loire-ocean.jpg', m: ['PRIVE'] },
-    { n: 'UDE MEDEF Guadeloupe', s: 'ude-medef-guadeloupe', f: 'ude-medef-guadeloupe.svg', m: ['PRIVE', 'DROM'] },
-    { n: 'NUMEUM', s: 'numeum', f: 'numeum.svg', m: ['PRIVE'] },
-    { n: 'LCL', s: 'lcl', f: 'lcl.svg', m: ['TRANSVERSE'] },
-    { n: 'DFCG', s: 'dfcg', f: 'dfcg.svg', m: ['TRANSVERSE'] },
-    { n: 'JobPublic', s: 'jobpublic', f: 'jobpublic.webp', m: ['PUBLIC'] },
-    { n: 'FRBTP Guyane', s: 'frbtp-guyane', m: ['PRIVE', 'DROM'] },
-    { n: 'FRBTP Martinique', s: 'frbtp-martinique', m: ['PRIVE', 'DROM'] },
-    { n: 'AMF Assurances', s: 'amf-assurances', m: ['PUBLIC'] },
+    { n: 'UDE MEDEF Guadeloupe', s: 'ude-medef-guadeloupe', f: 'ude-medef-guadeloupe.svg', c: 'lg-wide', m: ['PRIVE', 'DROM'] },
+    { n: 'NUMEUM', s: 'numeum', f: 'numeum.svg', c: 'lg-sq', m: ['PRIVE'] },
+    { n: 'LCL', s: 'lcl', f: 'lcl.svg', c: 'lg-sq', m: ['TRANSVERSE'] },
+    { n: 'DFCG', s: 'dfcg', f: 'dfcg.svg', c: 'lg-sq', m: ['TRANSVERSE'] },
+    { n: 'JobPublic', s: 'jobpublic', f: 'jobpublic.png', c: 'lg-wide', m: ['PUBLIC'] },
+    { n: 'FRBTP Guyane', s: 'frbtp-guyane', f: 'frbtp-guyane.png', c: 'lg-wide', m: ['PRIVE', 'DROM'] },
+    { n: 'FRBTP Martinique', s: 'frbtp-martinique', f: 'frbtp-martinique.png', c: 'lg-sq', m: ['PRIVE', 'DROM'] },
+    { n: 'AMF Assurances', s: 'amf-assurances', f: 'amf-assurances.png', m: ['PUBLIC'] },
     { n: 'CNA', s: 'cna', f: 'cna.png', m: ['TRANSVERSE'] },
-    { n: 'Octime', s: 'octime', m: ['TRANSVERSE'] },
-    { n: 'Primexis', s: 'primexis', f: 'primexis.svg', m: ['TRANSVERSE'] },
-    { n: 'Mercer | ConvictionsRH', s: 'mercer-convictionsrh', f: 'mercer-convictionsrh.png', m: ['TRANSVERSE'] },
-    { n: 'Groupe JLO', s: 'groupe-jlo', m: ['TRANSVERSE'] },
-    { n: 'Eleas', s: 'eleas', f: 'eleas.png', m: ['TRANSVERSE'] },
-    { n: 'MEDEF Guyane', s: 'medef-guyane', m: ['PRIVE', 'DROM'] },
+    { n: 'Octime', s: 'octime', f: 'octime.png', c: 'lg-wide', m: ['TRANSVERSE'] },
+    { n: 'Primexis', s: 'primexis', f: 'primexis.svg', c: 'lg-wide', m: ['TRANSVERSE'] },
+    { n: 'Mercer | ConvictionsRH', s: 'mercer-convictionsrh', f: 'mercer-convictionsrh.png', c: 'lg-wide', m: ['TRANSVERSE'] },
+    { n: 'Groupe JLO', s: 'groupe-jlo', f: 'groupe-jlo.png', c: 'lg-wide', m: ['TRANSVERSE'] },
+    { n: 'Eleas', s: 'eleas', f: 'eleas.png', c: 'lg-wide', m: ['TRANSVERSE'] },
+    { n: 'MEDEF Guyane', s: 'medef-guyane', f: 'medef-guyane.png', m: ['PRIVE', 'DROM'] },
     { n: 'UNCCAS', s: 'unccas', f: 'unccas.svg', m: ['PUBLIC'] },
-    { n: 'Nexem', s: 'nexem', f: 'nexem.svg', m: ['ESS'] },
-    { n: 'RESAH', s: 'resah', f: 'resah.png', m: ['PUBLIC', 'ESS'] },
+    { n: 'Nexem', s: 'nexem', f: 'nexem.svg', c: 'lg-wide', m: ['ESS'] },
+    { n: 'RESAH', s: 'resah', f: 'resah.png', c: 'lg-wide', m: ['PUBLIC', 'ESS'] },
     { n: 'KPMG', s: 'kpmg', f: 'kpmg.svg', m: ['PUBLIC'] },
-    { n: 'AREA Centre-Val de Loire', s: 'area-centre-val-de-loire', m: ['PRIVE'] },
+    { n: 'AREA Centre-Val de Loire', s: 'area-centre-val-de-loire', f: 'area-centre-val-de-loire.png', c: 'lg-wide', m: ['PRIVE'] },
     { n: 'UPE 13', s: 'upe13', f: 'upe13.png', m: ['PRIVE'] },
     { n: 'MEOGROUP', s: 'meogroup', m: ['TRANSVERSE'] },
-    { n: "ACCD'OM", s: 'accdom', m: ['PUBLIC', 'DROM'] }
+    { n: "ACCD'OM", s: 'accdom', f: 'accdom.png', c: 'lg-sq', m: ['PUBLIC', 'DROM'] }
   ]
 };
 // Un partenaire sans logo ne demande AUCUNE image : la premiere version
@@ -179,6 +179,7 @@ const PARTNERS_SLIDE = {
       // lisible au lieu d'un cadre vide.
       var img = it.f
         ? '<img src="' + PARTNERS_SLIDE.base + it.f + '" alt="' + esc(it.n) + '"' +
+          (it.c ? ' class="' + it.c + '"' : '') +
           ' onerror="var p=this.parentNode;this.remove();if(p)p.classList.add(\'no-logo\')">'
         : '';
       return '<div class="partner-tile' + (it.f ? '' : ' no-logo') + '" data-m="' + it.m.join(' ') +

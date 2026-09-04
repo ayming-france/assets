@@ -3008,19 +3008,37 @@
 .partner-tile {
   background: #fff;
   border: 1px solid var(--bg-subtle);
-  transition: opacity 0.2s ease;
   border-radius: 12px;
-  height: 84px;
+  height: 94px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 12px 16px;
 }
 
+/* Un logo carre est bride par la hauteur et paraissait deux fois plus petit
+   qu'un logo large, lui bride par la largeur. La classe vient de la mesure du
+   fichier, pas d'un coup d'oeil : rapport >= 3,2 large, <= 1,6 carre.
+   La transition porte sur l'image et le nom, la ou l'opacite change vraiment. */
+/* Boite fixe + object-fit, et non « max-height » seul : un petit fichier, un SVG
+   de 77 par 30 par exemple, refusait de grandir et rendait deux fois plus petit
+   que ses voisins. La hauteur de boite vient du rapport mesure sur le fichier,
+   large ou carre, jamais d'un coup d'oeil. */
 .partner-tile img {
-  max-width: 100%;
-  max-height: 52px;
+  width: 100%;
+  height: 54px;
   object-fit: contain;
+  transition: opacity 0.38s ease, filter 0.38s ease;
+}
+
+.partner-tile img.lg-sq { height: 74px; }
+.partner-tile img.lg-wide { height: 44px; }
+
+.partner-tile .partner-name { transition: opacity 0.38s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .partner-tile img,
+  .partner-tile .partner-name { transition: none; }
 }
 
 /* Le nom ne parait que si le logo n'a pas charge : une tuile reste lisible
