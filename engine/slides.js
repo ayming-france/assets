@@ -123,52 +123,38 @@ const PARTNERS_SLIDE = {
   base: 'https://ayming-france.github.io/assets/imagery/partenaires/',
   filters: [['tous', 'Tous'], ['PRIVE', 'Privé'], ['PUBLIC', 'Public'], ['ESS', 'ESS'], ['DROM', 'DROM'], ['TRANSVERSE', 'Transverse']],
   items: [
-    { n: 'UNA', s: 'una', m: ['ESS'] },
-    { n: 'FHP Val de Loire - Océan', s: 'fhp-val-de-loire-ocean', m: ['PRIVE'] },
-    { n: 'UDE MEDEF Guadeloupe', s: 'ude-medef-guadeloupe', m: ['PRIVE', 'DROM'] },
-    { n: 'NUMEUM', s: 'numeum', m: ['PRIVE'] },
-    { n: 'LCL', s: 'lcl', m: ['TRANSVERSE'] },
-    { n: 'DFCG', s: 'dfcg', m: ['TRANSVERSE'] },
-    { n: 'JobPublic', s: 'jobpublic', m: ['PUBLIC'] },
+    { n: 'UNA', s: 'una', f: 'una.png', m: ['ESS'] },
+    { n: 'FHP Val de Loire - Océan', s: 'fhp-val-de-loire-ocean', f: 'fhp-val-de-loire-ocean.jpg', m: ['PRIVE'] },
+    { n: 'UDE MEDEF Guadeloupe', s: 'ude-medef-guadeloupe', f: 'ude-medef-guadeloupe.svg', m: ['PRIVE', 'DROM'] },
+    { n: 'NUMEUM', s: 'numeum', f: 'numeum.svg', m: ['PRIVE'] },
+    { n: 'LCL', s: 'lcl', f: 'lcl.svg', m: ['TRANSVERSE'] },
+    { n: 'DFCG', s: 'dfcg', f: 'dfcg.svg', m: ['TRANSVERSE'] },
+    { n: 'JobPublic', s: 'jobpublic', f: 'jobpublic.webp', m: ['PUBLIC'] },
     { n: 'FRBTP Guyane', s: 'frbtp-guyane', m: ['PRIVE', 'DROM'] },
     { n: 'FRBTP Martinique', s: 'frbtp-martinique', m: ['PRIVE', 'DROM'] },
     { n: 'AMF Assurances', s: 'amf-assurances', m: ['PUBLIC'] },
-    { n: 'CNA', s: 'cna', m: ['TRANSVERSE'] },
+    { n: 'CNA', s: 'cna', f: 'cna.png', m: ['TRANSVERSE'] },
     { n: 'Octime', s: 'octime', m: ['TRANSVERSE'] },
-    { n: 'Primexis', s: 'primexis', m: ['TRANSVERSE'] },
-    { n: 'Mercer | ConvictionsRH', s: 'mercer-convictionsrh', m: ['TRANSVERSE'] },
+    { n: 'Primexis', s: 'primexis', f: 'primexis.svg', m: ['TRANSVERSE'] },
+    { n: 'Mercer | ConvictionsRH', s: 'mercer-convictionsrh', f: 'mercer-convictionsrh.png', m: ['TRANSVERSE'] },
     { n: 'Groupe JLO', s: 'groupe-jlo', m: ['TRANSVERSE'] },
-    { n: 'Eleas', s: 'eleas', m: ['TRANSVERSE'] },
+    { n: 'Eleas', s: 'eleas', f: 'eleas.png', m: ['TRANSVERSE'] },
     { n: 'MEDEF Guyane', s: 'medef-guyane', m: ['PRIVE', 'DROM'] },
-    { n: 'UNCCAS', s: 'unccas', m: ['PUBLIC'] },
-    { n: 'Nexem', s: 'nexem', m: ['ESS'] },
-    { n: 'RESAH', s: 'resah', m: ['PUBLIC', 'ESS'] },
-    { n: 'KPMG', s: 'kpmg', m: ['PUBLIC'] },
+    { n: 'UNCCAS', s: 'unccas', f: 'unccas.svg', m: ['PUBLIC'] },
+    { n: 'Nexem', s: 'nexem', f: 'nexem.svg', m: ['ESS'] },
+    { n: 'RESAH', s: 'resah', f: 'resah.png', m: ['PUBLIC', 'ESS'] },
+    { n: 'KPMG', s: 'kpmg', f: 'kpmg.svg', m: ['PUBLIC'] },
     { n: 'AREA Centre-Val de Loire', s: 'area-centre-val-de-loire', m: ['PRIVE'] },
-    { n: 'UPE 13', s: 'upe13', m: ['PRIVE'] },
+    { n: 'UPE 13', s: 'upe13', f: 'upe13.png', m: ['PRIVE'] },
     { n: 'MEOGROUP', s: 'meogroup', m: ['TRANSVERSE'] },
     { n: "ACCD'OM", s: 'accdom', m: ['PUBLIC', 'DROM'] }
   ]
 };
-// Un logo se cherche par son slug, pas par un nom de fichier fige : le moteur
-// essaie les extensions dans l'ordre et retombe sur le nom du partenaire s'il
-// n'en trouve aucune. Deposer plus tard un fichier dans le depot assets suffit
-// donc a faire apparaitre le logo sur tous les decks, sans toucher au code ni
-// redeployer un seul deck.
-const PARTNERS_EXT = ['svg', 'png', 'webp', 'jpg'];
-window.ayPartnerLogo = function (img) {
-  try {
-    var i = (parseInt(img.getAttribute('data-ext'), 10) || 0) + 1;
-    if (i < PARTNERS_EXT.length) {
-      img.setAttribute('data-ext', i);
-      img.src = PARTNERS_SLIDE.base + img.getAttribute('data-slug') + '.' + PARTNERS_EXT[i];
-      return;
-    }
-    var p = img.parentNode;
-    img.remove();
-    if (p) p.classList.add('no-logo');
-  } catch (e) { }
-};
+// Un partenaire sans logo ne demande AUCUNE image : la premiere version
+// essayait quatre extensions par slug, ce qui envoyait trente-six 404 par deck
+// et faisait echouer le harnais de regression sur les dix-neuf. Le fichier reel
+// est nomme ici quand il existe. En ajouter un plus tard, c'est deposer le
+// fichier et ajouter son nom sur cette ligne.
 (function renderPartnersSlide() {
   try {
     if (document.querySelector('section[data-shared="partenaires"]')) return;
@@ -191,9 +177,12 @@ window.ayPartnerLogo = function (img) {
     var tiles = PARTNERS_SLIDE.items.map(function (it) {
       // Le nom sert de repli visible : un logo introuvable laisse une tuile
       // lisible au lieu d'un cadre vide.
-      return '<div class="partner-tile" data-m="' + it.m.join(' ') + '" title="' + esc(it.n) + '">' +
-        '<img src="' + PARTNERS_SLIDE.base + it.s + '.' + PARTNERS_EXT[0] + '" alt="' + esc(it.n) + '"' +
-        ' data-slug="' + it.s + '" data-ext="0" onerror="ayPartnerLogo(this)">' +
+      var img = it.f
+        ? '<img src="' + PARTNERS_SLIDE.base + it.f + '" alt="' + esc(it.n) + '"' +
+          ' onerror="var p=this.parentNode;this.remove();if(p)p.classList.add(\'no-logo\')">'
+        : '';
+      return '<div class="partner-tile' + (it.f ? '' : ' no-logo') + '" data-m="' + it.m.join(' ') +
+        '" title="' + esc(it.n) + '">' + img +
         '<span class="partner-name">' + esc(it.n) + '</span></div>';
     }).join('');
 
