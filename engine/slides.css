@@ -2952,3 +2952,97 @@
 .cover .cover-right .cert-strip { position:absolute; left:10px; right:30px; bottom:24px; z-index:4; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:18px; }
 .cover .cert-chip { background:none; box-shadow:none; padding:0; display:inline-flex; align-items:center; }
 .cover .cert-chip img { height:60px; width:auto; object-fit:contain; display:block; }
+
+/* ==========================================================================
+   Slide Partenaires (injectee par le moteur dans tous les decks).
+   Le filtre masque, il ne retire pas : la grille garde ses colonnes et rien
+   ne saute d'une ligne a l'autre quand on change de marche.
+   ========================================================================== */
+.partners-filters {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 4px 0 14px;
+}
+
+.pfilter {
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-gray);
+  background: #fff;
+  border: 1px solid var(--bg-subtle);
+  border-radius: 999px;
+  padding: 10px 22px;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+
+.pfilter:hover { border-color: var(--blue-primary); color: var(--blue-dark); }
+
+.pfilter.on {
+  background: var(--blue-dark);
+  border-color: var(--blue-dark);
+  color: #fff;
+}
+
+.partners-count {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+}
+
+.partners-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.partner-tile {
+  background: #fff;
+  border: 1px solid var(--bg-subtle);
+  transition: opacity 0.2s ease;
+  border-radius: 12px;
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+}
+
+.partner-tile img {
+  max-width: 100%;
+  max-height: 52px;
+  object-fit: contain;
+}
+
+/* Le nom ne parait que si le logo n'a pas charge : une tuile reste lisible
+   plutot que vide, et le partenaire ne disparait pas de la slide. */
+.partner-name { display: none; }
+
+.partner-tile.no-logo .partner-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blue-dark);
+  text-align: center;
+  line-height: 1.25;
+}
+
+/* Un partenaire hors filtre reste en place, estompe. La grille ne se
+   reorganise pas, le mur garde sa forme, et le filtre eclaire une selection au
+   lieu de reconstruire l'ecran a chaque clic. La tuile garde son cadre a pleine
+   opacite : c'est ce qui manquait au premier essai, ou tout s'effacait ensemble
+   et laissait des noms fantomes flottant sans contour. */
+.partner-tile.is-off img,
+.partner-tile.is-off .partner-name {
+  opacity: 0.2;
+  filter: grayscale(1);
+}

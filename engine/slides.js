@@ -109,6 +109,129 @@ const CLIENTS_SLIDE = {
 })();
 
 /* ============================================================================
+   Slide Partenaires, injectee dans TOUS les decks. Contrairement a la slide
+   Clients, aucun deck n'a de placeholder a poser : le moteur ajoute la section
+   lui-meme, en DERNIERE position. C'est la seule place qui ne casse rien, les
+   numeros « data-slide » de la nav etant ecrits a la main dans chaque deck et
+   un decalage en milieu de deck les invaliderait tous.
+   Un partenaire peut appartenir a plusieurs marches : « m » est une liste, et
+   le filtre teste l'appartenance, jamais l'egalite.
+   Un logo absent n'enleve pas le partenaire, il s'affiche sous son nom.
+   ========================================================================== */
+const PARTNERS_SLIDE = {
+  title: 'Nos partenaires',
+  base: 'https://ayming-france.github.io/assets/imagery/partenaires/',
+  filters: [['tous', 'Tous'], ['PRIVE', 'Privé'], ['PUBLIC', 'Public'], ['ESS', 'ESS'], ['DROM', 'DROM'], ['TRANSVERSE', 'Transverse']],
+  items: [
+    { n: 'UNA', s: 'una', m: ['ESS'] },
+    { n: 'FHP Val de Loire - Océan', s: 'fhp-val-de-loire-ocean', m: ['PRIVE'] },
+    { n: 'UDE MEDEF Guadeloupe', s: 'ude-medef-guadeloupe', m: ['PRIVE', 'DROM'] },
+    { n: 'NUMEUM', s: 'numeum', m: ['PRIVE'] },
+    { n: 'LCL', s: 'lcl', m: ['TRANSVERSE'] },
+    { n: 'DFCG', s: 'dfcg', m: ['TRANSVERSE'] },
+    { n: 'JobPublic', s: 'jobpublic', m: ['PUBLIC'] },
+    { n: 'FRBTP Guyane', s: 'frbtp-guyane', m: ['PRIVE', 'DROM'] },
+    { n: 'FRBTP Martinique', s: 'frbtp-martinique', m: ['PRIVE', 'DROM'] },
+    { n: 'AMF Assurances', s: 'amf-assurances', m: ['PUBLIC'] },
+    { n: 'CNA', s: 'cna', m: ['TRANSVERSE'] },
+    { n: 'Octime', s: 'octime', m: ['TRANSVERSE'] },
+    { n: 'Primexis', s: 'primexis', m: ['TRANSVERSE'] },
+    { n: 'Mercer | ConvictionsRH', s: 'mercer-convictionsrh', m: ['TRANSVERSE'] },
+    { n: 'Groupe JLO', s: 'groupe-jlo', m: ['TRANSVERSE'] },
+    { n: 'Eleas', s: 'eleas', m: ['TRANSVERSE'] },
+    { n: 'MEDEF Guyane', s: 'medef-guyane', m: ['PRIVE', 'DROM'] },
+    { n: 'UNCCAS', s: 'unccas', m: ['PUBLIC'] },
+    { n: 'Nexem', s: 'nexem', m: ['ESS'] },
+    { n: 'RESAH', s: 'resah', m: ['PUBLIC', 'ESS'] },
+    { n: 'KPMG', s: 'kpmg', m: ['PUBLIC'] },
+    { n: 'AREA Centre-Val de Loire', s: 'area-centre-val-de-loire', m: ['PRIVE'] },
+    { n: 'UPE 13', s: 'upe13', m: ['PRIVE'] },
+    { n: 'MEOGROUP', s: 'meogroup', m: ['TRANSVERSE'] },
+    { n: "ACCD'OM", s: 'accdom', m: ['PUBLIC', 'DROM'] }
+  ]
+};
+// Un logo se cherche par son slug, pas par un nom de fichier fige : le moteur
+// essaie les extensions dans l'ordre et retombe sur le nom du partenaire s'il
+// n'en trouve aucune. Deposer plus tard un fichier dans le depot assets suffit
+// donc a faire apparaitre le logo sur tous les decks, sans toucher au code ni
+// redeployer un seul deck.
+const PARTNERS_EXT = ['svg', 'png', 'webp', 'jpg'];
+window.ayPartnerLogo = function (img) {
+  try {
+    var i = (parseInt(img.getAttribute('data-ext'), 10) || 0) + 1;
+    if (i < PARTNERS_EXT.length) {
+      img.setAttribute('data-ext', i);
+      img.src = PARTNERS_SLIDE.base + img.getAttribute('data-slug') + '.' + PARTNERS_EXT[i];
+      return;
+    }
+    var p = img.parentNode;
+    img.remove();
+    if (p) p.classList.add('no-logo');
+  } catch (e) { }
+};
+(function renderPartnersSlide() {
+  try {
+    if (document.querySelector('section[data-shared="partenaires"]')) return;
+    var all = document.querySelectorAll('.slide');
+    if (!all.length) return;
+    var last = all[all.length - 1];
+    if (!last.parentNode) return;
+
+    function esc(t) {
+      return String(t).replace(/[&<>"]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+      });
+    }
+
+    var pills = PARTNERS_SLIDE.filters.map(function (f, i) {
+      return '<button type="button" class="pfilter' + (i === 0 ? ' on' : '') +
+        '" data-m="' + f[0] + '">' + esc(f[1]) + '</button>';
+    }).join('');
+
+    var tiles = PARTNERS_SLIDE.items.map(function (it) {
+      // Le nom sert de repli visible : un logo introuvable laisse une tuile
+      // lisible au lieu d'un cadre vide.
+      return '<div class="partner-tile" data-m="' + it.m.join(' ') + '" title="' + esc(it.n) + '">' +
+        '<img src="' + PARTNERS_SLIDE.base + it.s + '.' + PARTNERS_EXT[0] + '" alt="' + esc(it.n) + '"' +
+        ' data-slug="' + it.s + '" data-ext="0" onerror="ayPartnerLogo(this)">' +
+        '<span class="partner-name">' + esc(it.n) + '</span></div>';
+    }).join('');
+
+    var sec = document.createElement('section');
+    sec.className = 'slide';
+    sec.setAttribute('data-chapter', 'partenaires');
+    sec.setAttribute('data-shared', 'partenaires');
+    sec.innerHTML =
+      '<div class="slide-inner"><h1 class="slide-title">' + esc(PARTNERS_SLIDE.title) + '</h1>' +
+      '<div class="partners-filters">' + pills + '</div>' +
+      '<div class="partners-count"></div>' +
+      '<div class="partners-grid">' + tiles + '</div></div>' +
+      '<div class="company-logo"><img src="https://ayming-france.github.io/assets/logos/ayming-logo.png" alt="Ayming"></div>';
+    last.parentNode.appendChild(sec);
+
+    var grid = sec.querySelector('.partners-grid');
+    var count = sec.querySelector('.partners-count');
+    function apply(market) {
+      var shown = 0;
+      grid.querySelectorAll('.partner-tile').forEach(function (t) {
+        var hit = market === 'tous' || t.getAttribute('data-m').split(' ').indexOf(market) >= 0;
+        t.classList.toggle('is-off', !hit);
+        if (hit) shown++;
+      });
+      count.textContent = shown + (shown > 1 ? ' partenaires' : ' partenaire');
+    }
+    sec.querySelectorAll('.pfilter').forEach(function (b) {
+      b.addEventListener('click', function () {
+        sec.querySelectorAll('.pfilter').forEach(function (o) { o.classList.remove('on'); });
+        b.classList.add('on');
+        apply(b.getAttribute('data-m'));
+      });
+    });
+    apply('tous');
+  } catch (e) { if (window.console) console.warn('partners slide render failed', e); }
+})();
+
+/* ============================================================================
    Shared certification strip on every deck's cover. Renders the badges into the
    cover's .cover-right (over the photo, on a white gradient). Single source: edit
    CERT_BADGES once here. Guarded: never breaks a deck.
