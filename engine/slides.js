@@ -157,6 +157,11 @@ const PARTNERS_SLIDE = {
 // fichier et ajouter son nom sur cette ligne.
 (function renderPartnersSlide() {
   try {
+    // Opt-out par deck : un deck localise ou propre a un client pose
+    // <body data-no-partners> et la slide Partenaires n'est pas injectee.
+    // Les partenaires listes ici sont francais et n'ont pas leur place, par
+    // exemple, sur un deck espagnol.
+    if (document.body && document.body.hasAttribute('data-no-partners')) return;
     if (document.querySelector('section[data-shared="partenaires"]')) return;
     var all = document.querySelectorAll('.slide');
     if (!all.length) return;
