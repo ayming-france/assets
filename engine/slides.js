@@ -80,7 +80,7 @@ const CLIENTS_SLIDE = {
   sectors: [
     ['Agroalimentaire', ['bonduelle.svg|lg-boost', 'andros.png', 'unilever.svg', 'lindt.svg', 'haribo.svg', 'arterris.svg', 'cooperl.png', 'terrena.png|lg-boost']],
     ['Distribution & Commerce', ['intermarche.svg', 'systeme-u.svg', 'leclerc.svg', 'casino.svg', 'sodexo.svg|lg-trim', 'accor.svg|lg-trim', 'loreal.svg|lg-trim', 'lvmh.svg|lg-trim', 'ikea.svg']],
-    ['Industrie', ['seb.svg|lg-boost', 'engie.svg', 'edf.svg', 'legrand.svg', 'nexans.svg', 'arcelormittal.svg', 'knauf.svg', 'mersen.svg', 'hermes.svg']],
+    ['Industrie', ['airbus.svg', 'safran.svg', 'seb.svg|lg-boost', 'engie.svg', 'edf.svg', 'legrand.svg', 'nexans.svg', 'arcelormittal.svg', 'knauf.svg', 'mersen.svg', 'hermes.svg']],
     ['BTP & Construction', ['vinci.svg', 'bouygues.svg', 'eiffage.svg', 'fayat.png', 'nge.svg', 'spie-batignolles.svg', 'otis.svg|lg-trim']],
     ['Transport & Logistique', ['transdev.svg', 'sncf.svg', 'cmacgm.svg', 'jacky-perrenot.png', 'gls.svg', 'airfrance-klm.svg|lg-trim']],
     ['Santé & Pharma', ['pierre-fabre.png', 'vivalto.png|lg-boost', 'baxter.svg|lg-trim', 'virbac.svg', 'delpharm.png', 'gsk.png', 'elsan.png']],
