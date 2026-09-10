@@ -2956,7 +2956,12 @@
 /* ==== Shared certification strip on every cover (rendered by slides.js into .cover-right) ==== */
 .cover .cover-right { position:relative; }
 .cover .cover-right::after { content:''; position:absolute; left:0; right:0; bottom:0; height:42%; background:linear-gradient(to top, #fff 4%, rgba(255,255,255,0.92) 30%, rgba(255,255,255,0) 100%); z-index:3; pointer-events:none; }
-.cover .cover-right .cert-strip { position:absolute; left:10px; right:30px; bottom:24px; z-index:4; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:18px; }
+/* Fond blanc arrondi derrière le bandeau : les PNG de badges ont des fonds
+   blancs opaques et le patchwork se voyait sur les couvertures photo, surtout
+   dans l'export PPTX. Porté depuis le fix local de es-cotizaciones-sociales.
+   Le max-width garde le flex-wrap actif : sans borne de largeur, une strip en
+   position absolue ne wrappe jamais et 7 badges débordent de la colonne. */
+.cover .cover-right .cert-strip { position:absolute; left:auto; right:24px; bottom:24px; max-width:calc(100% - 34px); z-index:4; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:18px; background:#fff; border-radius:14px; padding:12px 18px; box-shadow:0 4px 14px rgba(0,69,109,.10); }
 .cover .cert-chip { background:none; box-shadow:none; padding:0; display:inline-flex; align-items:center; }
 .cover .cert-chip img { height:60px; width:auto; object-fit:contain; display:block; }
 
