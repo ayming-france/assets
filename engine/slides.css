@@ -2959,11 +2959,13 @@
 /* Fond blanc arrondi derrière le bandeau : les PNG de badges ont des fonds
    blancs opaques et le patchwork se voyait sur les couvertures photo, surtout
    dans l'export PPTX. Porté depuis le fix local de es-cotizaciones-sociales.
-   Le max-width garde le flex-wrap actif : sans borne de largeur, une strip en
-   position absolue ne wrappe jamais et 7 badges débordent de la colonne. */
-.cover .cover-right .cert-strip { position:absolute; left:auto; right:24px; bottom:24px; max-width:calc(100% - 34px); z-index:4; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:18px; background:#fff; border-radius:14px; padding:12px 18px; box-shadow:0 4px 14px rgba(0,69,109,.10); }
+   Le max-width garde le flex-wrap actif comme filet de sécurité. Badges à
+   46px et gap 12px pour que la rangée reste UNIQUE même à 8 badges (decks
+   Acciline avec HDS) : à 60px les 7 badges français wrappaient sur 2 rangées
+   avec Ecovadis seul en bas, ce que la carte blanche rendait visible. */
+.cover .cover-right .cert-strip { position:absolute; left:auto; right:24px; bottom:24px; max-width:calc(100% - 34px); z-index:4; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:12px; background:#fff; border-radius:14px; padding:10px 14px; box-shadow:0 4px 14px rgba(0,69,109,.10); }
 .cover .cert-chip { background:none; box-shadow:none; padding:0; display:inline-flex; align-items:center; }
-.cover .cert-chip img { height:60px; width:auto; object-fit:contain; display:block; }
+.cover .cert-chip img { height:46px; width:auto; object-fit:contain; display:block; }
 
 /* ==========================================================================
    Slide Partenaires (injectee par le moteur dans tous les decks).
