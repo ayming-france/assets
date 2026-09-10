@@ -1285,8 +1285,15 @@
     .slide.active .column-card:nth-child(4),
     .slide.active .stat-card:nth-child(4),
     .slide.active .feature-item:nth-child(4) { animation-delay: 0.45s; }
-    .slide.active .feature-item:nth-child(4) { animation-delay: 0.45s; }
     .slide.active .feature-item:nth-child(5) { animation-delay: 0.55s; }
+    .slide.active .feature-item:nth-child(6) { animation-delay: 0.65s; }
+    .slide.active .feature-item:nth-child(7) { animation-delay: 0.75s; }
+    .slide.active .feature-item:nth-child(8) { animation-delay: 0.85s; }
+    /* Later children keep a delay AFTER the sequence; without this they
+       animate at 0s and appear before the first card. */
+    .slide.active .column-card:nth-child(n+5),
+    .slide.active .stat-card:nth-child(n+5),
+    .slide.active .feature-item:nth-child(n+9) { animation-delay: 0.9s; }
 
     /* Process steps: use nth-of-type because <span class="step-arrow"> siblings break nth-child */
     .slide.active .process-step:nth-of-type(1) { animation-delay: 0.15s; }
