@@ -6,10 +6,10 @@
 // Miroir partiel des jetons CSS de slides.css : voir DESIGN.md (repo ayming)
 // pour la table de correspondance complete.
 var AY_TOKENS = {
-  'blue-primary': '#11a9e6', // bleu de marque, identique au jeton CSS --blue-primary
-  'gradient-blue-start': '#0fa7e2', // arret gauche du degrade de marque
-  'gradient-green-end': '#0ab38c', // arret droit du degrade de marque
-  'blue-dark': '#00456d', // marine profond, identique au jeton CSS --blue-dark
+  'blue-primary': '#00AEEF', // bleu de marque, identique au jeton CSS --blue-primary
+  'gradient-blue-start': '#00AEEF', // arret gauche du degrade de marque
+  'gradient-green-end': '#00B08B', // arret droit du degrade de marque
+  'blue-dark': '#004A76', // marine profond, identique au jeton CSS --blue-dark
   'bg-white': '#ffffff', // blanc de surface, identique au jeton CSS --bg-white
   'tint-white': '#fff', // blanc court, identique au jeton CSS --tint-white
   'tint-amber': '#fbbf24', // ambre, identique au jeton CSS --tint-amber

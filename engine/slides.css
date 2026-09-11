@@ -1,11 +1,11 @@
 /* Brand design system (single source of truth): DESIGN.md in the ayming-workspace repo root.
    These :root tokens are the reference implementation it mirrors. Keep them in sync. */
 :root {
-      --blue-primary: #11a9e6;
-      --blue-accent: #0da4e8;
-      --blue-dark: #00456d;
-      --gradient-blue-start: #0fa7e2;
-      --gradient-green-end: #0ab38c;
+      --blue-primary: #00AEEF;
+      --blue-accent: #00AEEF;
+      --blue-dark: #004A76;
+      --gradient-blue-start: #00AEEF;
+      --gradient-green-end: #00B08B;
       --gradient-brand-horizontal: linear-gradient(90deg, var(--gradient-blue-start), var(--gradient-green-end));
       --text-dark: #0f172a;
       --text-gray: #6b7280;
@@ -87,11 +87,11 @@
     /* Palette Acciline+ : identique à Ayming pour l'instant. Cette section reçoit les
        couleurs propres à Acciline+ dès qu'elles sont fournies par l'équipe marque. */
     [data-brand="acciline"] {
-      --blue-primary: #11a9e6;
-      --blue-accent: #0da4e8;
-      --blue-dark: #00456d;
-      --gradient-blue-start: #0fa7e2;
-      --gradient-green-end: #0ab38c;
+      --blue-primary: #00AEEF;
+      --blue-accent: #00AEEF;
+      --blue-dark: #004A76;
+      --gradient-blue-start: #00AEEF;
+      --gradient-green-end: #00B08B;
     }
 
     * {
