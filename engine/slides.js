@@ -1,5 +1,85 @@
 /* Ayming Slides - Unified JS */
 
+// Palette centralisee (increment A des jetons de marque). Portee module,
+// visible de toutes les IIFE soeurs qui suivent dans ce fichier puisqu'elle
+// est declaree avant elles au premier niveau du script (jamais dans une IIFE).
+// Miroir partiel des jetons CSS de slides.css : voir DESIGN.md (repo ayming)
+// pour la table de correspondance complete.
+var AY_TOKENS = {
+  'blue-primary': '#11a9e6', // bleu de marque, identique au jeton CSS --blue-primary
+  'gradient-blue-start': '#0fa7e2', // arret gauche du degrade de marque
+  'gradient-green-end': '#0ab38c', // arret droit du degrade de marque
+  'blue-dark': '#00456d', // marine profond, identique au jeton CSS --blue-dark
+  'bg-white': '#ffffff', // blanc de surface, identique au jeton CSS --bg-white
+  'tint-white': '#fff', // blanc court, identique au jeton CSS --tint-white
+  'tint-amber': '#fbbf24', // ambre, identique au jeton CSS --tint-amber
+  'collecte-color': '#e8930c', // orange Collecte, identique au defaut CSS --collecte-color
+  'acciline-color': '#e63946', // rouge Acciline+, identique au defaut CSS --acciline-color
+  'ui-ink': '#13324d', // texte principal du panneau et de la fenetre de notes
+  'ui-navy': '#003d79', // bandeaux et liens forts (toast, en-tete, dlbtn)
+  'ui-navy-title': '#0e2438', // titre de boite de dialogue
+  'ui-slate': '#5b7085', // sous-titre et texte secondaire
+  'ui-slate-dark': '#34495c', // texte secondaire fonce
+  'ui-slate-body': '#3d5568', // texte de description du guide driver.js
+  'ui-slate-label': '#56697a', // libelle de champ
+  'ui-slate-hint': '#7c8ea0', // texte d'indice, discret
+  'ui-slate-sub': '#6b8296', // sous-texte d'autocompletion
+  'ui-slate-disabled': '#8fa2b3', // texte desactive
+  'ui-slate-muted': '#93a6b6', // bouton fermer du guide
+  'ui-slate-hover': '#4b6579', // texte au survol du bouton precedent du guide
+  'ui-slate-await': '#7b8fa1', // texte du bouton en attente d'un geste
+  'ui-blue-active': '#0a6f9c', // lien actif, barre de version
+  'ui-blue-hover': '#0d96cb', // survol du bouton bleu principal
+  'ui-red': '#c0392b', // suppression, alerte
+  'ui-red-border': '#e8c4be', // bordure du bouton reinitialiser
+  'ui-red-accent': '#e8443a', // pointe du pointeur laser
+  'ui-navy-tool': '#22384c', // corps du feutre et du pointeur dessines
+  'ui-black': '#000', // fond du canvas d'annotation
+  'ui-highlighter': '#ff9500', // feutre surligneur
+  'ui-highlight-mark': '#ffd08a', // surlignage de texte dans le guide
+  'ui-navy-mark': '#2b3f52', // texte surligne dans le guide
+  'ui-border': '#cfd9e3', // bordure de champ
+  'ui-border-soft': '#dfe7ee', // bordure de bouton d'onglet
+  'ui-border-soft-2': '#c9d6e2', // bordure du feutre dessine
+  'ui-log-bg': '#0e1b2a', // fond du journal d'evenements
+  'ui-log-text': '#cfe8ff', // texte du journal d'evenements
+  'ui-mist-1': '#eef3f8', // fond clair de bouton, separateur
+  'ui-mist-2': '#e3ebf2', // survol du bouton annuler
+  'ui-mist-3': '#eef1f5', // separateur horizontal
+  'ui-mist-4': '#eaf6fd', // survol d'item d'autocompletion
+  'ui-mist-5': '#f2f6fa', // survol de bouton rond ou de ligne
+  'ui-mist-6': '#f6f9fc', // survol d'accordeon
+  'ui-mist-7': '#eaf7fd', // bandeau de version active
+  'ui-mist-8': '#fafcfe', // fond de pied de panneau
+  'ui-mist-9': '#e6edf4', // bordure desactivee de bouton
+  'ui-mist-10': '#e6eef5', // filet du remerciement final du guide
+  'ui-mist-11': '#e9eff5', // separateur de la barre d'outils
+  'ui-mist-12': '#e4ecf4', // survol de bouton rond de la barre d'outils
+  'ui-mist-13': '#eef7fc', // fond de l'illustration d'accueil du guide
+  'ui-mist-14': '#e9f7f2', // fond de l'illustration d'accueil du guide, second arret
+  'ui-mist-15': '#fbfdff', // corps du feutre dessine
+  'ui-mist-16': '#d6ecf7', // bordure sous la barre de version
+  'ui-mist-17': '#e2ebf3', // survol du bouton precedent du guide
+  'ui-note-yellow': '#ffd968', // pense-bete, corps jaune
+  'ui-note-yellow-soft': '#fff6d5', // fond de l'onglet pense-bete actif
+  'ui-note-yellow-border': '#e8c66a', // bordure de l'onglet pense-bete actif
+  'ui-note-yellow-text': '#7a5c0c', // texte de l'onglet pense-bete actif
+  'ui-note-yellow-text-dark': '#4a3a10', // texte du pense-bete jaune
+  'ui-note-yellow-meta': '#a17c17', // meta du pense-bete jaune
+  'ui-note-yellow-cap': '#f0b429', // capuchon du pense-bete
+  'ui-note-yellow-body': '#e8a91f', // corps de l'icone pense-bete
+  'ui-note-yellow-line': '#b98514', // lignes du pense-bete
+  'ui-note-blue-soft': '#e8f4fd', // fond de l'onglet pense-bete general actif
+  'ui-note-blue-border': '#a8d5f0', // bordure de l'onglet pense-bete general actif
+  'ui-note-blue-text': '#0d6f9e', // texte de l'onglet pense-bete general actif
+  'ui-note-blue-text-dark': '#123c52', // texte du pense-bete general
+  'ui-note-dot-gen': '#5cb8e8', // pastille du pense-bete general
+  'ui-note-delete': '#6b5a2a', // icone de suppression du pense-bete
+  'deco-purple': '#8b5cf6', // confettis
+  'deco-teal': '#7fdcc4', // confettis
+};
+
+
 // ===== Umami analytics (self-hosted on Vercel, privacy-friendly) =====
 // Injected once here so every deck that loads the shared engine is tracked with
 // zero per-deck markup. Pageviews are automatic; the deck's own custom events
@@ -512,7 +592,7 @@ function launchConfetti() {
   const ctx = canvas.getContext('2d');
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  const colors = ['#11a9e6','#0ab38c','#e8930c','#e63946','#fbbf24','#8b5cf6','#ffffff'];
+  const colors = [AY_TOKENS['blue-primary'],AY_TOKENS['gradient-green-end'],AY_TOKENS['collecte-color'],AY_TOKENS['acciline-color'],AY_TOKENS['tint-amber'],AY_TOKENS['deco-purple'],AY_TOKENS['bg-white']];
   const pieces = [];
   for (let i = 0; i < 400; i++) {
     pieces.push({
@@ -937,7 +1017,7 @@ window.addEventListener('load', function () {
   function selectEl(el) {
     if (!el || el === document.body || el.closest('#pm-panel')) return;
     if (selected) selected.style.outline = '';
-    selected = el; el.style.outline = '2px solid #0ab38c'; el.style.outlineOffset = '2px';
+    selected = el; el.style.outline = '2px solid ' + AY_TOKENS['gradient-green-end']; el.style.outlineOffset = '2px';
     document.getElementById('pm-style').style.display = 'block';
     document.getElementById('pm-selname').textContent = elName(el);
     var cur = Math.round((parseFloat(getComputedStyle(el).opacity) || 1) * 100);
@@ -1097,29 +1177,29 @@ window.addEventListener('load', function () {
 
   var css = document.createElement('style');
   css.textContent =
-    '#pm-panel{position:fixed;top:14px;right:14px;width:300px;max-height:92vh;flex-direction:column;z-index:99999;background:#fff;border-radius:16px;box-shadow:0 18px 50px rgba(2,30,60,.32);font-family:system-ui,Arial,sans-serif;font-size:13px;color:#13324d;border:1px solid rgba(0,61,121,.08);overflow:hidden}' +
-    '.pm-toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(10px);z-index:100000;background:#003d79;color:#fff;font-family:system-ui,Arial,sans-serif;font-size:13px;font-weight:600;padding:11px 20px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.28);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}.pm-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}' +
-    '.pm-ovl{position:fixed;inset:0;z-index:100000;background:rgba(8,24,44,.45);display:flex;align-items:center;justify-content:center;font-family:system-ui,Arial,sans-serif}.pm-dlg{background:#fff;border-radius:16px;padding:22px;max-width:340px;box-shadow:0 24px 70px rgba(0,0,0,.32)}.pm-dlg-msg{font-size:14px;color:#13324d;margin-bottom:18px;line-height:1.5}.pm-dlg-btns{display:flex;gap:10px;justify-content:flex-end}.pm-dlg button{font-size:13px;font-weight:700;border-radius:9px;padding:9px 18px;cursor:pointer;border:0}.pm-dlg-cancel{background:#eef3f8;color:#34495c}.pm-dlg-ok{background:#c0392b;color:#fff}.pm-dlg-input{width:100%;box-sizing:border-box;border:1px solid #cfd9e3;border-radius:9px;padding:10px 12px;font-size:14px;margin-bottom:16px;font-family:inherit}.pm-dlg-input:focus{outline:none;border-color:#0fa7e2}.pm-dlg-go{background:#0fa7e2!important;color:#fff!important}.pm-share{max-width:400px;padding:26px;text-align:left}.pm-share-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#11a9e6,#0ab38c);color:#fff;margin-bottom:15px}.pm-dlg-title{font-size:17px;font-weight:800;color:#0e2438;margin-bottom:6px}.pm-dlg-sub{font-size:13px;color:#5b7085;line-height:1.5;margin-bottom:16px}.pm-dlg-go:hover{filter:brightness(1.06)}.pm-dlg-cancel:hover{background:#e3ebf2}.pm-ac-wrap{position:relative;margin-bottom:16px}.pm-ac-wrap .pm-dlg-input{margin-bottom:0}.pm-ac{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:2;background:#fff;border:1px solid #cfd9e3;border-radius:10px;box-shadow:0 14px 32px rgba(8,24,44,.18);max-height:236px;overflow:auto;display:none}.pm-ac.on{display:block}.pm-ac-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid #eef3f8;font-size:14px;line-height:1.35;color:#13324d}.pm-ac-item:last-child{border-bottom:0}.pm-ac-item.hi,.pm-ac-item:hover{background:#eaf6fd}.pm-ac-sub{display:block;font-size:12px;color:#6b8296;margin-top:1px}' +
-    '#pm-dlpop{position:fixed;bottom:58px;left:14px;z-index:100000;background:#fff;border-radius:12px;box-shadow:0 12px 40px rgba(2,30,60,.3);display:none;flex-direction:column;overflow:hidden;border:1px solid rgba(0,61,121,.08);font-family:system-ui,Arial,sans-serif}#pm-dlpop.show{display:flex}#pm-dlpop .pm-dlbtn{display:flex;align-items:center;gap:9px;padding:12px 18px;background:#fff;border:0;font-size:13px;font-weight:600;color:#003d79;cursor:pointer;white-space:nowrap}#pm-dlpop .pm-dlbtn:hover{background:#f2f6fa}#pm-dlpop .pm-dlbtn+.pm-dlbtn{border-top:1px solid #eef1f5}#pm-dlpop svg{vertical-align:-2px}' +
-    '#pm-panel .pm-h{font-weight:800;font-size:14px;padding:13px 16px;display:flex;gap:8px;align-items:center;cursor:grab;background:linear-gradient(135deg,#003d79,#0ab38c);color:#fff;user-select:none}' +
+    '#pm-panel{position:fixed;top:14px;right:14px;width:300px;max-height:92vh;flex-direction:column;z-index:99999;background:' + AY_TOKENS['tint-white'] + ';border-radius:16px;box-shadow:0 18px 50px rgba(2,30,60,.32);font-family:system-ui,Arial,sans-serif;font-size:13px;color:' + AY_TOKENS['ui-ink'] + ';border:1px solid rgba(0,61,121,.08);overflow:hidden}' +
+    '.pm-toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(10px);z-index:100000;background:' + AY_TOKENS['ui-navy'] + ';color:' + AY_TOKENS['tint-white'] + ';font-family:system-ui,Arial,sans-serif;font-size:13px;font-weight:600;padding:11px 20px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.28);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}.pm-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}' +
+    '.pm-ovl{position:fixed;inset:0;z-index:100000;background:rgba(8,24,44,.45);display:flex;align-items:center;justify-content:center;font-family:system-ui,Arial,sans-serif}.pm-dlg{background:' + AY_TOKENS['tint-white'] + ';border-radius:16px;padding:22px;max-width:340px;box-shadow:0 24px 70px rgba(0,0,0,.32)}.pm-dlg-msg{font-size:14px;color:' + AY_TOKENS['ui-ink'] + ';margin-bottom:18px;line-height:1.5}.pm-dlg-btns{display:flex;gap:10px;justify-content:flex-end}.pm-dlg button{font-size:13px;font-weight:700;border-radius:9px;padding:9px 18px;cursor:pointer;border:0}.pm-dlg-cancel{background:' + AY_TOKENS['ui-mist-1'] + ';color:' + AY_TOKENS['ui-slate-dark'] + '}.pm-dlg-ok{background:' + AY_TOKENS['ui-red'] + ';color:' + AY_TOKENS['tint-white'] + '}.pm-dlg-input{width:100%;box-sizing:border-box;border:1px solid ' + AY_TOKENS['ui-border'] + ';border-radius:9px;padding:10px 12px;font-size:14px;margin-bottom:16px;font-family:inherit}.pm-dlg-input:focus{outline:none;border-color:' + AY_TOKENS['gradient-blue-start'] + '}.pm-dlg-go{background:' + AY_TOKENS['gradient-blue-start'] + '!important;color:' + AY_TOKENS['tint-white'] + '!important}.pm-share{max-width:400px;padding:26px;text-align:left}.pm-share-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,' + AY_TOKENS['blue-primary'] + ',' + AY_TOKENS['gradient-green-end'] + ');color:' + AY_TOKENS['tint-white'] + ';margin-bottom:15px}.pm-dlg-title{font-size:17px;font-weight:800;color:' + AY_TOKENS['ui-navy-title'] + ';margin-bottom:6px}.pm-dlg-sub{font-size:13px;color:' + AY_TOKENS['ui-slate'] + ';line-height:1.5;margin-bottom:16px}.pm-dlg-go:hover{filter:brightness(1.06)}.pm-dlg-cancel:hover{background:' + AY_TOKENS['ui-mist-2'] + '}.pm-ac-wrap{position:relative;margin-bottom:16px}.pm-ac-wrap .pm-dlg-input{margin-bottom:0}.pm-ac{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:2;background:' + AY_TOKENS['tint-white'] + ';border:1px solid ' + AY_TOKENS['ui-border'] + ';border-radius:10px;box-shadow:0 14px 32px rgba(8,24,44,.18);max-height:236px;overflow:auto;display:none}.pm-ac.on{display:block}.pm-ac-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid ' + AY_TOKENS['ui-mist-1'] + ';font-size:14px;line-height:1.35;color:' + AY_TOKENS['ui-ink'] + '}.pm-ac-item:last-child{border-bottom:0}.pm-ac-item.hi,.pm-ac-item:hover{background:' + AY_TOKENS['ui-mist-4'] + '}.pm-ac-sub{display:block;font-size:12px;color:' + AY_TOKENS['ui-slate-sub'] + ';margin-top:1px}' +
+    '#pm-dlpop{position:fixed;bottom:58px;left:14px;z-index:100000;background:' + AY_TOKENS['tint-white'] + ';border-radius:12px;box-shadow:0 12px 40px rgba(2,30,60,.3);display:none;flex-direction:column;overflow:hidden;border:1px solid rgba(0,61,121,.08);font-family:system-ui,Arial,sans-serif}#pm-dlpop.show{display:flex}#pm-dlpop .pm-dlbtn{display:flex;align-items:center;gap:9px;padding:12px 18px;background:' + AY_TOKENS['tint-white'] + ';border:0;font-size:13px;font-weight:600;color:' + AY_TOKENS['ui-navy'] + ';cursor:pointer;white-space:nowrap}#pm-dlpop .pm-dlbtn:hover{background:' + AY_TOKENS['ui-mist-5'] + '}#pm-dlpop .pm-dlbtn+.pm-dlbtn{border-top:1px solid ' + AY_TOKENS['ui-mist-3'] + '}#pm-dlpop svg{vertical-align:-2px}' +
+    '#pm-panel .pm-h{font-weight:800;font-size:14px;padding:13px 16px;display:flex;gap:8px;align-items:center;cursor:grab;background:linear-gradient(135deg,' + AY_TOKENS['ui-navy'] + ',' + AY_TOKENS['gradient-green-end'] + ');color:' + AY_TOKENS['tint-white'] + ';user-select:none}' +
     '#pm-panel .pm-tag{background:rgba(255,255,255,.25);font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;margin-left:auto}' +
-    '#pm-panel .pm-body{overflow:auto}#pm-panel .pm-acc{border-top:1px solid #eef1f5}' +
-    '#pm-panel .pm-achead{display:flex;align-items:center;gap:9px;padding:12px 16px;cursor:pointer;font-weight:700;font-size:13px;user-select:none}#pm-panel .pm-achead:hover{background:#f6f9fc}#pm-panel .pm-acc.open>.pm-achead{color:#0ab38c}' +
-    '#pm-panel .pm-achead .pm-count{margin-left:6px;color:#0ab38c;font-weight:700;font-size:11px}#pm-panel .pm-achead>svg:last-of-type{margin-left:auto;transition:transform .2s;opacity:.5}#pm-panel .pm-acc.open .pm-achead>svg:last-of-type{transform:rotate(180deg)}' +
+    '#pm-panel .pm-body{overflow:auto}#pm-panel .pm-acc{border-top:1px solid ' + AY_TOKENS['ui-mist-3'] + '}' +
+    '#pm-panel .pm-achead{display:flex;align-items:center;gap:9px;padding:12px 16px;cursor:pointer;font-weight:700;font-size:13px;user-select:none}#pm-panel .pm-achead:hover{background:' + AY_TOKENS['ui-mist-6'] + '}#pm-panel .pm-acc.open>.pm-achead{color:' + AY_TOKENS['gradient-green-end'] + '}' +
+    '#pm-panel .pm-achead .pm-count{margin-left:6px;color:' + AY_TOKENS['gradient-green-end'] + ';font-weight:700;font-size:11px}#pm-panel .pm-achead>svg:last-of-type{margin-left:auto;transition:transform .2s;opacity:.5}#pm-panel .pm-acc.open .pm-achead>svg:last-of-type{transform:rotate(180deg)}' +
     '#pm-panel .pm-acbody{display:none;padding:2px 0 12px}#pm-panel .pm-acc.open .pm-acbody{display:block}' +
-    '#pm-panel .pm-hint{font-size:11.5px;color:#7c8ea0;font-style:italic;padding:0 16px 6px}' +
-    '#pm-panel #pm-style{display:none;padding:0 16px}#pm-panel .pm-elname{font-size:11px;color:#56697a;margin:6px 0}' +
+    '#pm-panel .pm-hint{font-size:11.5px;color:' + AY_TOKENS['ui-slate-hint'] + ';font-style:italic;padding:0 16px 6px}' +
+    '#pm-panel #pm-style{display:none;padding:0 16px}#pm-panel .pm-elname{font-size:11px;color:' + AY_TOKENS['ui-slate-label'] + ';margin:6px 0}' +
     '#pm-panel .pm-row{display:flex;gap:8px;padding:0 16px}#pm-panel .pm-row2{display:flex;gap:8px;margin:2px 0 8px}' +
-    '#pm-panel .pm-btn{flex:1;padding:10px;border:0;border-radius:10px;background:#0fa7e2;color:#fff;font-weight:700;cursor:pointer}' +
-    '#pm-panel .pm-mini{font-size:11.5px;background:#fff;border:1px solid #cfd9e3;border-radius:8px;padding:7px 11px;cursor:pointer;color:#34495c;font-weight:600}#pm-panel .pm-mini:hover{border-color:#0fa7e2;color:#0fa7e2}' +
-    '#pm-panel .pm-oprow{display:flex;align-items:center;gap:8px}#pm-panel .pm-oplab{font-size:11px;color:#56697a}#pm-panel #pm-opacity{flex:1}#pm-panel #pm-opval{width:42px;text-align:right;font-weight:700}' +
-    '#pm-panel #pm-maskedwrap{display:none;padding:6px 16px 0}#pm-panel .pm-modhd{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:#7c8ea0;font-weight:700;margin-bottom:4px}#pm-panel .pm-modrow{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0;gap:8px}#pm-panel .pm-modrow span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
-    '#pm-panel .pm-vactive{background:#eaf7fd;border-radius:8px;padding:3px 8px;margin:0 -8px}#pm-panel .pm-vactive .pm-vname-txt{color:#0a6f9c}' +
-    '#pm-panel .pm-vrow{display:flex;gap:8px;padding:0 16px 8px}#pm-panel #pm-vname{flex:1;border:1px solid #cfd9e3;border-radius:8px;padding:7px 10px;font-size:12px}#pm-panel #pm-saves{padding:0 16px}#pm-panel .pm-reset{margin:8px 16px 0;color:#c0392b;border-color:#e8c4be}' +
-    '#pm-panel #pm-slides{display:flex;flex-direction:column;gap:1px;max-height:200px;overflow:auto;padding:0 8px}#pm-panel .pm-srow{display:flex;gap:8px;align-items:center;font-size:12px;padding:4px 8px;border-radius:7px}#pm-panel .pm-srow:hover{background:#f2f6fa}#pm-panel .pm-srow.pm-hidden .pm-sname{opacity:.4;text-decoration:line-through}#pm-panel .pm-eye{cursor:pointer;display:inline-flex}' +
-    '#pm-panel .pm-fixed{border-top:1px solid #eef1f5;padding:12px 16px;background:#fafcfe}#pm-panel .pm-fxhd{display:flex;align-items:center;gap:9px;font-weight:700;font-size:13px;margin-bottom:9px}#pm-panel .pm-fixed .pm-row{padding:0}' +
-    '#pm-panel .pm-log{background:#0e1b2a;color:#cfe8ff;border-radius:10px;margin:0 16px;padding:9px;font-family:ui-monospace,monospace;font-size:11px;line-height:1.5;max-height:200px;overflow:auto}#pm-panel .pm-log-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid rgba(255,255,255,.06);padding:2px 0}' +
-    '#pm-panel svg{vertical-align:-2px;flex:none}#pm-panel .pm-h svg{opacity:.85}#pm-panel .pm-modrow svg{margin-right:3px}#pm-panel .pm-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#0fa7e2;margin-right:7px;vertical-align:1px}';
+    '#pm-panel .pm-btn{flex:1;padding:10px;border:0;border-radius:10px;background:' + AY_TOKENS['gradient-blue-start'] + ';color:' + AY_TOKENS['tint-white'] + ';font-weight:700;cursor:pointer}' +
+    '#pm-panel .pm-mini{font-size:11.5px;background:' + AY_TOKENS['tint-white'] + ';border:1px solid ' + AY_TOKENS['ui-border'] + ';border-radius:8px;padding:7px 11px;cursor:pointer;color:' + AY_TOKENS['ui-slate-dark'] + ';font-weight:600}#pm-panel .pm-mini:hover{border-color:' + AY_TOKENS['gradient-blue-start'] + ';color:' + AY_TOKENS['gradient-blue-start'] + '}' +
+    '#pm-panel .pm-oprow{display:flex;align-items:center;gap:8px}#pm-panel .pm-oplab{font-size:11px;color:' + AY_TOKENS['ui-slate-label'] + '}#pm-panel #pm-opacity{flex:1}#pm-panel #pm-opval{width:42px;text-align:right;font-weight:700}' +
+    '#pm-panel #pm-maskedwrap{display:none;padding:6px 16px 0}#pm-panel .pm-modhd{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:' + AY_TOKENS['ui-slate-hint'] + ';font-weight:700;margin-bottom:4px}#pm-panel .pm-modrow{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0;gap:8px}#pm-panel .pm-modrow span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '#pm-panel .pm-vactive{background:' + AY_TOKENS['ui-mist-7'] + ';border-radius:8px;padding:3px 8px;margin:0 -8px}#pm-panel .pm-vactive .pm-vname-txt{color:' + AY_TOKENS['ui-blue-active'] + '}' +
+    '#pm-panel .pm-vrow{display:flex;gap:8px;padding:0 16px 8px}#pm-panel #pm-vname{flex:1;border:1px solid ' + AY_TOKENS['ui-border'] + ';border-radius:8px;padding:7px 10px;font-size:12px}#pm-panel #pm-saves{padding:0 16px}#pm-panel .pm-reset{margin:8px 16px 0;color:' + AY_TOKENS['ui-red'] + ';border-color:' + AY_TOKENS['ui-red-border'] + '}' +
+    '#pm-panel #pm-slides{display:flex;flex-direction:column;gap:1px;max-height:200px;overflow:auto;padding:0 8px}#pm-panel .pm-srow{display:flex;gap:8px;align-items:center;font-size:12px;padding:4px 8px;border-radius:7px}#pm-panel .pm-srow:hover{background:' + AY_TOKENS['ui-mist-5'] + '}#pm-panel .pm-srow.pm-hidden .pm-sname{opacity:.4;text-decoration:line-through}#pm-panel .pm-eye{cursor:pointer;display:inline-flex}' +
+    '#pm-panel .pm-fixed{border-top:1px solid ' + AY_TOKENS['ui-mist-3'] + ';padding:12px 16px;background:' + AY_TOKENS['ui-mist-8'] + '}#pm-panel .pm-fxhd{display:flex;align-items:center;gap:9px;font-weight:700;font-size:13px;margin-bottom:9px}#pm-panel .pm-fixed .pm-row{padding:0}' +
+    '#pm-panel .pm-log{background:' + AY_TOKENS['ui-log-bg'] + ';color:' + AY_TOKENS['ui-log-text'] + ';border-radius:10px;margin:0 16px;padding:9px;font-family:ui-monospace,monospace;font-size:11px;line-height:1.5;max-height:200px;overflow:auto}#pm-panel .pm-log-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid rgba(255,255,255,.06);padding:2px 0}' +
+    '#pm-panel svg{vertical-align:-2px;flex:none}#pm-panel .pm-h svg{opacity:.85}#pm-panel .pm-modrow svg{margin-right:3px}#pm-panel .pm-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:' + AY_TOKENS['gradient-blue-start'] + ';margin-right:7px;vertical-align:1px}';
   document.head.appendChild(css);
 
   function renderMasked() {
@@ -1172,46 +1252,46 @@ window.addEventListener('load', function () {
   // memes boutons, memes cartes, pour que la fenetre de notes ne ressemble pas
   // a une page a part.
   var PRES_CSS = '*{box-sizing:border-box}'
-    + 'body{margin:0;font-family:system-ui,Arial,sans-serif;font-size:13px;color:#13324d;background:#fff;display:flex;flex-direction:column;height:100vh;overflow:hidden}'
-    + '.hd{background:linear-gradient(135deg,#003d79,#0ab38c);color:#fff;padding:13px 16px;display:flex;gap:9px;align-items:flex-start}'
+    + 'body{margin:0;font-family:system-ui,Arial,sans-serif;font-size:13px;color:' + AY_TOKENS['ui-ink'] + ';background:' + AY_TOKENS['tint-white'] + ';display:flex;flex-direction:column;height:100vh;overflow:hidden}'
+    + '.hd{background:linear-gradient(135deg,' + AY_TOKENS['ui-navy'] + ',' + AY_TOKENS['gradient-green-end'] + ');color:' + AY_TOKENS['tint-white'] + ';padding:13px 16px;display:flex;gap:9px;align-items:flex-start}'
     + '.hd svg{flex:none;margin-top:1px;opacity:.9}.hd b{font-weight:800;font-size:14px;display:block;line-height:1.2}'
     + '.hd span{font-size:11.5px;opacity:.88;display:block;margin-top:3px;line-height:1.35}'
-    + '.vbar{background:#eaf7fd;color:#0a6f9c;font-size:11.5px;font-weight:700;padding:7px 16px;border-bottom:1px solid #d6ecf7}'
-    + '.ngroup{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#7c8ea0;margin:14px 0 7px;grid-column:1/-1}'
+    + '.vbar{background:' + AY_TOKENS['ui-mist-7'] + ';color:' + AY_TOKENS['ui-blue-active'] + ';font-size:11.5px;font-weight:700;padding:7px 16px;border-bottom:1px solid ' + AY_TOKENS['ui-mist-16'] + '}'
+    + '.ngroup{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:' + AY_TOKENS['ui-slate-hint'] + ';margin:14px 0 7px;grid-column:1/-1}'
     + '.ngroup:first-child{margin-top:2px}'
-    + '.ngroup.on{color:#0a6f9c}'
+    + '.ngroup.on{color:' + AY_TOKENS['ui-blue-active'] + '}'
     + '.bd{flex:1;overflow:auto;padding:14px 16px}'
-    + 'textarea{width:100%;min-height:96px;border:1px solid #cfd9e3;border-radius:10px;padding:9px 11px;font:inherit;font-size:13px;line-height:1.45;resize:vertical;color:#13324d}'
-    + 'textarea:focus{outline:none;border-color:#0fa7e2}'
+    + 'textarea{width:100%;min-height:96px;border:1px solid ' + AY_TOKENS['ui-border'] + ';border-radius:10px;padding:9px 11px;font:inherit;font-size:13px;line-height:1.45;resize:vertical;color:' + AY_TOKENS['ui-ink'] + '}'
+    + 'textarea:focus{outline:none;border-color:' + AY_TOKENS['gradient-blue-start'] + '}'
     // Deux onglets plutot qu'une case a cocher : le type se voit, et chacun
     // porte deja la couleur que la note aura une fois posee.
     + '.seg{display:flex;gap:6px;margin:10px 0 11px}'
-    + '.seg button{flex:1;border:1px solid #dfe7ee;background:#fff;border-radius:9px;padding:8px 6px;font:inherit;font-size:12px;font-weight:600;color:#5b7085;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}'
+    + '.seg button{flex:1;border:1px solid ' + AY_TOKENS['ui-border-soft'] + ';background:' + AY_TOKENS['tint-white'] + ';border-radius:9px;padding:8px 6px;font:inherit;font-size:12px;font-weight:600;color:' + AY_TOKENS['ui-slate'] + ';cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}'
     + '.seg button .dot{width:9px;height:9px;border-radius:2px;flex:none}'
-    + '.seg button[data-t="slide"] .dot{background:#ffd968}.seg button[data-t="gen"] .dot{background:#5cb8e8}'
-    + '.seg button.on[data-t="slide"]{background:#fff6d5;border-color:#e8c66a;color:#7a5c0c}'
-    + '.seg button.on[data-t="gen"]{background:#e8f4fd;border-color:#a8d5f0;color:#0d6f9e}'
-    + '.go{width:100%;padding:11px;border:0;border-radius:10px;background:#0fa7e2;color:#fff;font-weight:700;font-size:13px;cursor:pointer}'
-    + '.go:hover{background:#0d96cb}'
-    + '.hint{font-size:11.5px;color:#7c8ea0;font-style:italic;margin:14px 0 8px}'
+    + '.seg button[data-t="slide"] .dot{background:' + AY_TOKENS['ui-note-yellow'] + '}.seg button[data-t="gen"] .dot{background:' + AY_TOKENS['ui-note-dot-gen'] + '}'
+    + '.seg button.on[data-t="slide"]{background:' + AY_TOKENS['ui-note-yellow-soft'] + ';border-color:' + AY_TOKENS['ui-note-yellow-border'] + ';color:' + AY_TOKENS['ui-note-yellow-text'] + '}'
+    + '.seg button.on[data-t="gen"]{background:' + AY_TOKENS['ui-note-blue-soft'] + ';border-color:' + AY_TOKENS['ui-note-blue-border'] + ';color:' + AY_TOKENS['ui-note-blue-text'] + '}'
+    + '.go{width:100%;padding:11px;border:0;border-radius:10px;background:' + AY_TOKENS['gradient-blue-start'] + ';color:' + AY_TOKENS['tint-white'] + ';font-weight:700;font-size:13px;cursor:pointer}'
+    + '.go:hover{background:' + AY_TOKENS['ui-blue-hover'] + '}'
+    + '.hint{font-size:11.5px;color:' + AY_TOKENS['ui-slate-hint'] + ';font-style:italic;margin:14px 0 8px}'
     // Des carres, comme un pense-bete, deux par rangee.
     // Colonnes qui se multiplient avec la largeur plutot que deux qui s'etirent :
     // un carre de 500 px de cote pour trois mots n'est pas un pense-bete.
     + '#p-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}'
     + '.nrow{position:relative;aspect-ratio:1;max-height:210px;display:flex;flex-direction:column;border-radius:3px;padding:10px 11px 14px;box-shadow:0 2px 7px rgba(60,50,10,.16);cursor:pointer}'
     + '.nrow.gen{cursor:default}'
-    + '.nrow::after{content:"";position:absolute;right:0;bottom:0;width:0;height:0;border-style:solid;border-width:0 0 15px 15px;border-color:transparent transparent #fff transparent}'
-    + '.nrow.slide{background:#fff6d5}.nrow.slide .nmeta{color:#a17c17}.nrow.slide .ntxt{color:#4a3a10}'
-    + '.nrow.gen{background:#e8f4fd}.nrow.gen .nmeta{color:#0d6f9e}.nrow.gen .ntxt{color:#123c52}'
+    + '.nrow::after{content:"";position:absolute;right:0;bottom:0;width:0;height:0;border-style:solid;border-width:0 0 15px 15px;border-color:transparent transparent ' + AY_TOKENS['tint-white'] + ' transparent}'
+    + '.nrow.slide{background:' + AY_TOKENS['ui-note-yellow-soft'] + '}.nrow.slide .nmeta{color:' + AY_TOKENS['ui-note-yellow-meta'] + '}.nrow.slide .ntxt{color:' + AY_TOKENS['ui-note-yellow-text-dark'] + '}'
+    + '.nrow.gen{background:' + AY_TOKENS['ui-note-blue-soft'] + '}.nrow.gen .nmeta{color:' + AY_TOKENS['ui-note-blue-text'] + '}.nrow.gen .ntxt{color:' + AY_TOKENS['ui-note-blue-text-dark'] + '}'
     + '.nmeta{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:5px;padding-right:22px}'
     + '.ntxt{font-size:12.5px;white-space:pre-wrap;line-height:1.4;overflow:auto;flex:1}'
-    + '.ndel{position:absolute;top:7px;right:7px;background:rgba(60,50,10,.10);border:0;border-radius:6px;color:#6b5a2a;padding:2px 6px;line-height:1;cursor:pointer;font-size:11px;font-family:inherit}'
-    + '.ndel:hover{background:rgba(192,57,43,.16);color:#c0392b}'
-    + '.ndel.arm{background:#c0392b;color:#fff;font-weight:700;padding:2px 8px}'
-    + '.ft{border-top:1px solid #eef1f5;background:#fafcfe;padding:11px 16px}'
-    + '.ft button{width:100%;font-size:12.5px;background:#fff;border:1px solid #cfd9e3;border-radius:9px;padding:10px;cursor:pointer;color:#34495c;font-weight:600;display:flex;align-items:center;justify-content:center;gap:7px;font-family:inherit}'
-    + '.ft button:hover{border-color:#0fa7e2;color:#0fa7e2}.ft svg{flex:none}'
-    + '.ft button:disabled{opacity:.45;cursor:default;border-color:#e6edf4;color:#8fa2b3}';
+    + '.ndel{position:absolute;top:7px;right:7px;background:rgba(60,50,10,.10);border:0;border-radius:6px;color:' + AY_TOKENS['ui-note-delete'] + ';padding:2px 6px;line-height:1;cursor:pointer;font-size:11px;font-family:inherit}'
+    + '.ndel:hover{background:rgba(192,57,43,.16);color:' + AY_TOKENS['ui-red'] + '}'
+    + '.ndel.arm{background:' + AY_TOKENS['ui-red'] + ';color:' + AY_TOKENS['tint-white'] + ';font-weight:700;padding:2px 8px}'
+    + '.ft{border-top:1px solid ' + AY_TOKENS['ui-mist-3'] + ';background:' + AY_TOKENS['ui-mist-8'] + ';padding:11px 16px}'
+    + '.ft button{width:100%;font-size:12.5px;background:' + AY_TOKENS['tint-white'] + ';border:1px solid ' + AY_TOKENS['ui-border'] + ';border-radius:9px;padding:10px;cursor:pointer;color:' + AY_TOKENS['ui-slate-dark'] + ';font-weight:600;display:flex;align-items:center;justify-content:center;gap:7px;font-family:inherit}'
+    + '.ft button:hover{border-color:' + AY_TOKENS['gradient-blue-start'] + ';color:' + AY_TOKENS['gradient-blue-start'] + '}.ft svg{flex:none}'
+    + '.ft button:disabled{opacity:.45;cursor:default;border-color:' + AY_TOKENS['ui-mist-9'] + ';color:' + AY_TOKENS['ui-slate-disabled'] + '}';
   var noteType = 'slide';
   function presBody() {
     return '<div class="hd">' + ICON.note + '<div><b id="p-slide">Slide</b><span id="p-title"></span></div></div>'
@@ -1520,7 +1600,7 @@ window.addEventListener('load', function () {
         if (progress) progress(j + 1, visible.length);
         goToSlide(visible[j]);
         await new Promise(function (r) { setTimeout(r, 450); });
-        var img = await htmlToImage.toJpeg(document.body, { quality: 0.92, pixelRatio: 2, width: vw, height: vh, backgroundColor: '#ffffff', cacheBust: true, filter: pmFilter });
+        var img = await htmlToImage.toJpeg(document.body, { quality: 0.92, pixelRatio: 2, width: vw, height: vh, backgroundColor: AY_TOKENS['bg-white'], cacheBust: true, filter: pmFilter });
         var links = [];
         document.querySelectorAll('.slide.active a[href]').forEach(function (a) {
           var href = a.href; if (!href || href.indexOf('javascript:') === 0) return;
@@ -1739,7 +1819,7 @@ window.addEventListener('load', function () {
     var INK_FADE_MS = 1000;
     var LASER_HOLD_MS = 2000;  // un cercle au laser reste le temps d'être vu
     var LASER_FADE_MS = 800;
-    var LASER = '#e8443a', INK = 'rgba(255,149,0,.40)', DIM = 'rgba(4,20,38,.55)';
+    var LASER = AY_TOKENS['ui-red-accent'], INK = 'rgba(255,149,0,.40)', DIM = 'rgba(4,20,38,.55)';
     // Le curseur du surligneur montre l'epaisseur reelle du trait.
     var INK_CURSOR = "url(\"data:image/svg+xml;utf8,"
       + "<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'>"
@@ -1794,7 +1874,7 @@ window.addEventListener('load', function () {
         // destination-out efface proportionnellement a l'alpha de la couleur de
         // remplissage. Sans cette ligne le trou herite du .55 de DIM et la zone
         // eclairee reste voilee au lieu de redevenir nette.
-        ctx.fillStyle = '#000';
+        ctx.fillStyle = AY_TOKENS['ui-black'];
         ctx.beginPath();
         if (spot) {
           var pad = 10, rad = 16;
@@ -1847,7 +1927,7 @@ window.addEventListener('load', function () {
         ctx.save();
         ctx.shadowColor = LASER; ctx.shadowBlur = 18;
         ctx.fillStyle = LASER; ctx.beginPath(); ctx.arc(pos.x, pos.y, 7, 0, Math.PI * 2); ctx.fill();
-        ctx.globalAlpha = 0.85; ctx.fillStyle = '#fff';
+        ctx.globalAlpha = 0.85; ctx.fillStyle = AY_TOKENS['tint-white'];
         ctx.beginPath(); ctx.arc(pos.x, pos.y, 2.5, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       }
@@ -1937,7 +2017,7 @@ window.addEventListener('load', function () {
     // plus ; ouverte c'est la rangee d'outils, l'outil arme reste rempli. Une
     // touche tenue ne se decouvre pas, un bouton visible si.
     var st = document.createElement('style');
-    st.textContent = '.deck-tools{position:fixed;right:24px;bottom:calc(var(--banner-h, 56px) + 12px);z-index:99100;display:flex;align-items:flex-end;gap:2px;background:#fff;border-radius:18px;padding:0 8px;height:74px;overflow:hidden;box-shadow:0 12px 34px rgba(2,30,60,.24);font-family:system-ui,Arial,sans-serif}'
+    st.textContent = '.deck-tools{position:fixed;right:24px;bottom:calc(var(--banner-h, 56px) + 12px);z-index:99100;display:flex;align-items:flex-end;gap:2px;background:' + AY_TOKENS['tint-white'] + ';border-radius:18px;padding:0 8px;height:74px;overflow:hidden;box-shadow:0 12px 34px rgba(2,30,60,.24);font-family:system-ui,Arial,sans-serif}'
       + '.deck-tools .dt-tool{width:44px;height:74px;border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:flex-end;justify-content:center}'
       // Les outils sont dessines comme des objets poses dans un plateau : ils
       // depassent par le bas, et celui qui est arme se souleve.
@@ -1947,9 +2027,9 @@ window.addEventListener('load', function () {
       + '.deck-tools .dt-tool svg{width:30px;height:76px;display:block;transform:translateY(20px);transition:transform .22s cubic-bezier(.34,1.4,.5,1)}'
       + '.deck-tools .dt-tool:hover svg{transform:translateY(11px)}'
       + '.deck-tools .dt-tool.on svg{transform:translateY(2px)}'
-      + '.deck-tools .dt-sep{width:1px;height:34px;background:#e9eff5;margin:0 5px 20px}'
-      + '.deck-tools .dt-round{width:32px;height:32px;border:0;border-radius:50%;background:#f2f6fa;color:#5b7085;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;margin-bottom:21px;transition:background .18s,color .18s}'
-      + '.deck-tools .dt-round:hover{background:#e4ecf4;color:#0fa7e2}'
+      + '.deck-tools .dt-sep{width:1px;height:34px;background:' + AY_TOKENS['ui-mist-11'] + ';margin:0 5px 20px}'
+      + '.deck-tools .dt-round{width:32px;height:32px;border:0;border-radius:50%;background:' + AY_TOKENS['ui-mist-5'] + ';color:' + AY_TOKENS['ui-slate'] + ';display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;margin-bottom:21px;transition:background .18s,color .18s}'
+      + '.deck-tools .dt-round:hover{background:' + AY_TOKENS['ui-mist-12'] + ';color:' + AY_TOKENS['gradient-blue-start'] + '}'
       + '.deck-tools .dt-round svg{width:16px;height:16px}'
       // Rien ne stationne sur la slide : le plateau se montre quand la souris
       // vient le chercher dans son coin, quand un outil est arme, ou quand on
@@ -1970,29 +2050,29 @@ window.addEventListener('load', function () {
     // coloree. Un pointeur laser et un surligneur biseaute au bleu de la marque.
     var TOOL_LASER =
       '<svg viewBox="0 0 38 96" xmlns="http://www.w3.org/2000/svg">'
-      + '<path d="M19 4 27 28H11z" fill="#5b7085"/>'
-      + '<circle cx="19" cy="10" r="4.4" fill="#e8443a"/>'
-      + '<rect x="11" y="26" width="16" height="6" rx="1.5" fill="#cfd9e3"/>'
-      + '<rect x="10" y="31" width="18" height="65" rx="4" fill="#22384c"/>'
-      + '<rect x="10" y="52" width="18" height="7" fill="#e8443a"/>'
+      + '<path d="M19 4 27 28H11z" fill="' + AY_TOKENS['ui-slate'] + '"/>'
+      + '<circle cx="19" cy="10" r="4.4" fill="' + AY_TOKENS['ui-red-accent'] + '"/>'
+      + '<rect x="11" y="26" width="16" height="6" rx="1.5" fill="' + AY_TOKENS['ui-border'] + '"/>'
+      + '<rect x="10" y="31" width="18" height="65" rx="4" fill="' + AY_TOKENS['ui-navy-tool'] + '"/>'
+      + '<rect x="10" y="52" width="18" height="7" fill="' + AY_TOKENS['ui-red-accent'] + '"/>'
       + '</svg>';
     var TOOL_INK =
       '<svg viewBox="0 0 38 96" xmlns="http://www.w3.org/2000/svg">'
       // Pointe biseautee, epaulement, corps : un vrai feutre, pas un tube.
-      + '<path d="M13 7 25 3v14H13z" fill="#ff9500"/>'
-      + '<path d="M11 17h16l2 9H9z" fill="#e6edf4"/>'
-      + '<rect x="9" y="25" width="20" height="71" rx="5" fill="#fbfdff" stroke="#c9d6e2" stroke-width="1.3"/>'
-      + '<rect x="9.6" y="40" width="18.8" height="10" fill="#ff9500"/>'
+      + '<path d="M13 7 25 3v14H13z" fill="' + AY_TOKENS['ui-highlighter'] + '"/>'
+      + '<path d="M11 17h16l2 9H9z" fill="' + AY_TOKENS['ui-mist-9'] + '"/>'
+      + '<rect x="9" y="25" width="20" height="71" rx="5" fill="' + AY_TOKENS['ui-mist-15'] + '" stroke="' + AY_TOKENS['ui-border-soft-2'] + '" stroke-width="1.3"/>'
+      + '<rect x="9.6" y="40" width="18.8" height="10" fill="' + AY_TOKENS['ui-highlighter'] + '"/>'
       + '</svg>';
     // Un bloc de pense-betes, corner plie, pose a cote des feutres.
     var TOOL_NOTE =
       '<svg viewBox="0 0 38 96" xmlns="http://www.w3.org/2000/svg">'
-      + '<rect x="5" y="50" width="28" height="46" fill="#e8a91f"/>'
-      + '<rect x="5" y="46" width="28" height="8" fill="#f0b429"/>'
-      + '<rect x="5" y="24" width="28" height="28" rx="2" fill="#ffd968"/>'
-      + '<rect x="10" y="32" width="18" height="2.8" rx="1.4" fill="#b98514"/>'
-      + '<rect x="10" y="39" width="18" height="2.8" rx="1.4" fill="#b98514"/>'
-      + '<rect x="10" y="46" width="11" height="2.8" rx="1.4" fill="#b98514"/>'
+      + '<rect x="5" y="50" width="28" height="46" fill="' + AY_TOKENS['ui-note-yellow-body'] + '"/>'
+      + '<rect x="5" y="46" width="28" height="8" fill="' + AY_TOKENS['ui-note-yellow-cap'] + '"/>'
+      + '<rect x="5" y="24" width="28" height="28" rx="2" fill="' + AY_TOKENS['ui-note-yellow'] + '"/>'
+      + '<rect x="10" y="32" width="18" height="2.8" rx="1.4" fill="' + AY_TOKENS['ui-note-yellow-line'] + '"/>'
+      + '<rect x="10" y="39" width="18" height="2.8" rx="1.4" fill="' + AY_TOKENS['ui-note-yellow-line'] + '"/>'
+      + '<rect x="10" y="46" width="11" height="2.8" rx="1.4" fill="' + AY_TOKENS['ui-note-yellow-line'] + '"/>'
       + '</svg>';
     var bar = null;
     function mountButtons() {
@@ -2123,31 +2203,31 @@ window.addEventListener('load', function () {
   // driver.css arrive apres nous : on double la classe et on prefixe, pour
   // gagner par specificite plutot que par ordre de chargement.
   var SKIN = ''
-    + '.driver-popover.driver-popover{border-radius:16px;box-shadow:0 24px 60px rgba(2,30,60,.30);padding:0;max-width:400px;min-width:290px;font-family:Lato,system-ui,Arial,sans-serif;border-top:4px solid #0fa7e2}'
-    + '.driver-popover .driver-popover-title{font-family:inherit;font-size:19px;line-height:1.25;font-weight:800;color:#00456d;letter-spacing:-.2px;padding:20px 22px 0;margin:0;display:block}'
-    + '.driver-popover .driver-popover-description{font-family:inherit;font-size:14px;line-height:1.55;color:#3d5568;padding:9px 22px 2px;margin:0}'
-    + '.driver-popover .driver-popover-description strong{color:#00456d;font-weight:700}'
-    + '.driver-popover .driver-popover-description .hl{background:linear-gradient(180deg,transparent 62%,#ffd08a 62%);font-weight:600;color:#2b3f52}'
-    + '.driver-popover .driver-popover-description .ls{color:#c0392b;font-weight:700;box-shadow:inset 0 -2px 0 #e8443a}'
+    + '.driver-popover.driver-popover{border-radius:16px;box-shadow:0 24px 60px rgba(2,30,60,.30);padding:0;max-width:400px;min-width:290px;font-family:Lato,system-ui,Arial,sans-serif;border-top:4px solid ' + AY_TOKENS['gradient-blue-start'] + '}'
+    + '.driver-popover .driver-popover-title{font-family:inherit;font-size:19px;line-height:1.25;font-weight:800;color:' + AY_TOKENS['blue-dark'] + ';letter-spacing:-.2px;padding:20px 22px 0;margin:0;display:block}'
+    + '.driver-popover .driver-popover-description{font-family:inherit;font-size:14px;line-height:1.55;color:' + AY_TOKENS['ui-slate-body'] + ';padding:9px 22px 2px;margin:0}'
+    + '.driver-popover .driver-popover-description strong{color:' + AY_TOKENS['blue-dark'] + ';font-weight:700}'
+    + '.driver-popover .driver-popover-description .hl{background:linear-gradient(180deg,transparent 62%,' + AY_TOKENS['ui-highlight-mark'] + ' 62%);font-weight:600;color:' + AY_TOKENS['ui-navy-mark'] + '}'
+    + '.driver-popover .driver-popover-description .ls{color:' + AY_TOKENS['ui-red'] + ';font-weight:700;box-shadow:inset 0 -2px 0 ' + AY_TOKENS['ui-red-accent'] + '}'
     + '.driver-popover .driver-popover-description .art{display:block;margin:4px 0 12px;border-radius:12px;overflow:hidden}'
-    + '.driver-popover .driver-popover-description .kbd{display:inline-block;min-width:20px;text-align:center;border:1px solid #cfd9e3;border-bottom-width:2px;border-radius:5px;padding:0 5px;font-size:12px;font-weight:700;color:#00456d;background:#f6f9fc}'
+    + '.driver-popover .driver-popover-description .kbd{display:inline-block;min-width:20px;text-align:center;border:1px solid ' + AY_TOKENS['ui-border'] + ';border-bottom-width:2px;border-radius:5px;padding:0 5px;font-size:12px;font-weight:700;color:' + AY_TOKENS['blue-dark'] + ';background:' + AY_TOKENS['ui-mist-6'] + '}'
     + '.driver-popover .driver-popover-footer{padding:14px 22px 18px;margin:0;gap:8px}'
-    + '.driver-popover .driver-popover-progress-text{font-size:12px;color:#8fa2b3;font-weight:700}'
+    + '.driver-popover .driver-popover-progress-text{font-size:12px;color:' + AY_TOKENS['ui-slate-disabled'] + ';font-weight:700}'
     + '.driver-popover .driver-popover-navigation-btns{gap:8px}'
     + '.driver-popover .driver-popover-footer button{font-family:inherit;font-size:13px;font-weight:700;border-radius:9px;padding:9px 16px;text-shadow:none;border:0;box-shadow:none;cursor:pointer}'
-    + '.driver-popover .driver-popover-prev-btn{background:#eef3f8;color:#4b6579}'
-    + '.driver-popover .driver-popover-prev-btn:hover{background:#e2ebf3}'
-    + '.driver-popover .driver-popover-next-btn{background:#0fa7e2;color:#fff}'
-    + '.driver-popover .driver-popover-next-btn:hover{background:#0d96cb}'
-    + '.driver-popover .driver-popover-close-btn{color:#93a6b6;font-size:22px}'
+    + '.driver-popover .driver-popover-prev-btn{background:' + AY_TOKENS['ui-mist-1'] + ';color:' + AY_TOKENS['ui-slate-hover'] + '}'
+    + '.driver-popover .driver-popover-prev-btn:hover{background:' + AY_TOKENS['ui-mist-17'] + '}'
+    + '.driver-popover .driver-popover-next-btn{background:' + AY_TOKENS['gradient-blue-start'] + ';color:' + AY_TOKENS['tint-white'] + '}'
+    + '.driver-popover .driver-popover-next-btn:hover{background:' + AY_TOKENS['ui-blue-hover'] + '}'
+    + '.driver-popover .driver-popover-close-btn{color:' + AY_TOKENS['ui-slate-muted'] + ';font-size:22px}'
     // L'invite dit ou regarder, elle ne bouge pas : le seul element qui clignote
     // est la cible elle-meme (classe ay-poke). Deux pouls sur un ecran font
     // regarder le mauvais, et la phrase dit « le bouton qui clignote ».
-    + '.driver-popover .doit{display:flex;align-items:center;gap:8px;margin:11px 0 0;color:#0a6f9c;font-size:13px;font-weight:600}'
+    + '.driver-popover .doit{display:flex;align-items:center;gap:8px;margin:11px 0 0;color:' + AY_TOKENS['ui-blue-active'] + ';font-size:13px;font-weight:600}'
     // Le remerciement de la derniere etape, en retrait sous un filet : il parle
     // de nous et non du deck, il ne doit pas se lire comme une consigne de plus.
-    + '.driver-popover .thx{margin:14px 0 0;padding-top:12px;border-top:1px solid #e6eef5;font-size:13px;line-height:1.5;color:#5b7085}'
-    + '.driver-popover .thx a{color:#0fa7e2;font-weight:700;text-decoration:none}'
+    + '.driver-popover .thx{margin:14px 0 0;padding-top:12px;border-top:1px solid ' + AY_TOKENS['ui-mist-10'] + ';font-size:13px;line-height:1.5;color:' + AY_TOKENS['ui-slate'] + '}'
+    + '.driver-popover .thx a{color:' + AY_TOKENS['gradient-blue-start'] + ';font-weight:700;text-decoration:none}'
     + '.driver-popover .thx a:hover{text-decoration:underline}'
     // Le voile de driver.js est pose a z-index 10000, la barre d'outils a 99100.
     // Elle passait donc par-dessus l'assombrissement et restait allumee a chaque
@@ -2156,8 +2236,8 @@ window.addEventListener('load', function () {
     // comme n'importe quelle cible, ailleurs elle s'assombrit avec le reste.
     + 'html.driver-active .deck-tools{z-index:9990}'
     // Quand une etape attend un geste, le seul bleu de l'ecran est la cible.
-    + '.driver-popover.ay-await .driver-popover-next-btn{background:#eef3f8;color:#7b8fa1;font-weight:600}'
-    + '.driver-popover.ay-await .driver-popover-next-btn:hover{background:#e2ebf3;color:#4b6579}'
+    + '.driver-popover.ay-await .driver-popover-next-btn{background:' + AY_TOKENS['ui-mist-1'] + ';color:' + AY_TOKENS['ui-slate-await'] + ';font-weight:600}'
+    + '.driver-popover.ay-await .driver-popover-next-btn:hover{background:' + AY_TOKENS['ui-mist-17'] + ';color:' + AY_TOKENS['ui-slate-hover'] + '}'
     + '.ay-poke{animation:ayPoke 1.3s ease-in-out infinite}'
     + '@keyframes ayPoke{0%,100%{box-shadow:0 0 0 0 rgba(15,167,226,.6)}50%{box-shadow:0 0 0 11px rgba(15,167,226,0)}}';
 
@@ -2228,22 +2308,22 @@ window.addEventListener('load', function () {
   }
   function unpoke(sel) { return function () { poke(sel, false); }; }
   var ART_WELCOME =
-    '<span class="art" style="display:flex;gap:16px;justify-content:center;align-items:flex-end;background:linear-gradient(135deg,#eef7fc,#e9f7f2);padding:16px 10px 0">'
-    + '<svg viewBox="0 0 38 70" width="30" height="56"><path d="M19 4 27 28H11z" fill="#5b7085"/><circle cx="19" cy="10" r="4.4" fill="#e8443a"/><rect x="11" y="26" width="16" height="6" rx="1.5" fill="#cfd9e3"/><rect x="10" y="31" width="18" height="39" rx="4" fill="#22384c"/><rect x="10" y="46" width="18" height="7" fill="#e8443a"/></svg>'
-    + '<svg viewBox="0 0 38 70" width="30" height="56"><path d="M13 7 25 3v14H13z" fill="#ff9500"/><path d="M11 17h16l2 9H9z" fill="#e6edf4"/><rect x="9" y="25" width="20" height="45" rx="5" fill="#fff" stroke="#c9d6e2" stroke-width="1.3"/><rect x="9.6" y="40" width="18.8" height="10" fill="#ff9500"/></svg>'
-    + '<svg viewBox="0 0 38 70" width="30" height="56"><rect x="5" y="40" width="28" height="30" fill="#e8a91f"/><rect x="5" y="36" width="28" height="8" fill="#f0b429"/><rect x="5" y="14" width="28" height="28" rx="2" fill="#ffd968"/><rect x="10" y="22" width="18" height="2.8" rx="1.4" fill="#b98514"/><rect x="10" y="29" width="18" height="2.8" rx="1.4" fill="#b98514"/><rect x="10" y="36" width="11" height="2.8" rx="1.4" fill="#b98514"/></svg>'
+    '<span class="art" style="display:flex;gap:16px;justify-content:center;align-items:flex-end;background:linear-gradient(135deg,' + AY_TOKENS['ui-mist-13'] + ',' + AY_TOKENS['ui-mist-14'] + ');padding:16px 10px 0">'
+    + '<svg viewBox="0 0 38 70" width="30" height="56"><path d="M19 4 27 28H11z" fill="' + AY_TOKENS['ui-slate'] + '"/><circle cx="19" cy="10" r="4.4" fill="' + AY_TOKENS['ui-red-accent'] + '"/><rect x="11" y="26" width="16" height="6" rx="1.5" fill="' + AY_TOKENS['ui-border'] + '"/><rect x="10" y="31" width="18" height="39" rx="4" fill="' + AY_TOKENS['ui-navy-tool'] + '"/><rect x="10" y="46" width="18" height="7" fill="' + AY_TOKENS['ui-red-accent'] + '"/></svg>'
+    + '<svg viewBox="0 0 38 70" width="30" height="56"><path d="M13 7 25 3v14H13z" fill="' + AY_TOKENS['ui-highlighter'] + '"/><path d="M11 17h16l2 9H9z" fill="' + AY_TOKENS['ui-mist-9'] + '"/><rect x="9" y="25" width="20" height="45" rx="5" fill="' + AY_TOKENS['tint-white'] + '" stroke="' + AY_TOKENS['ui-border-soft-2'] + '" stroke-width="1.3"/><rect x="9.6" y="40" width="18.8" height="10" fill="' + AY_TOKENS['ui-highlighter'] + '"/></svg>'
+    + '<svg viewBox="0 0 38 70" width="30" height="56"><rect x="5" y="40" width="28" height="30" fill="' + AY_TOKENS['ui-note-yellow-body'] + '"/><rect x="5" y="36" width="28" height="8" fill="' + AY_TOKENS['ui-note-yellow-cap'] + '"/><rect x="5" y="14" width="28" height="28" rx="2" fill="' + AY_TOKENS['ui-note-yellow'] + '"/><rect x="10" y="22" width="18" height="2.8" rx="1.4" fill="' + AY_TOKENS['ui-note-yellow-line'] + '"/><rect x="10" y="29" width="18" height="2.8" rx="1.4" fill="' + AY_TOKENS['ui-note-yellow-line'] + '"/><rect x="10" y="36" width="11" height="2.8" rx="1.4" fill="' + AY_TOKENS['ui-note-yellow-line'] + '"/></svg>'
     + '</span>';
   var ART_DONE =
-    '<span class="art" style="display:block;background:linear-gradient(135deg,#003d79,#0ab38c);padding:18px 0;text-align:center">'
+    '<span class="art" style="display:block;background:linear-gradient(135deg,' + AY_TOKENS['ui-navy'] + ',' + AY_TOKENS['gradient-green-end'] + ');padding:18px 0;text-align:center">'
     + '<svg viewBox="0 0 120 74" width="150" height="92">'
-    + '<circle cx="60" cy="37" r="21" fill="#fff"/>'
-    + '<path d="M51 37.5 57.5 44 70 31" fill="none" stroke="#0ab38c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>'
-    + '<rect x="18" y="10" width="6" height="9" rx="1.5" fill="#ffd968" transform="rotate(-20 21 14)"/>'
-    + '<rect x="96" y="14" width="6" height="9" rx="1.5" fill="#ff9500" transform="rotate(25 99 18)"/>'
-    + '<rect x="30" y="52" width="6" height="9" rx="1.5" fill="#7fdcc4" transform="rotate(35 33 56)"/>'
-    + '<rect x="88" y="50" width="6" height="9" rx="1.5" fill="#ffd968" transform="rotate(-30 91 54)"/>'
-    + '<circle cx="14" cy="40" r="3" fill="#ff9500"/><circle cx="106" cy="38" r="3" fill="#ffd968"/>'
-    + '<circle cx="44" cy="8" r="2.6" fill="#7fdcc4"/><circle cx="76" cy="7" r="2.6" fill="#ffd968"/>'
+    + '<circle cx="60" cy="37" r="21" fill="' + AY_TOKENS['tint-white'] + '"/>'
+    + '<path d="M51 37.5 57.5 44 70 31" fill="none" stroke="' + AY_TOKENS['gradient-green-end'] + '" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<rect x="18" y="10" width="6" height="9" rx="1.5" fill="' + AY_TOKENS['ui-note-yellow'] + '" transform="rotate(-20 21 14)"/>'
+    + '<rect x="96" y="14" width="6" height="9" rx="1.5" fill="' + AY_TOKENS['ui-highlighter'] + '" transform="rotate(25 99 18)"/>'
+    + '<rect x="30" y="52" width="6" height="9" rx="1.5" fill="' + AY_TOKENS['deco-teal'] + '" transform="rotate(35 33 56)"/>'
+    + '<rect x="88" y="50" width="6" height="9" rx="1.5" fill="' + AY_TOKENS['ui-note-yellow'] + '" transform="rotate(-30 91 54)"/>'
+    + '<circle cx="14" cy="40" r="3" fill="' + AY_TOKENS['ui-highlighter'] + '"/><circle cx="106" cy="38" r="3" fill="' + AY_TOKENS['ui-note-yellow'] + '"/>'
+    + '<circle cx="44" cy="8" r="2.6" fill="' + AY_TOKENS['deco-teal'] + '"/><circle cx="76" cy="7" r="2.6" fill="' + AY_TOKENS['ui-note-yellow'] + '"/>'
     + '</svg></span>';
 
   // Chaque etape dit ce que fait l'element, en une ou deux phrases. Le guide
@@ -2335,7 +2415,7 @@ window.addEventListener('load', function () {
       cv.width = W * r; cv.height = H * r; cv.style.width = W + 'px'; cv.style.height = H + 'px';
       document.body.appendChild(cv);
       var c = cv.getContext('2d'); c.setTransform(r, 0, 0, r, 0, 0);
-      var COLORS = ['#11a9e6', '#0ab38c', '#ffd968', '#ff9500', '#003d79'];
+      var COLORS = [AY_TOKENS['blue-primary'], AY_TOKENS['gradient-green-end'], AY_TOKENS['ui-note-yellow'], AY_TOKENS['ui-highlighter'], AY_TOKENS['ui-navy']];
       var bits = [];
       for (var i = 0; i < 150; i++) {
         bits.push({

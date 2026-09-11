@@ -20,6 +20,78 @@
       --nav-width: 260px;
       --nav-collapsed: 20px;
       --banner-h: 46px;
+
+      /* Teintes ponctuelles (incrément A) : chaque jeton reprend, sans changement de
+         valeur, un hex qui apparaissait en dur ailleurs dans ce fichier. Table de
+         correspondance complète dans DESIGN.md (repo ayming). */
+      --tint-white: #fff;                 /* blancs ponctuels, cartes et bandeaux */
+      --tint-grey-05: #f8f9fa;            /* bas de dégradé de bandeau */
+      --tint-grey-10: #e5e5e5;            /* bordure de séparation */
+      --tint-grey-15: #e0e0e0;            /* bordure de panneau latéral */
+      --tint-slate: #6d8093;              /* texte secondaire gris-bleu */
+      --tint-amber: #fbbf24;              /* étoiles de notation */
+      --tint-red-problem: #ef4444;        /* libellé et pastille "problème" */
+      --tint-red-anomaly: #d94f4f;        /* badges "anomalie", pair avec rgba(217,79,79,*) */
+      --tint-red-wash-1: #fef2f2;         /* dégradé de fond d'icône, départ */
+      --tint-red-wash-2: #fee2e2;         /* dégradé de fond d'icône, arrivée */
+      --tint-blue-wash-1: #f4fbff;        /* pdf-popover, départ */
+      --tint-blue-wash-2: #e9f6fd;        /* pdf-popover, arrivée */
+      --tint-blue-wash-3: #eaf6fd;        /* pdf-popover au survol, départ */
+      --tint-blue-wash-4: #dceffa;        /* pdf-popover au survol, arrivée */
+      --tint-blue-wash-5: #e0f4f8;        /* dégradé de fond d'icône (bleu), départ */
+      --tint-blue-wash-6: #f0f9ff;        /* carte sylae, départ */
+      --tint-green-wash-1: #e3f9ed;       /* dégradé de fond d'icône (bleu), arrivée */
+      --tint-green-wash-2: #ecfdf5;       /* carte sylae, arrivée */
+
+      /* Échelle d'espacement (DESIGN.md spacing.scale), nommée par sa valeur en px. */
+      --space-4: 4px;
+      --space-6: 6px;
+      --space-8: 8px;
+      --space-12: 12px;
+      --space-16: 16px;
+      --space-18: 18px;
+      --space-22: 22px;
+      --space-26: 26px;
+      --space-34: 34px;
+      --space-42: 42px;
+      --space-52: 52px;
+
+      /* Rayons d'arrondi (DESIGN.md rounded). */
+      --radius-hairline: 1px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+      --radius-2xl: 20px;
+      --radius-pill: 9999px;
+      --radius-circle: 50%;
+
+      /* Durées et courbes d'animation (structure reprise de sinistralité/styles/tokens.css,
+         valeurs propres au moteur de decks). */
+      --dur-press: 160ms;
+      --dur-pop: 150ms;
+      --dur-panel: 250ms;
+      --dur-exit: 200ms;
+      --ease-out: cubic-bezier(.23,1,.32,1);
+      --ease-in-out: cubic-bezier(.77,0,.175,1);
+
+      /* Marge sous le titre de slide, isolée pour la surcharger par deck sans dupliquer 50px. */
+      --slide-title-mb: 50px;
+
+      /* Seam de théming : --tool-accent, --map-color, --drive-color, --collecte-color
+         et --acciline-color sont consommés plus bas SANS défaut, volontairement. Aucun
+         deck ni slides.js ne les définit aujourd'hui, les règles consommatrices tombent
+         donc en valeur initiale, et poser un défaut ici changerait le rendu live
+         (vérifié le 11 septembre 2026). À instruire à part avant toute déclaration. */
+    }
+
+    /* Palette Acciline+ : identique à Ayming pour l'instant. Cette section reçoit les
+       couleurs propres à Acciline+ dès qu'elles sont fournies par l'équipe marque. */
+    [data-brand="acciline"] {
+      --blue-primary: #11a9e6;
+      --blue-accent: #0da4e8;
+      --blue-dark: #00456d;
+      --gradient-blue-start: #0fa7e2;
+      --gradient-green-end: #0ab38c;
     }
 
     * {
@@ -336,7 +408,7 @@
       font-size: 44px;
       font-weight: 700;
       line-height: 1.2;
-      margin-bottom: 50px;
+      margin-bottom: var(--slide-title-mb);
       text-align: center;
       background: linear-gradient(90deg, var(--gradient-blue-start), var(--gradient-green-end));
       -webkit-background-clip: text;
@@ -524,7 +596,7 @@
     }
 
     .floating-badge .badge-number {
-      color: #ef4444;
+      color: var(--tint-red-problem);
       font-weight: 700;
     }
 
@@ -1148,7 +1220,7 @@
 
     /* ===== IDEAL WORLD CARDS ===== */
     .ideal-card .card-image {
-      background: linear-gradient(135deg, #e0f4f8 0%, #e3f9ed 100%);
+      background: linear-gradient(135deg, var(--tint-blue-wash-5) 0%, var(--tint-green-wash-1) 100%);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1455,7 +1527,7 @@
       background: transparent;
       padding: 16px 70px;
       text-align: center;
-      border-right: 1px solid #e0e0e0;
+      border-right: 1px solid var(--tint-grey-15);
     }
 
     .intro-stat-card:last-child {
@@ -1528,7 +1600,7 @@
       width: 100%; max-width: 1100px; align-items: center;
     }
     .testimonial-split-content { text-align: left; }
-    .testimonial-split-stars { color: #fbbf24; font-size: 20px; letter-spacing: 4px; margin-bottom: 24px; }
+    .testimonial-split-stars { color: var(--tint-amber); font-size: 20px; letter-spacing: 4px; margin-bottom: 24px; }
     .testimonial-split-quote {
       font-size: 20px; font-style: italic; line-height: 1.7; color: var(--text-dark);
       margin-bottom: 28px; padding-left: 24px; border-left: 4px solid var(--blue-accent);
@@ -1702,7 +1774,7 @@
     }
 
     .testimonial-back {
-      background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+      background: linear-gradient(180deg, var(--bg-white) 0%, var(--tint-grey-05) 100%);
       transform: rotateY(180deg);
       display: flex;
       flex-direction: column;
@@ -1720,7 +1792,7 @@
     }
 
     .testimonial-stars-icons {
-      color: #fbbf24;
+      color: var(--tint-amber);
       font-size: 18px;
       letter-spacing: 3px;
     }
@@ -1802,7 +1874,7 @@
     .testimonial-author {
       margin-top: auto;
       padding-top: 16px;
-      border-top: 1px solid #e5e5e5;
+      border-top: 1px solid var(--tint-grey-10);
     }
 
     .testimonial-name {
@@ -1831,7 +1903,7 @@
 
     /* ===== CTA BOX ===== */
     .cta-box {
-      background: linear-gradient(90deg, #0fa7e2, #0ab38c);
+      background: linear-gradient(90deg, var(--gradient-blue-start), var(--gradient-green-end));
       border-radius: 12px;
       padding: 24px 40px;
       margin-top: 20px;
@@ -2003,9 +2075,9 @@
     }
     .struggle-card .struggle-icon {
       width: 64px; height: 64px; border-radius: 50%;
-      background: linear-gradient(135deg, #fef2f2, #fee2e2);
+      background: linear-gradient(135deg, var(--tint-red-wash-1), var(--tint-red-wash-2));
       display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 20px; color: #ef4444;
+      margin: 0 auto 20px; color: var(--tint-red-problem);
     }
     .struggle-card .struggle-icon svg { width: 28px; height: 28px; }
     .struggle-card h3 {
@@ -2282,8 +2354,8 @@
       display: flex; align-items: center; gap: 10px;
     }
     .tool-col-title .pip-sm { width: 8px; height: 8px; border-radius: 50%; }
-    .prob-label { color: #ef4444; }
-    .prob-label .pip-sm { background: #ef4444; }
+    .prob-label { color: var(--tint-red-problem); }
+    .prob-label .pip-sm { background: var(--tint-red-problem); }
     .sol-label { color: var(--blue-accent); }
     .sol-label .pip-sm { background: var(--blue-accent); }
     .pain-list { list-style: none; display: flex; flex-direction: column; gap: 14px; }
@@ -2294,7 +2366,7 @@
     .pain-list li::before {
       content: ''; position: absolute; left: 0; top: 8px;
       width: 6px; height: 6px; border-radius: 50%;
-      background: #ef4444; opacity: 0.5;
+      background: var(--tint-red-problem); opacity: 0.5;
     }
     .solution-list { list-style: none; display: flex; flex-direction: column; gap: 18px; }
     .solution-list li { display: flex; gap: 14px; align-items: flex-start; text-align: left; }
@@ -2647,7 +2719,7 @@
 }
 .track-errors-title {
   font-size: 0.52rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.7px; color: #d94f4f; margin-bottom: 3px;
+  letter-spacing: 0.7px; color: var(--tint-red-anomaly); margin-bottom: 3px;
   display: flex; align-items: center; gap: 4px;
 }
 .track-errors-title svg { width: 11px; height: 11px; }
@@ -2656,12 +2728,12 @@
 }
 .error-zone {
   display: inline-flex; align-items: center; background: white;
-  color: #d94f4f; font-size: 0.5rem; font-weight: 600;
+  color: var(--tint-red-anomaly); font-size: 0.5rem; font-weight: 600;
   padding: 2px 5px; border-radius: 3px;
   border: 1px solid rgba(217, 79, 79, 0.14); line-height: 1.2;
 }
 .error-more {
-  display: inline-flex; align-items: center; background: #d94f4f;
+  display: inline-flex; align-items: center; background: var(--tint-red-anomaly);
   color: white; font-size: 0.5rem; font-weight: 700;
   padding: 2px 6px; border-radius: 3px; line-height: 1.2;
 }
@@ -2715,7 +2787,7 @@
   font-weight: 700; margin-top: 18px;
 }
 .sylae-card {
-  background: linear-gradient(135deg, #f0f9ff, #ecfdf5);
+  background: linear-gradient(135deg, var(--tint-blue-wash-6), var(--tint-green-wash-2));
   border: 1.5px solid var(--blue-primary); border-radius: 10px;
   padding: 8px 12px; text-align: center;
   box-shadow: 0 3px 10px rgba(17, 169, 230, 0.12);
@@ -2739,11 +2811,11 @@
 .anomalie-badge {
   display: inline-flex; align-items: center; gap: 3px;
   background: white; border: 1px solid rgba(217, 79, 79, 0.3);
-  color: #d94f4f; padding: 3px 6px; border-radius: 4px;
+  color: var(--tint-red-anomaly); padding: 3px 6px; border-radius: 4px;
   font-size: 0.5rem; font-weight: 600; line-height: 1.2;
 }
 .anomalie-badge svg {
-  width: 9px; height: 9px; stroke: #d94f4f; flex-shrink: 0;
+  width: 9px; height: 9px; stroke: var(--tint-red-anomaly); flex-shrink: 0;
 }
 
 /* Workflow animations */
@@ -2784,7 +2856,7 @@
   align-items: center;
   font-family: system-ui, Arial, sans-serif;
   font-size: 11px;
-  color: #6d8093;
+  color: var(--tint-slate);
   background: rgba(255, 255, 255, 0.72);
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
@@ -2814,7 +2886,7 @@
   gap: 16px;
   padding: 0 24px;
   z-index: 200;
-  color: #fff;
+  color: var(--tint-white);
 }
 .brand-banner.is-hidden { display: none; }
 .banner-logo {
@@ -2853,7 +2925,7 @@
 .banner-counter {
   font-size: 12px;
   font-weight: 600;
-  color: #fff;
+  color: var(--tint-white);
   min-width: 44px;
   text-align: center;
   letter-spacing: 0.5px;
@@ -2864,7 +2936,7 @@
   border: none;
   border-radius: 7px;
   background: transparent;
-  color: #fff;
+  color: var(--tint-white);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2916,15 +2988,15 @@
   align-items: flex-start;
   padding: 15px 20px;
   border-radius: 12px 12px 0 0;
-  background: linear-gradient(180deg, #f4fbff, #e9f6fd);
+  background: linear-gradient(180deg, var(--tint-blue-wash-1), var(--tint-blue-wash-2));
 }
-.pdf-popover a.primary:hover { background: linear-gradient(180deg, #eaf6fd, #dceffa); }
+.pdf-popover a.primary:hover { background: linear-gradient(180deg, var(--tint-blue-wash-3), var(--tint-blue-wash-4)); }
 .pdf-popover a.primary .pop-ico {
   width: 30px;
   height: 30px;
   border-radius: 9px;
-  background: var(--brand-horizontal, linear-gradient(90deg, #0fa7e2, #0ab38c));
-  color: #fff;
+  background: var(--brand-horizontal, linear-gradient(90deg, var(--gradient-blue-start), var(--gradient-green-end)));
+  color: var(--tint-white);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2945,8 +3017,8 @@
 
 /* ==== Shared "Clients par secteur" slide (rendered by slides.js into [data-shared="clients"]) ==== */
 .clients-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:13px 15px; width:100%; max-width:1060px; margin:0 auto; }
-.client-sector { display:flex; flex-direction:column; height:100%; border:1px solid var(--bg-subtle); border-radius:11px; padding:0 12px 10px; background:#fff; box-shadow:var(--shadow-sm); overflow:hidden; }
-.client-sector h4 { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#fff; text-align:center; margin:0 -12px 10px; padding:7px 10px; background:var(--gradient-brand-horizontal); }
+.client-sector { display:flex; flex-direction:column; height:100%; border:1px solid var(--bg-subtle); border-radius:11px; padding:0 12px 10px; background:var(--tint-white); box-shadow:var(--shadow-sm); overflow:hidden; }
+.client-sector h4 { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--tint-white); text-align:center; margin:0 -12px 10px; padding:7px 10px; background:var(--gradient-brand-horizontal); }
 .client-logos { flex:1 1 0%; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; align-content:center; gap:12px 8px; }
 .client-logos img { flex:0 0 calc(33.333% - 8px); max-width:calc(33.333% - 8px); min-width:0; height:27px; object-fit:contain; display:block; }
 .client-logos img.lg-trim { height:21px; }
@@ -2955,7 +3027,7 @@
 
 /* ==== Shared certification strip on every cover (rendered by slides.js into .cover-right) ==== */
 .cover .cover-right { position:relative; }
-.cover .cover-right::after { content:''; position:absolute; left:0; right:0; bottom:0; height:42%; background:linear-gradient(to top, #fff 4%, rgba(255,255,255,0.92) 30%, rgba(255,255,255,0) 100%); z-index:3; pointer-events:none; }
+.cover .cover-right::after { content:''; position:absolute; left:0; right:0; bottom:0; height:42%; background:linear-gradient(to top, var(--tint-white) 4%, rgba(255,255,255,0.92) 30%, rgba(255,255,255,0) 100%); z-index:3; pointer-events:none; }
 /* Fond blanc arrondi derrière le bandeau : les PNG de badges ont des fonds
    blancs opaques et le patchwork se voyait sur les couvertures photo, surtout
    dans l'export PPTX. Porté depuis le fix local de es-cotizaciones-sociales.
@@ -2963,7 +3035,7 @@
    46px et gap 12px pour que la rangée reste UNIQUE même à 8 badges (decks
    Acciline avec HDS) : à 60px les 7 badges français wrappaient sur 2 rangées
    avec Ecovadis seul en bas, ce que la carte blanche rendait visible. */
-.cover .cover-right .cert-strip { position:absolute; left:auto; right:24px; bottom:24px; max-width:calc(100% - 34px); z-index:4; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:12px; background:#fff; border-radius:14px; padding:10px 14px; box-shadow:0 4px 14px rgba(0,69,109,.10); }
+.cover .cover-right .cert-strip { position:absolute; left:auto; right:24px; bottom:24px; max-width:calc(100% - 34px); z-index:4; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:12px; background:var(--tint-white); border-radius:14px; padding:10px 14px; box-shadow:0 4px 14px rgba(0,69,109,.10); }
 .cover .cert-chip { background:none; box-shadow:none; padding:0; display:inline-flex; align-items:center; }
 .cover .cert-chip img { height:46px; width:auto; object-fit:contain; display:block; }
 
@@ -2985,7 +3057,7 @@
   font-size: 15px;
   font-weight: 700;
   color: var(--text-gray);
-  background: #fff;
+  background: var(--tint-white);
   border: 1px solid var(--bg-subtle);
   border-radius: 999px;
   padding: 10px 22px;
@@ -2998,7 +3070,7 @@
 .pfilter.on {
   background: var(--blue-dark);
   border-color: var(--blue-dark);
-  color: #fff;
+  color: var(--tint-white);
 }
 
 .partners-count {
@@ -3020,7 +3092,7 @@
 }
 
 .partner-tile {
-  background: #fff;
+  background: var(--tint-white);
   border: 1px solid var(--bg-subtle);
   border-radius: 12px;
   height: 94px;
