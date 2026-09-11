@@ -1,0 +1,321 @@
+/* ===== COMPONENTS.CSS =====
+   Contrat : ce fichier est chargé en plus de slides.css par les decks qui s'y
+   relient (balise <link> supplémentaire, jamais un remplacement). Il ne définit
+   qu'une seule fois chaque composant promu depuis un bloc <style> local de deck,
+   et n'utilise que des jetons DESIGN.md (variables CSS de slides.css) quand un
+   jeton existe pour la valeur. Un deck qui ajoute ce lien ne voit rien changer
+   tant qu'il garde ses propres surcharges locales à côté. */
+
+/* ===== NEXT STEP (bandeau CTA de clôture) =====
+   Callout en dégradé fermant une slide sur l'étape suivante. Présent dans 17
+   decks (offers + offers-family), la règle est un copier-coller strictement
+   identique dans les 17, aucune divergence à résoudre. */
+.next-step {
+  margin-top: 34px;
+  padding: 18px 26px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, rgba(15,167,226,0.10), rgba(10,179,140,0.10));
+  border: 1px solid rgba(17,169,230,0.35);
+  font-size: 18px;
+  font-weight: 700;
+  color: #00456d;
+  text-align: center;
+}
+
+/* ===== OPTION CARD (tuile de vente croisée) =====
+   Enveloppe (le plus souvent un <a>) autour du column-card et card-image du
+   moteur, avec curseur pointeur, zoom au survol, une superposition
+   .card-overlay avec un appel à l'action, et un badge .option-badge. 13 decks.
+   Donneurs les plus complets : cotisations-atmp, accidents-tiers, duerp.
+   Divergences résolues à la valeur majoritaire :
+   - .card-overlay span : 8 decks sur 12 utilisent 14px / 10px 24px sans
+     text-align, retenu comme canonique (accidents-tiers et cotisations-atmp
+     utilisent 13px et un text-align: center, atmp-family utilise 12px, le
+     deck famille visites-medicales utilise 16px, ces trois restent des
+     surcharges locales).
+   - .card-overlay : 11 decks sur 12 posent position/top/left/width/height à la
+     place du raccourci inset:0 utilisé par offers-family/atmp (rendu
+     identique), la forme explicite est retenue.
+   - .option-badge : identique dans 8 des 9 decks qui le définissent, duerp
+     ajoute localement white-space: nowrap (garder cette surcharge locale).
+   La variante non cliquable de collecte-arrets (pas de card-overlay, pas de
+   curseur pointeur) devient le modificateur .option-card.static, avec son
+   zoom au survol plus léger (scale 1.03 contre 1.05 pour la variante
+   cliquable). Toutes les modifications de column-card/card-image restent
+   strictement sous .option-card, rien ne change hors de l'enveloppe. */
+.option-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--radius-xl);
+}
+
+.option-card .column-card {
+  cursor: pointer;
+}
+
+.option-card.static .column-card {
+  cursor: default;
+}
+
+.option-card .card-image {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+.option-card .card-image img {
+  transition: transform 0.4s ease;
+}
+
+.option-card:hover .card-image img {
+  transform: scale(1.05);
+}
+
+.option-card.static:hover .card-image img {
+  transform: scale(1.03);
+}
+
+.option-card .card-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(0,61,121,0.7) 0%, rgba(10,179,140,0.6) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  border-radius: var(--radius-lg);
+}
+
+.option-card .card-overlay span {
+  color: var(--tint-white);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 24px;
+  border: 2px solid var(--tint-white);
+  border-radius: var(--radius-pill);
+  letter-spacing: 0.5px;
+  transition: background 0.3s ease;
+}
+
+.option-card:hover .card-overlay {
+  opacity: 1;
+}
+
+.option-card:hover .card-overlay span {
+  background: rgba(255,255,255,0.15);
+}
+
+.option-badge {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #003d79, var(--gradient-green-end));
+  color: var(--tint-white);
+}
+
+/* ===== ATMP CHAIN (chaîne de valeur) =====
+   Diagramme de chaîne de valeur générique, base flex, aucun décompte codé en
+   dur : le nombre de maillons ne change rien aux règles, elles s'appliquent
+   par classe. Le préfixe atmp- est historique (le premier donneur traitait la
+   chaîne AT/MP) et reste tel quel pour ne pas casser le balisage des decks
+   existants. 4 decks diffusés : accidents-tiers (5 maillons, donneur des
+   keyframes chainFade/chainGlow) et cotisations-atmp (5, bloc strictement
+   identique) forment la majorité et fixent le canon. remboursements-ijss (3
+   maillons) reprend la même logique avec un padding et une largeur resserrés
+   pour 3 items, gardés en surcharge locale. arrets-longue-duree (4 maillons)
+   utilise une chorégraphie d'entrée propre (autres noms de keyframes, délais
+   par nth-child), non reprise ici et laissée en bloc local. */
+@keyframes chainFade {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes chainGlow {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.atmp-chain {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  max-width: 1180px;
+  margin: 32px auto 0;
+}
+
+.atmp-link {
+  flex: 1;
+  padding: 24px 13px;
+  position: relative;
+  text-align: center;
+  color: var(--tint-white);
+}
+
+.atmp-link:first-child {
+  border-radius: var(--radius-xl) 0 0 var(--radius-xl);
+}
+
+.atmp-link:last-child {
+  border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
+}
+
+.atmp-link-dim {
+  background: linear-gradient(180deg, rgba(0,61,121,0.7) 0%, rgba(0,61,121,0.5) 100%);
+}
+
+.atmp-link-active {
+  background: linear-gradient(135deg, #003d79 0%, var(--gradient-green-end) 100%);
+  z-index: 2;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgba(0,61,121,0.35);
+}
+
+.atmp-number {
+  font-size: 36px;
+  font-weight: 700;
+  opacity: 0.2;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.atmp-link-active .atmp-number {
+  opacity: 0.35;
+}
+
+.atmp-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  margin-bottom: 9px;
+  line-height: 1.3;
+}
+
+.atmp-link-active .atmp-title {
+  font-size: 16px;
+}
+
+.atmp-bullets {
+  text-align: left;
+  font-size: 11px;
+  opacity: 0.85;
+  line-height: 1.5;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.atmp-bullets li {
+  padding-left: 12px;
+  position: relative;
+  margin-bottom: 4px;
+}
+
+.atmp-bullets li::before {
+  content: '\2022';
+  position: absolute;
+  left: 0;
+  color: rgba(255,255,255,0.6);
+}
+
+.atmp-link-active .atmp-bullets li::before {
+  color: rgba(255,255,255,0.9);
+}
+
+.atmp-offer {
+  font-size: 10.5px;
+  opacity: 0.5;
+  margin-top: 12px;
+  font-style: italic;
+}
+
+.atmp-link-active .atmp-offer {
+  opacity: 0.75;
+}
+
+.atmp-arrow {
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+  color: rgba(0,61,121,0.35);
+  margin: 0 -6px;
+  z-index: 1;
+}
+
+.atmp-footer {
+  text-align: center;
+  margin-top: 26px;
+}
+
+.atmp-footer p {
+  font-size: 14px;
+  color: #777;
+}
+
+.atmp-footer strong {
+  color: #003d79;
+}
+
+.slide.active .atmp-link,
+.slide.active .atmp-arrow,
+.slide.active .atmp-footer {
+  opacity: 0;
+  animation: chainFade 0.6s cubic-bezier(0.22,1,0.36,1) 0.2s forwards;
+}
+
+.slide.active .atmp-arrow {
+  animation-delay: 0.4s;
+}
+
+.slide.active .atmp-footer {
+  animation-delay: 0.7s;
+}
+
+.slide.active .atmp-link-active {
+  animation: chainGlow 0.7s cubic-bezier(0.22,1,0.36,1) 0.35s forwards;
+}
+
+/* ===== VALUE DETAIL LIST, VARIANTE TITRÉE =====
+   Remplace la puce à coche d'une ligne de .value-detail-list par un bloc avec
+   un titre h4 et un sous-texte p. Donneur : es-cotizaciones-sociales. */
+.value-detail-list.vd-titled li {
+  display: block;
+  margin-bottom: 20px;
+}
+
+.value-detail-list.vd-titled li h4 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #00456d;
+  margin: 0 0 4px;
+  line-height: 1.25;
+}
+
+.value-detail-list.vd-titled li p {
+  font-size: 15px;
+  color: #4a5b68;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Complément du même donneur : le moteur ne pose des délais d'apparition que
+   pour les 4 premiers items de .value-detail-list li. Cette règle AJOUTE le
+   5e et le 6e palier, dans la même progression de 0.10s, pour que les listes
+   de 5 ou 6 items s'animent en cascade sans rien retirer aux listes de 4.
+   Non limitée à vd-titled : elle profite à toute .value-detail-list. */
+.slide.active .value-detail-list li:nth-child(5) {
+  animation-delay: 0.55s;
+}
+
+.slide.active .value-detail-list li:nth-child(6) {
+  animation-delay: 0.65s;
+}
