@@ -97,8 +97,9 @@ var AY_TOKENS = {
       'accidents-tiers', 'accompagnement-controle-urssaf',
       'aides-apprentissage', 'collecte-et-traitement-des-arrets',
       'cotisations-atmp', 'declarer-un-accident-du-travail', 'duerp',
-      'ecosystem-digital', 'gestion-des-atmp', 'maitrise-des-charges-sociales',
-      'maitrise-des-ijss', 'offre-essentiel', 'pilotage-arrets-longue-duree',
+      'ecosystem-digital', 'es-reclasificacion-atep', 'gestion-des-atmp',
+      'maitrise-des-charges-sociales', 'maitrise-des-ijss', 'offre-essentiel',
+      'pilotage-arrets-longue-duree',
       'questionnaires-de-maladie-professionnelle',
       'rattrapage-visites-medicales', 'recuperer-ij', 'remboursements-ijss',
       'veille-net-entreprises', 'visites-medicales'
