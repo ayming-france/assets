@@ -342,23 +342,30 @@
       overflow: hidden;
       position: relative;
       transition: padding-left 0.3s ease;
-      padding-left: var(--nav-collapsed);
+      /* La largeur reservee au rail de navigation vit dans une variable parce que
+         les slides doivent la retrancher elles aussi, voir .slide ci-dessous. */
+      --nav-pad: var(--nav-collapsed);
+      padding-left: var(--nav-pad);
     }
 
     .chapter-nav:hover ~ .presentation,
     .chapter-nav.open ~ .presentation {
-      padding-left: var(--nav-width);
+      --nav-pad: var(--nav-width);
     }
 
     /* ===== SLIDES ===== */
     .slide {
       position: absolute;
-      width: 100%;
+      /* Une slide est absolue, donc son 100% se resout sur la boite de PADDING de
+         .presentation et non sur sa boite de contenu : elle debordait de la
+         largeur du rail a droite, et se retrouvait decalee d'autant a droite du
+         centre. On retranche donc la reserve du rail. */
+      width: calc(100% - var(--nav-pad, 0px));
       height: 100%;
       padding: 60px 80px;
       display: none;
       opacity: 0;
-      transition: opacity 0.4s ease;
+      transition: opacity 0.4s ease, width 0.3s ease;
       overflow: hidden;
     }
 
@@ -1481,8 +1488,11 @@
     .intro-hero {
       /* fitSlide met la slide à l'échelle et publie ce facteur dans --fit-scale.
          Le hero est plein cadre par construction, il compense donc cette échelle
-         sur sa largeur pour retomber exactement sur 100vw une fois réduit. */
-      width: calc(100vw / var(--fit-scale, 1));
+         sur sa largeur pour retomber exactement sur la largeur de la slide une
+         fois réduit. C'est bien 100% et non 100vw : la slide retranche déjà la
+         reserve du rail de navigation, et un hero calé sur la fenêtre se faisait
+         rogner d'autant à droite. */
+      width: calc(100% / var(--fit-scale, 1));
       max-width: none;
       height: 70vh;
       position: relative;

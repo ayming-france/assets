@@ -537,7 +537,18 @@ function fitSlide() {
       cap(maxB - oy, M - oy, VH - M - bh - oy)
     );
     if (!isFinite(scale) || scale <= 0) scale = designScale;
-    wrap.style.transform = 'scale(' + scale + ')';
+    // La mise a l'echelle se fait autour du centre de la boite, donc un bloc
+    // reduit se recentre verticalement et laisse une bande au-dessus. Sur la
+    // slide introduction le hero est plein cadre et doit toucher le bord haut :
+    // on remonte le bloc d'exactement ce que la reduction a laisse. Le translate
+    // precede l'echelle dans la composition, son amplitude est donc divisee par
+    // le facteur pour donner le deplacement voulu a l'ecran.
+    var tf = 'scale(' + scale + ')';
+    if (slide.classList.contains('slide-introduction') || slide.dataset.fitTop === '1') {
+      var renderedTop = oy + (minT - oy) * scale - slide.getBoundingClientRect().top;
+      if (renderedTop > 0.5) tf += ' translateY(' + (-renderedTop / scale) + 'px)';
+    }
+    wrap.style.transform = tf;
     // Publie le facteur pour les éléments plein cadre qui doivent le neutraliser
     slide.style.setProperty('--fit-scale', String(scale));
   } catch (e) { /* never let auto-fit break navigation */ }
