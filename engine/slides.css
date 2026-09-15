@@ -4,19 +4,34 @@
       --blue-primary: #00AEEF;
       --blue-accent: #00AEEF;
       --blue-dark: #004A76;
+      /* Bleu moyen mesuré dans les decks (barres de planning et de graphique), calé sur
+         la valeur officielle de charte Dark Blue 100% (work/brand-portal/palette.yaml)
+         plutôt que sur le bleu approximatif effectivement écrit en dur dans les decks. */
+      --blue-mid: #0072B6;
       --gradient-blue-start: #00AEEF;
       --gradient-green-end: #00B08B;
+      /* Vert lisible en texte sur fond blanc, distinct de --gradient-green-end qui est
+         pensé pour un dégradé. */
+      --green-dark: #068367;
       --gradient-brand-horizontal: linear-gradient(90deg, var(--gradient-blue-start), var(--gradient-green-end));
       --text-dark: #0f172a;
+      /* Palier fonctionnel de la rampe de texte, entre --text-gray et --text-dark. Il ne
+         vient pas de la charte de marque, la rampe de texte existante non plus. */
+      --text-body: #4A5B68;
       --text-gray: #6b7280;
       --text-light: #9ca3af;
       --bg-white: #ffffff;
       --bg-light: #f8fafc;
       --bg-subtle: #eef2f6;
-      --overlay-blue-soft: rgba(17, 169, 230, 0.1);
+      /* Corrigé le 15 septembre 2026 : reprenait l'ancien bleu d'avant la charte
+         (#11A9E6), même opacité, valeur alignée sur le bleu de charte --blue-primary. */
+      --overlay-blue-soft: rgba(0, 174, 239, 0.1);
       --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
       --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
       --shadow-lg: 0 10px 40px rgba(0,0,0,0.1);
+      /* Ombre portée teintée de bleu marine pour les éléments surélevés (modales, cartes
+         actives), à distinguer des trois ombres neutres ci-dessus. */
+      --shadow-navy-lg: 0 12px 40px rgba(0,61,121,.35);
       --nav-width: 260px;
       --nav-collapsed: 20px;
       --banner-h: 46px;
@@ -47,11 +62,18 @@
       --space-4: 4px;
       --space-6: 6px;
       --space-8: 8px;
+      --space-9: 9px;
+      --space-10: 10px;
       --space-12: 12px;
+      --space-14: 14px;
       --space-16: 16px;
       --space-18: 18px;
+      --space-20: 20px;
       --space-22: 22px;
+      --space-24: 24px;
       --space-26: 26px;
+      --space-28: 28px;
+      --space-32: 32px;
       --space-34: 34px;
       --space-42: 42px;
       --space-52: 52px;
@@ -60,10 +82,36 @@
       --radius-hairline: 1px;
       --radius-md: 8px;
       --radius-lg: 12px;
+      /* Rayon le plus repris de la flotte de decks, à lui seul plus utilisé que
+         --radius-lg et --radius-xl réunis. Repère utile pour rationaliser l'échelle. */
+      --radius-14: 14px;
       --radius-xl: 16px;
       --radius-2xl: 20px;
+      /* Rayon des badges et boutons en pilule partielle. */
+      --radius-30: 30px;
       --radius-pill: 9999px;
       --radius-circle: 50%;
+
+      /* Tailles de police, aucune échelle n'existait avant, nommées par leur valeur en px. */
+      --font-10: 10px;
+      --font-11: 11px;
+      --font-12: 12px;
+      --font-13: 13px;
+      --font-14: 14px;
+      --font-15: 15px;
+      --font-16: 16px;
+      --font-18: 18px;
+
+      /* Graisses de police. */
+      --weight-semibold: 600;
+      --weight-bold: 700;
+      --weight-black: 800;
+
+      /* Hauteurs de ligne. */
+      --leading-tight: 1;
+      --leading-snug: 1.3;
+      --leading-normal: 1.5;
+      --leading-relaxed: 1.6;
 
       /* Durées et courbes d'animation (structure reprise de sinistralité/styles/tokens.css,
          valeurs propres au moteur de decks). */
