@@ -1585,7 +1585,7 @@ window.addEventListener('load', function () {
   function pmFilter(node) {
     if (node && node.classList) {
       if (node.id === 'pm-panel') return false;
-      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help', 'deck-ink', 'deck-tools', 'driver-overlay', 'driver-popover'];
+      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help', 'deck-ink', 'deck-tools', 'driver-overlay', 'driver-popover', 'ay-tour-invite'];
       for (var i = 0; i < ex.length; i++) if (node.classList.contains(ex[i])) return false;
     }
     return true;
@@ -2257,7 +2257,18 @@ window.addEventListener('load', function () {
     + '.driver-popover.ay-await .driver-popover-next-btn{background:' + AY_TOKENS['ui-mist-1'] + ';color:' + AY_TOKENS['ui-slate-await'] + ';font-weight:600}'
     + '.driver-popover.ay-await .driver-popover-next-btn:hover{background:' + AY_TOKENS['ui-mist-17'] + ';color:' + AY_TOKENS['ui-slate-hover'] + '}'
     + '.ay-poke{animation:ayPoke 1.3s ease-in-out infinite}'
-    + '@keyframes ayPoke{0%,100%{box-shadow:0 0 0 0 rgba(15,167,226,.6)}50%{box-shadow:0 0 0 11px rgba(15,167,226,0)}}';
+    + '@keyframes ayPoke{0%,100%{box-shadow:0 0 0 0 rgba(15,167,226,.6)}50%{box-shadow:0 0 0 11px rgba(15,167,226,0)}}'
+    // La carte d'invitation du premier chargement, a droite et en bas, la ou rien
+    // du deck ne vit, sans rien assombrir : le commercial peut l'ignorer et
+    // presenter. Le 106 px degage le bandeau de certifications de la couverture,
+    // qui monte a 90 px du bas, et le bandeau de marque des autres slides.
+    
+    + '.ay-tour-invite{position:fixed;right:22px;bottom:106px;z-index:99000;width:300px;background:' + AY_TOKENS['tint-white'] + ';border-radius:14px;border-top:4px solid ' + AY_TOKENS['gradient-blue-start'] + ';box-shadow:0 18px 44px rgba(2,30,60,.22);padding:16px 18px 14px;font-family:Lato,system-ui,Arial,sans-serif;opacity:0;transform:translateY(10px);transition:opacity .25s,transform .25s}'
+    + '.ay-tour-invite.show{opacity:1;transform:translateY(0)}'
+    + '.ay-tour-invite .ay-inv-t{font-size:15px;font-weight:800;color:' + AY_TOKENS['blue-dark'] + ';padding-right:18px;line-height:1.3}'
+    + '.ay-tour-invite .ay-inv-d{font-size:13px;line-height:1.5;color:' + AY_TOKENS['ui-slate-body'] + ';margin:7px 0 12px}'
+    + '.ay-tour-invite .ay-inv-go{font-family:inherit;font-size:13px;font-weight:700;border:0;border-radius:9px;padding:9px 16px;cursor:pointer;background:' + AY_TOKENS['gradient-blue-start'] + ';color:' + AY_TOKENS['tint-white'] + '}'
+    + '.ay-tour-invite .ay-inv-x{position:absolute;top:8px;right:10px;border:0;background:none;cursor:pointer;font-size:20px;line-height:1;color:' + AY_TOKENS['ui-slate-muted'] + '}';
 
   var loading = false, skinned = false;
   function skin() {
@@ -2569,7 +2580,38 @@ window.addEventListener('load', function () {
     setTimeout(function () { startEditorTour(false); }, 380);
   });
 
+  // ---- invitation du premier chargement ----
+  // Le guide ne part plus tout seul. Un commercial qui ouvre un deck veut le
+  // presenter, pas suivre une visite guidee qu'il n'a pas demandee, et le tour
+  // le deplacait de slide pour se derouler. Une carte discrete propose le guide
+  // une fois, puis s'efface, et le point d'interrogation du bandeau le rejoue.
+  function invite() {
+    if (automated() || isClient() || seen(KEY_REP)) return;
+    skin();
+    var box = document.createElement('div');
+    box.className = 'ay-tour-invite';
+    box.innerHTML =
+      '<button class="ay-inv-x" aria-label="Fermer">&times;</button>'
+      + '<div class="ay-inv-t">Première fois sur un deck Ayming ?</div>'
+      + "<div class=\"ay-inv-d\">Le guide montre l'éditeur, les outils de présentation et le partage. Deux minutes.</div>"
+      + '<button class="ay-inv-go">Voir le guide</button>';
+    document.body.appendChild(box);
+    var timer = setTimeout(close, 22000);
+    function close() {
+      clearTimeout(timer);
+      markSeen(KEY_REP);
+      box.classList.remove('show');
+      setTimeout(function () { if (box.parentNode) box.remove(); }, 260);
+    }
+    box.querySelector('.ay-inv-x').addEventListener('click', close);
+    box.querySelector('.ay-inv-go').addEventListener('click', function () {
+      close();
+      start(true);
+    });
+    setTimeout(function () { box.classList.add('show'); }, 60);
+  }
+
   window.addEventListener('load', function () {
-    setTimeout(function () { start(false); }, 1200);
+    setTimeout(invite, 1400);
   });
 })();
