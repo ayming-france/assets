@@ -14,6 +14,15 @@
          pensé pour un dégradé. */
       --green-dark: #068367;
       --gradient-brand-horizontal: linear-gradient(90deg, var(--gradient-blue-start), var(--gradient-green-end));
+
+      /* Triplets RGB des couleurs de marque, pour les usages semi-transparents en
+         rgba(var(--jeton-rgb), alpha). Un jeton par couleur de marque dont l'inventaire
+         des decks prouve qu'elle sert en semi-transparent, nommé d'après le jeton
+         hexadécimal correspondant. */
+      --blue-primary-rgb: 0, 174, 239;
+      --blue-dark-rgb: 0, 74, 118;
+      --gradient-green-end-rgb: 0, 176, 139;
+
       --text-dark: #0f172a;
       /* Palier fonctionnel de la rampe de texte, entre --text-gray et --text-dark. Il ne
          vient pas de la charte de marque, la rampe de texte existante non plus. */
