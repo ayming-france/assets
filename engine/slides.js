@@ -502,7 +502,11 @@ function fitSlide() {
     let designScale = 1;
     if (wrap.classList.contains('slide-inner')) designScale = 1.2;
     else if (wrap.classList.contains('value-detail-layout')) designScale = 1.15;
-    // Measure at natural size: wrapper box plus the extent of its direct children
+    // Measure at natural size: wrapper box plus the extent of its direct children.
+    // --fit-scale revient à 1 le temps de la mesure, sinon un élément qui
+    // compense l'échelle (le hero de la slide introduction) se mesure déjà
+    // élargi et fait rétrécir le facteur à chaque passage.
+    slide.style.setProperty('--fit-scale', '1');
     wrap.style.transform = 'scale(1)';
     const w = wrap.getBoundingClientRect();
     let minL = w.left, minT = w.top, maxR = w.right, maxB = w.bottom;
@@ -534,6 +538,8 @@ function fitSlide() {
     );
     if (!isFinite(scale) || scale <= 0) scale = designScale;
     wrap.style.transform = 'scale(' + scale + ')';
+    // Publie le facteur pour les éléments plein cadre qui doivent le neutraliser
+    slide.style.setProperty('--fit-scale', String(scale));
   } catch (e) { /* never let auto-fit break navigation */ }
 }
 

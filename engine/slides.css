@@ -1479,7 +1479,10 @@
     }
 
     .intro-hero {
-      width: 100vw;
+      /* fitSlide met la slide à l'échelle et publie ce facteur dans --fit-scale.
+         Le hero est plein cadre par construction, il compense donc cette échelle
+         sur sa largeur pour retomber exactement sur 100vw une fois réduit. */
+      width: calc(100vw / var(--fit-scale, 1));
       max-width: none;
       height: 70vh;
       position: relative;
