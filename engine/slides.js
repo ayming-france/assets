@@ -89,6 +89,18 @@ var AY_STRINGS = {
     kbdFs: 'F plein écran',
     kbdTools: 'T outils',
     kbdShare: 'P partager',
+    pmPdfTitle: 'Préparation de votre PDF',
+    pmPptxTitle: 'Préparation de votre PowerPoint',
+    pmSlideOf: 'Slide {n} sur {t}',
+    pmPdfDone: 'PDF téléchargé',
+    pmPptxDone: 'PowerPoint téléchargé',
+    pmError: 'L’export n’a pas abouti, réessayez dans un instant.',
+    pmQuips: [
+      'On chauffe l’appareil photo', 'On aligne les logos, ils ne tiennent pas en place',
+      'On redresse les drapeaux', 'On vérifie chaque accent, même les plus timides',
+      'On recompte les coches, deux fois', 'On demande aux graphiques de sourire',
+      'On range les marges', 'Dernière retouche',
+    ],
   },
   es: {
     confidential: 'CONFIDENCIAL · Documento propiedad exclusiva de Ayming',
@@ -96,6 +108,18 @@ var AY_STRINGS = {
     kbdFs: 'F pantalla completa',
     kbdTools: 'T herramientas',
     kbdShare: 'P compartir',
+    pmPdfTitle: 'Preparando su PDF',
+    pmPptxTitle: 'Preparando su PowerPoint',
+    pmSlideOf: 'Diapositiva {n} de {t}',
+    pmPdfDone: 'PDF descargado',
+    pmPptxDone: 'PowerPoint descargado',
+    pmError: 'La exportación no se ha completado, inténtelo de nuevo en un momento.',
+    pmQuips: [
+      'Calentando la cámara', 'Alineando los logos, no se están quietos',
+      'Enderezando las banderas', 'Revisando cada tilde, incluso las más tímidas',
+      'Contando las marcas, dos veces', 'Pidiendo a los gráficos que sonrían',
+      'Ordenando los márgenes', 'Último retoque',
+    ],
   },
   en: {
     confidential: 'CONFIDENTIAL · Document the exclusive property of Ayming',
@@ -103,6 +127,18 @@ var AY_STRINGS = {
     kbdFs: 'F full screen',
     kbdTools: 'T tools',
     kbdShare: 'P share',
+    pmPdfTitle: 'Preparing your PDF',
+    pmPptxTitle: 'Preparing your PowerPoint',
+    pmSlideOf: 'Slide {n} of {t}',
+    pmPdfDone: 'PDF downloaded',
+    pmPptxDone: 'PowerPoint downloaded',
+    pmError: 'The export didn’t finish, please try again in a moment.',
+    pmQuips: [
+      'Warming up the camera', 'Lining up the logos, they never stand still',
+      'Straightening the flags', 'Checking every accent, even the shy ones',
+      'Counting the ticks, twice', 'Asking the charts to smile',
+      'Tidying up the margins', 'One last touch',
+    ],
   },
 };
 
@@ -1730,11 +1766,14 @@ window.addEventListener('load', function () {
   }
   var PM_W_IN = 13.333; // page width in inches; height derived from the capture aspect
   // Exclude editor chrome + the logo popover from the captured image. They stay
-  // visible on screen (so the popover keeps showing progress) but aren't baked in.
+  // visible on screen but aren't baked in. pm-progress-card lives in the PARENT
+  // page for the whole export, so it is already part of document.documentElement
+  // when pmOffscreenClone reads outerHTML : it rides along into the copy, and
+  // this is what keeps it out of the actual capture rather than off the page.
   function pmFilter(node) {
     if (node && node.classList) {
       if (node.id === 'pm-panel') return false;
-      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help', 'deck-ink', 'deck-tools', 'driver-overlay', 'driver-popover', 'ay-tour-invite'];
+      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help', 'deck-ink', 'deck-tools', 'driver-overlay', 'driver-popover', 'ay-tour-invite', 'pm-progress-card'];
       for (var i = 0; i < ex.length; i++) if (node.classList.contains(ex[i])) return false;
     }
     // The capture is exactly the viewport (vw x vh in pmCapture), so an <img>
@@ -2036,16 +2075,151 @@ window.addEventListener('load', function () {
     } finally { goToSlide(keep); st.remove(); try { window.animateCounter = _ac; } catch (e) { } }
     return { caps: out, vw: vw, vh: vh, failedImages: failedImages, failedSlides: failedSlides };
   }
-  function pmBtnBusy(btn, on, label) { if (!btn) return; btn.style.pointerEvents = on ? 'none' : ''; btn.style.opacity = on ? '.6' : ''; if (on) { btn.dataset.prev = btn.innerHTML; btn.textContent = label || 'Génération…'; } else { btn.innerHTML = btn.dataset.prev || btn.innerHTML; } }
-  // Un seul toast final pour les deux types de perte possibles : des images
-  // manquantes dans une slide presente, et des slides entieres absentes du
-  // fichier (pmCapture, resilience par slide). Les deux se combinent sur une
-  // meme ligne plutot que d'ecraser l'une avec l'autre.
-  function pmDownloadToast(label, res) {
+  // Un simple dimmer : le retour visuel de progression vit desormais dans la
+  // carte (pm-progress-card), le libelle du lien n'a plus besoin de compter.
+  function pmBtnBusy(btn, on) { if (!btn) return; btn.style.pointerEvents = on ? 'none' : ''; btn.style.opacity = on ? '.6' : ''; }
+  // Les deux types de perte possibles, des images manquantes dans une slide
+  // presente et des slides entieres absentes du fichier (pmCapture, resilience
+  // par slide), combines sur une seule ligne plutot que l'un ecrasant l'autre.
+  // Sert de sous-titre a la carte quand l'export reussit avec une reserve.
+  function pmDownloadExtra(res) {
     var parts = [];
     if (res.failedSlides && res.failedSlides.length) parts.push(res.failedSlides.length + ' slide(s) non exportée(s)');
     if (res.failedImages && res.failedImages.length) parts.push(res.failedImages.length + ' image(s) manquante(s)');
-    return parts.length ? (label + ', ' + parts.join(', ') + '.') : (label + '.');
+    return parts.join(', ');
+  }
+  // ===== Carte de progression d'export =====
+  // Remplace le toast "Génération du..." et le toast final, plus le libelle du
+  // lien du popover qui comptait les slides. Vit entierement dans la PAGE
+  // REELLE, jamais dans la copie hors ecran de pmOffscreenClone : elle doit
+  // deja exister au moment du clic pour rester visible tout du long, donc au
+  // moment ou pmOffscreenClone lit document.documentElement.outerHTML elle en
+  // fait deja partie. C'est pmFilter, plus haut (classe 'pm-progress-card'),
+  // qui l'exclut de la capture elle-meme, pas un ordre d'insertion.
+  var pmExportBusy = false;
+  var pmCardQuipTimer = null;
+  var PM_CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.4l5 5.2L19.5 6.6"/></svg>';
+  var PM_ERR_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16.3" r=".9" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="9"/></svg>';
+  function pmCardEl() { return document.querySelector('.pm-progress-card'); }
+  function pmCardCss() {
+    if (document.getElementById('pm-pc-css')) return;
+    var st = document.createElement('style');
+    st.id = 'pm-pc-css';
+    st.textContent =
+      '.pm-progress-card{position:fixed;left:50%;bottom:calc(var(--banner-h, 46px) + 18px);transform:translateX(-50%);z-index:100050;width:330px;max-width:calc(100vw - 32px);background:' + AY_TOKENS['tint-white'] + ';color:' + AY_TOKENS['ui-ink'] + ';border-radius:16px;box-shadow:0 18px 48px rgba(2,30,60,.28);padding:16px 18px 14px;font-family:Lato,system-ui,Arial,sans-serif;animation:pmPcRise .4s cubic-bezier(.22,1,.36,1) both}'
+      + '@keyframes pmPcRise{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}'
+      + '.pm-pc-row{display:flex;align-items:center;gap:18px}'
+      // La colonne de l'icone est volontairement plus large que la carte visible
+      // du dessus : les deux cartes decalees derriere (translate + rotate) ont
+      // besoin de cette marge pour ne jamais deborder sur l'ecart avec le texte.
+      + '.pm-pc-pile{position:relative;flex:0 0 auto}'
+      // PDF : pages debout, coin corne en haut a droite de la feuille du dessus.
+      // PowerPoint : diapositives couchees 16:9, filet degrade en haut, comme la
+      // maquette de reference. Meme jeu de cartes dans les deux cas.
+      + '.pm-progress-card.fmt-pdf .pm-pc-pile{width:38px;height:46px}'
+      + '.pm-progress-card.fmt-pptx .pm-pc-pile{width:54px;height:36px}'
+      + '.pm-pc-pile b{position:absolute;inset:3px;border-radius:5px;background:' + AY_TOKENS['tint-white'] + ';border:1.5px solid rgba(0,174,239,.45);box-shadow:0 2px 6px rgba(0,74,118,.14)}'
+      + '.pm-pc-pile b:nth-child(1){transform:translate(-3px,3px) rotate(-6deg);opacity:.5}'
+      + '.pm-pc-pile b:nth-child(2){transform:translate(-1.5px,1.5px) rotate(-3deg);opacity:.75}'
+      + '.pm-progress-card.fmt-pptx .pm-pc-pile b:nth-child(3)::after{content:"";position:absolute;left:6px;right:9px;top:6px;height:3.5px;border-radius:3px;background:linear-gradient(90deg,' + AY_TOKENS['gradient-blue-start'] + ',' + AY_TOKENS['gradient-green-end'] + ')}'
+      + '.pm-progress-card.fmt-pdf .pm-pc-pile b:nth-child(3)::before{content:"";position:absolute;top:0;right:0;width:0;height:0;border-style:solid;border-width:0 9px 9px 0;border-color:transparent ' + AY_TOKENS['ui-mist-3'] + ' transparent transparent;border-top-right-radius:5px}'
+      // L'envol part vers le haut et legerement vers la gauche, a l'oppose du
+      // texte qui est a droite de la pile, et s'est deja efface avant de
+      // sortir de la carte (opacite a 0 bien avant le bord haut). Le texte
+      // garde en plus un z-index au-dessus de la pile, au cas ou.
+      + '.pm-pc-pile b.pm-pc-fly{animation:pmPcFly .85s cubic-bezier(.4,0,.2,1) forwards;z-index:0}'
+      + '@keyframes pmPcFly{0%{transform:none;opacity:1}45%{transform:translate(-9px,-22px) rotate(-9deg);opacity:.7}100%{transform:translate(-15px,-38px) rotate(-15deg);opacity:0}}'
+      // Etiquette PDF/PPT posee sur la pile, a cheval sur le bord bas.
+      + '.pm-pc-badge{position:absolute;left:50%;bottom:-3px;transform:translateX(-50%);background:' + AY_TOKENS['tint-white'] + ';color:' + AY_TOKENS['blue-dark'] + ';font-family:Lato,system-ui,Arial,sans-serif;font-weight:900;font-size:8px;letter-spacing:.5px;padding:1px 5px;border-radius:4px;box-shadow:0 1px 3px rgba(0,74,118,.25);border:1px solid rgba(0,74,118,.15);z-index:2}'
+      + '.pm-pc-text{min-width:0;flex:1 1 auto;position:relative;z-index:1}'
+      + '.pm-pc-title{font-size:13.5px;font-weight:800;color:' + AY_TOKENS['blue-dark'] + ';line-height:1.25;white-space:nowrap}'
+      + '.pm-pc-count{font-size:12px;color:' + AY_TOKENS['ui-slate'] + ';margin-top:2px;font-variant-numeric:tabular-nums}'
+      + '.pm-pc-bar{height:6px;border-radius:6px;background:' + AY_TOKENS['ui-mist-1'] + ';overflow:hidden;margin-top:13px}'
+      + '.pm-pc-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,' + AY_TOKENS['gradient-blue-start'] + ',' + AY_TOKENS['gradient-green-end'] + ');border-radius:6px;transition:width .35s ease}'
+      + '.pm-pc-status{font-size:12px;color:' + AY_TOKENS['ui-slate'] + ';margin-top:9px;min-height:15px}'
+      + '.pm-pc-status span{display:inline-block;opacity:0;transition:opacity .35s ease}'
+      + '.pm-pc-status span.show{opacity:1}'
+      + '.pm-pc-ok{width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:' + AY_TOKENS['gradient-green-end'] + ';display:flex;align-items:center;justify-content:center;animation:pmPcPop .45s cubic-bezier(.3,1.6,.5,1) both}'
+      + '.pm-pc-ok svg{width:18px;height:18px;color:' + AY_TOKENS['tint-white'] + '}'
+      + '@keyframes pmPcPop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}'
+      + '.pm-pc-err{width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:' + AY_TOKENS['ui-navy'] + ';display:flex;align-items:center;justify-content:center}'
+      + '.pm-pc-err svg{width:16px;height:16px;color:' + AY_TOKENS['tint-white'] + '}'
+      + '@media (prefers-reduced-motion: reduce){.pm-progress-card{animation:none}.pm-pc-pile b.pm-pc-fly{display:none}.pm-pc-ok{animation:none}}';
+    document.head.appendChild(st);
+  }
+  function pmCardRemove() {
+    var el = pmCardEl(); if (el) el.remove();
+    if (pmCardQuipTimer) { clearTimeout(pmCardQuipTimer); pmCardQuipTimer = null; }
+  }
+  function pmCardShow(kind) {
+    pmCardCss();
+    pmCardRemove();
+    var card = document.createElement('div');
+    card.className = 'pm-progress-card fmt-' + kind;
+    card.setAttribute('role', 'status');
+    card.setAttribute('aria-live', 'polite');
+    card.innerHTML =
+      '<div class="pm-pc-row">'
+      + '<div class="pm-pc-pile"><b></b><b></b><b></b><span class="pm-pc-badge">' + (kind === 'pptx' ? 'PPT' : 'PDF') + '</span></div>'
+      + '<div class="pm-pc-text"><div class="pm-pc-title"></div><div class="pm-pc-count"></div></div>'
+      + '</div>'
+      + '<div class="pm-pc-bar"><i></i></div>'
+      + '<div class="pm-pc-status"><span></span></div>';
+    card.querySelector('.pm-pc-title').textContent = ayT(kind === 'pptx' ? 'pmPptxTitle' : 'pmPdfTitle');
+    document.body.appendChild(card);
+    return card;
+  }
+  // Avance d'une slide : compteur, barre, une carte qui s'envole de la pile
+  // (desactivee sous reduced motion, CSS ci-dessus), et la ligne de statut qui
+  // tourne tous les 3 crans environ sur un fondu doux plutot qu'un changement sec.
+  function pmCardTick(n, t) {
+    var card = pmCardEl(); if (!card || !n) return;
+    var count = card.querySelector('.pm-pc-count');
+    if (count) count.textContent = ayT('pmSlideOf').replace('{n}', n).replace('{t}', t);
+    var bar = card.querySelector('.pm-pc-bar i');
+    if (bar) bar.style.width = Math.round(n / t * 100) + '%';
+    var top = card.querySelector('.pm-pc-pile b:nth-child(3)');
+    if (top) {
+      var fly = top.cloneNode(); fly.className = 'pm-pc-fly'; top.parentNode.appendChild(fly);
+      setTimeout(function () { fly.remove(); }, 900);
+    }
+    var quips = ayT('pmQuips') || [];
+    if (!quips.length) return;
+    var idx = Math.min(quips.length - 1, Math.floor((n - 1) / 3));
+    var span = card.querySelector('.pm-pc-status span');
+    if (span && span.dataset.idx !== String(idx)) {
+      span.dataset.idx = String(idx);
+      span.classList.remove('show');
+      clearTimeout(pmCardQuipTimer);
+      pmCardQuipTimer = setTimeout(function () {
+        span.textContent = quips[idx] + '…';
+        span.classList.add('show');
+      }, 180);
+    }
+  }
+  function pmCardFinish(kind, extraMsg) {
+    var card = pmCardEl(); if (!card) return;
+    clearTimeout(pmCardQuipTimer);
+    var pile = card.querySelector('.pm-pc-pile');
+    if (pile) pile.outerHTML = '<div class="pm-pc-ok">' + PM_CHECK_SVG + '</div>';
+    var title = card.querySelector('.pm-pc-title');
+    if (title) title.textContent = ayT(kind === 'pptx' ? 'pmPptxDone' : 'pmPdfDone');
+    var count = card.querySelector('.pm-pc-count');
+    if (count) count.textContent = extraMsg || '';
+    var bar = card.querySelector('.pm-pc-bar i'); if (bar) bar.style.width = '100%';
+    var status = card.querySelector('.pm-pc-status'); if (status) status.style.display = 'none';
+    setTimeout(pmCardRemove, 3500);
+  }
+  function pmCardError(kind) {
+    var card = pmCardEl() || pmCardShow(kind);
+    clearTimeout(pmCardQuipTimer);
+    var pile = card.querySelector('.pm-pc-pile');
+    if (pile) pile.outerHTML = '<div class="pm-pc-err">' + PM_ERR_SVG + '</div>';
+    var count = card.querySelector('.pm-pc-count');
+    if (count) count.textContent = ayT('pmError');
+    var bar = card.querySelector('.pm-pc-bar i'); if (bar) bar.style.width = '0%';
+    var status = card.querySelector('.pm-pc-status'); if (status) status.style.display = 'none';
+    setTimeout(pmCardRemove, 3500);
   }
   // Rend chaque slide comme si la fenetre du commercial faisait exactement
   // 1920x1080, quelle que soit sa vraie fenetre (portable sans plein ecran,
@@ -2114,10 +2288,13 @@ window.addEventListener('load', function () {
     }
   }
   async function pmExportPptx(btn) {
-    pmBtnBusy(btn, true); toast('Génération du PowerPoint…');
+    if (pmExportBusy) return; pmExportBusy = true;
+    var pop = document.querySelector('.pdf-popover'); if (pop) pop.classList.remove('visible');
+    pmBtnBusy(btn, true);
+    pmCardShow('pptx');
     try {
       await pmLoadScript(ENGINE_BASE + 'pptxgen.bundle.js');
-      var res = await pmCaptureOffscreen(function (n, t) { if (btn) btn.textContent = 'Slide ' + n + '/' + t + '…'; });
+      var res = await pmCaptureOffscreen(function (n, t) { pmCardTick(n, t); });
       var s = PM_W_IN / res.vw, PH = PM_W_IN * res.vh / res.vw;
       var pptx = new PptxGenJS(); pptx.defineLayout({ name: 'AY', width: PM_W_IN, height: PH }); pptx.layout = 'AY';
       res.caps.forEach(function (c) {
@@ -2126,15 +2303,19 @@ window.addEventListener('load', function () {
       });
       await pptx.writeFile({ fileName: deckKey + '-personnalise.pptx' });
       track('deck_download', { format: 'pptx', hidden_count: state.slidesHidden.length });
-      toast(pmDownloadToast('PowerPoint téléchargé', res));
-    } catch (err) { if (window.console) console.warn('[perso] pptx', err); toast('Export PowerPoint indisponible.'); }
+      pmCardFinish('pptx', pmDownloadExtra(res));
+    } catch (err) { if (window.console) console.warn('[perso] pptx', err); pmCardError('pptx'); }
     pmBtnBusy(btn, false);
+    pmExportBusy = false;
   }
   async function pmExportPdf(btn) {
-    pmBtnBusy(btn, true); toast('Génération du PDF…');
+    if (pmExportBusy) return; pmExportBusy = true;
+    var pop = document.querySelector('.pdf-popover'); if (pop) pop.classList.remove('visible');
+    pmBtnBusy(btn, true);
+    pmCardShow('pdf');
     try {
       await pmLoadScript(ENGINE_BASE + 'jspdf.umd.min.js');
-      var res = await pmCaptureOffscreen(function (n, t) { if (btn) btn.textContent = 'Slide ' + n + '/' + t + '…'; });
+      var res = await pmCaptureOffscreen(function (n, t) { pmCardTick(n, t); });
       var s = PM_W_IN / res.vw, PH = PM_W_IN * res.vh / res.vw;
       var JsPDF = window.jspdf.jsPDF, pdf = new JsPDF({ orientation: 'landscape', unit: 'in', format: [PM_W_IN, PH] });
       res.caps.forEach(function (c, idx) {
@@ -2144,9 +2325,10 @@ window.addEventListener('load', function () {
       });
       pdf.save(deckKey + '-personnalise.pdf');
       track('deck_download', { format: 'pdf', hidden_count: state.slidesHidden.length });
-      toast(pmDownloadToast('PDF téléchargé', res));
-    } catch (err) { if (window.console) console.warn('[perso] pdf', err); toast('Export PDF indisponible.'); }
+      pmCardFinish('pdf', pmDownloadExtra(res));
+    } catch (err) { if (window.console) console.warn('[perso] pdf', err); pmCardError('pdf'); }
     pmBtnBusy(btn, false);
+    pmExportBusy = false;
   }
   // Single download/share entry = the Ayming-logo popover (engine). Expose the
   // generators + an "edited?" test so the popover serves the static deck when
