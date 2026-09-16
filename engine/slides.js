@@ -1745,6 +1745,83 @@ window.addEventListener('load', function () {
     }
     return function undo() { restore.forEach(function (x) { x.svg.remove(); x.img.style.display = ''; }); };
   }
+  // html-to-image rasterizes a slide by cloning it into an SVG
+  // <foreignObject> and painting that as one big image. Measured on a
+  // logo-heavy slide (a Clients slide can carry 20 to 60+ logos): under
+  // WebKit the same subset of logos is missing on every single capture, a
+  // fixed set, not a random one, and it is NOT a fetch failure (re-fetching
+  // every logo ourselves first, so html-to-image never touches the network,
+  // changes nothing). Lining up each missing file's native pixel count
+  // against the ones that do render draws a clean line: every logo at or
+  // above roughly 140k source pixels is dropped, every one below about 95k
+  // renders, regardless of file size in bytes. WebKit is not finishing the
+  // decode of the larger images before it paints the outer SVG image, and
+  // unlike a plain <img>, html-to-image's foreignObject never waits on
+  // them. These logos are 400 to 2300px wide source files displayed at
+  // under 200px on the slide, so the fix is to stop asking WebKit to decode
+  // 15x more pixels than are ever shown: draw each one to a canvas sized to
+  // its actual on-slide box (at the capture's pixelRatio) before handing it
+  // to html-to-image, so nothing crosses the threshold. Restored right
+  // after the capture so the live page keeps using the full-resolution src.
+  async function pmInlineImages(root) {
+    if (!root) return { undo: function () { }, failed: [] };
+    var imgs = root.querySelectorAll('img[src^="http"]'), restore = [], failed = [];
+    await Promise.all(Array.prototype.map.call(imgs, function (img) {
+      var original = img.src;
+      // Wrapped in Promise.resolve().then(...) so a SYNCHRONOUS throw anywhere
+      // in this chain (getBoundingClientRect, AbortController, canvas draw) is
+      // funnelled into the same .catch() as a network failure, instead of
+      // escaping as an unhandled rejection that would abort the whole export
+      // for every other logo too.
+      return Promise.resolve().then(function () {
+        var rect = img.getBoundingClientRect();
+        // fetch() has no built-in deadline: one stalled request would hang
+        // the whole export forever instead of just losing one logo. 8s is
+        // generous for a same-origin logo file and short enough not to
+        // stall the button.
+        var ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+        var timer = ac ? setTimeout(function () { ac.abort(); }, 8000) : null;
+        return fetch(original, { mode: 'cors', signal: ac ? ac.signal : undefined }).then(function (res) {
+          if (timer) clearTimeout(timer);
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.blob();
+        }).then(function (blob) {
+          var url = URL.createObjectURL(blob);
+          return new Promise(function (resolve, reject) {
+            var im = new Image();
+            im.onload = function () { resolve(im); };
+            im.onerror = reject;
+            im.src = url;
+          }).finally(function () { URL.revokeObjectURL(url); });
+        }).then(function (bitmap) {
+          // Downscale to the box it actually occupies on the slide (2x,
+          // matching pmCapture's own pixelRatio), never upscale past the
+          // source's own size.
+          var w = Math.min(bitmap.naturalWidth || bitmap.width, Math.max(1, Math.round((rect.width || bitmap.width) * 2)));
+          var h = Math.min(bitmap.naturalHeight || bitmap.height, Math.max(1, Math.round((rect.height || bitmap.height) * 2)));
+          var canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
+          return canvas.toDataURL('image/png');
+        }).then(function (dataUrl) {
+          restore.push({ img: img, src: original });
+          img.src = dataUrl;
+        }).catch(function (e) {
+          if (timer) clearTimeout(timer);
+          throw e;
+        });
+      }).catch(function (e) {
+        // Catches a rejection from anywhere above, including a synchronous
+        // throw before the fetch even starts (getBoundingClientRect, the
+        // AbortController construction): without this outer catch, that kind
+        // of failure would reject the whole Promise.all and lose every other
+        // logo along with this one.
+        failed.push(original);
+        if (window.console) console.warn('[export] image indisponible pour la capture : ' + original, e);
+      });
+    }));
+    return { undo: function () { restore.forEach(function (x) { x.img.src = x.src; }); }, failed: failed };
+  }
   async function pmCapture(progress) {
     var st = document.createElement('style');
     // freeze animations + kill pointer-events so no element stays in :hover
@@ -1766,7 +1843,7 @@ window.addEventListener('load', function () {
       + '.testimonial-back{display:none!important}'
       + (window.PM_LATO_FONTFACE_CSS || '');
     document.head.appendChild(st);
-    var keep = currentSlide, out = [], visible = [], _ac = window.animateCounter;
+    var keep = currentSlide, out = [], visible = [], _ac = window.animateCounter, failedImages = [];
     // Capture the ACTUAL viewport: fitSlide lays content out for the real window
     // (scaling up to 1.2x), so a hardcoded size would crop/misscale. This matches
     // exactly what's on screen. Page aspect is derived from vw/vh below.
@@ -1782,8 +1859,17 @@ window.addEventListener('load', function () {
         goToSlide(visible[j]);
         await new Promise(function (r) { setTimeout(r, 450); });
         var undoMaps = await pmInlineMaps(document.querySelector('.slide.active'));
-        var img = await htmlToImage.toJpeg(document.body, { quality: 0.92, pixelRatio: 2, width: vw, height: vh, backgroundColor: AY_TOKENS['bg-white'], cacheBust: true, filter: pmFilter });
-        undoMaps();
+        var inlined = await pmInlineImages(document.querySelector('.slide.active'));
+        // Restauration garantie meme si la capture echoue : sinon la carte inline en
+        // position fixe et les logos reduits restent a l'ecran pendant la presentation.
+        var img;
+        try {
+          img = await htmlToImage.toJpeg(document.body, { quality: 0.92, pixelRatio: 2, width: vw, height: vh, backgroundColor: AY_TOKENS['bg-white'], cacheBust: true, filter: pmFilter });
+        } finally {
+          undoMaps();
+          inlined.undo();
+        }
+        if (inlined.failed.length) failedImages = failedImages.concat(inlined.failed);
         var links = [];
         document.querySelectorAll('.slide.active a[href]').forEach(function (a) {
           var href = a.href; if (!href || href.indexOf('javascript:') === 0) return;
@@ -1795,7 +1881,7 @@ window.addEventListener('load', function () {
         out.push({ img: img, links: links });
       }
     } finally { goToSlide(keep); st.remove(); try { window.animateCounter = _ac; } catch (e) { } }
-    return { caps: out, vw: vw, vh: vh };
+    return { caps: out, vw: vw, vh: vh, failedImages: failedImages };
   }
   function pmBtnBusy(btn, on, label) { if (!btn) return; btn.style.pointerEvents = on ? 'none' : ''; btn.style.opacity = on ? '.6' : ''; if (on) { btn.dataset.prev = btn.innerHTML; btn.textContent = label || 'Génération…'; } else { btn.innerHTML = btn.dataset.prev || btn.innerHTML; } }
   async function pmExportPptx(btn) {
@@ -1810,7 +1896,8 @@ window.addEventListener('load', function () {
         c.links.forEach(function (l) { sl.addText(' ', { x: l.x * s, y: l.y * s, w: l.w * s, h: l.h * s, hyperlink: { url: l.url }, fill: { color: 'FFFFFF', transparency: 100 }, line: { type: 'none' }, margin: 0 }); });
       });
       await pptx.writeFile({ fileName: deckKey + '-personnalise.pptx' });
-      track('deck_download', { format: 'pptx', hidden_count: state.slidesHidden.length }); toast('PowerPoint téléchargé.');
+      track('deck_download', { format: 'pptx', hidden_count: state.slidesHidden.length });
+      toast(res.failedImages.length ? 'PowerPoint téléchargé, ' + res.failedImages.length + ' image(s) manquante(s).' : 'PowerPoint téléchargé.');
     } catch (err) { if (window.console) console.warn('[perso] pptx', err); toast('Export PowerPoint indisponible.'); }
     pmBtnBusy(btn, false);
   }
@@ -1827,7 +1914,8 @@ window.addEventListener('load', function () {
         c.links.forEach(function (l) { pdf.link(l.x * s, l.y * s, l.w * s, l.h * s, { url: l.url }); });
       });
       pdf.save(deckKey + '-personnalise.pdf');
-      track('deck_download', { format: 'pdf', hidden_count: state.slidesHidden.length }); toast('PDF téléchargé.');
+      track('deck_download', { format: 'pdf', hidden_count: state.slidesHidden.length });
+      toast(res.failedImages.length ? 'PDF téléchargé, ' + res.failedImages.length + ' image(s) manquante(s).' : 'PDF téléchargé.');
     } catch (err) { if (window.console) console.warn('[perso] pdf', err); toast('Export PDF indisponible.'); }
     pmBtnBusy(btn, false);
   }
