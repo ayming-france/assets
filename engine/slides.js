@@ -1630,6 +1630,42 @@ window.addEventListener('load', function () {
     }
     return true;
   }
+  // A map slide (spain-map.svg, eu-map*.svg...) shows city labels drawn INSIDE the
+  // SVG file itself, in Lato. WebKit renders an <img src="*.svg"> in a sandboxed
+  // image context that refuses any custom @font-face there, even one embedded as a
+  // data URI inside that same SVG's own <style>: the label falls back to the SVG's
+  // second font-family choice ('Arial-Black'), wider than Lato, so it overshoots
+  // its pin. Swapping the <img> for an inline <svg> during capture puts the label
+  // back in the main document, which DOES see PM_LATO_FONTFACE_CSS. Restored right
+  // after the capture so the live page keeps using the lighter <img>.
+  async function pmInlineMaps(root) {
+    if (!root) return function () { };
+    var imgs = root.querySelectorAll('img[src*="/maps/"]'), restore = [];
+    for (var i = 0; i < imgs.length; i++) {
+      var img = imgs[i];
+      if (!/\.svg(\?|$)/i.test(img.src)) continue;
+      try {
+        var r = img.getBoundingClientRect();
+        var res = await fetch(img.src, { mode: 'cors' });
+        var text = await res.text();
+        var wrap = document.createElement('div');
+        wrap.innerHTML = text;
+        var svg = wrap.querySelector('svg');
+        if (!svg || !r.width || !r.height) continue;
+        svg.setAttribute('width', r.width);
+        svg.setAttribute('height', r.height);
+        // Fixed + viewport coordinates from the img's own box: the swap must not
+        // hand the flex/grid layout a second item to arrange, only draw over the
+        // exact rectangle the img already occupies.
+        svg.style.cssText = 'position:fixed;left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px;z-index:2;';
+        svg.className = img.className;
+        document.body.appendChild(svg);
+        img.style.display = 'none';
+        restore.push({ img: img, svg: svg });
+      } catch (e) { }
+    }
+    return function undo() { restore.forEach(function (x) { x.svg.remove(); x.img.style.display = ''; }); };
+  }
   async function pmCapture(progress) {
     var st = document.createElement('style');
     // freeze animations + kill pointer-events so no element stays in :hover
@@ -1637,11 +1673,19 @@ window.addEventListener('load', function () {
     // Also flatten 3D flip cards (testimonials) to their FRONT face: html-to-image
     // can't do preserve-3d/backface-visibility, so the rotateY(180) back renders
     // mirrored. Force no rotation + hide the back so only the readable cover shows.
+    // The Google Fonts <link> is cross origin without a crossorigin attribute, so
+    // html-to-image cannot read its cssRules to embed Lato in the captured SVG
+    // (fails silently in Chromium, throws a SecurityError in WebKit). Without an
+    // embedded @font-face the capture falls back to a wider system font, which is
+    // what cuts the title, wraps the table headers and overlaps the client stats.
+    // PM_LATO_FONTFACE_CSS (loaded on demand, see pmExportPptx/pmExportPdf) is
+    // already a base64 @font-face, so html-to-image just clones it, no fetch needed.
     st.textContent = '*,*::before,*::after{animation-duration:.001s!important;animation-delay:0s!important;transition-duration:.001s!important}'
       + '*{pointer-events:none!important}'
       + '.testimonial-card-inner{transform:none!important;transform-style:flat!important}'
       + '.testimonial-front{transform:none!important;backface-visibility:visible!important;-webkit-backface-visibility:visible!important}'
-      + '.testimonial-back{display:none!important}';
+      + '.testimonial-back{display:none!important}'
+      + (window.PM_LATO_FONTFACE_CSS || '');
     document.head.appendChild(st);
     var keep = currentSlide, out = [], visible = [], _ac = window.animateCounter;
     // Capture the ACTUAL viewport: fitSlide lays content out for the real window
@@ -1658,7 +1702,9 @@ window.addEventListener('load', function () {
         if (progress) progress(j + 1, visible.length);
         goToSlide(visible[j]);
         await new Promise(function (r) { setTimeout(r, 450); });
+        var undoMaps = await pmInlineMaps(document.querySelector('.slide.active'));
         var img = await htmlToImage.toJpeg(document.body, { quality: 0.92, pixelRatio: 2, width: vw, height: vh, backgroundColor: AY_TOKENS['bg-white'], cacheBust: true, filter: pmFilter });
+        undoMaps();
         var links = [];
         document.querySelectorAll('.slide.active a[href]').forEach(function (a) {
           var href = a.href; if (!href || href.indexOf('javascript:') === 0) return;
@@ -1676,7 +1722,7 @@ window.addEventListener('load', function () {
   async function pmExportPptx(btn) {
     pmBtnBusy(btn, true); toast('Génération du PowerPoint…');
     try {
-      await pmLoadScript(ENGINE_BASE + 'html-to-image.js'); await pmLoadScript(ENGINE_BASE + 'pptxgen.bundle.js');
+      await pmLoadScript(ENGINE_BASE + 'html-to-image.js'); await pmLoadScript(ENGINE_BASE + 'pptxgen.bundle.js'); await pmLoadScript(ENGINE_BASE + 'vendor/lato/lato-embed.js');
       var res = await pmCapture(function (n, t) { if (btn) btn.textContent = 'Slide ' + n + '/' + t + '…'; });
       var s = PM_W_IN / res.vw, PH = PM_W_IN * res.vh / res.vw;
       var pptx = new PptxGenJS(); pptx.defineLayout({ name: 'AY', width: PM_W_IN, height: PH }); pptx.layout = 'AY';
@@ -1692,7 +1738,7 @@ window.addEventListener('load', function () {
   async function pmExportPdf(btn) {
     pmBtnBusy(btn, true); toast('Génération du PDF…');
     try {
-      await pmLoadScript(ENGINE_BASE + 'html-to-image.js'); await pmLoadScript(ENGINE_BASE + 'jspdf.umd.min.js');
+      await pmLoadScript(ENGINE_BASE + 'html-to-image.js'); await pmLoadScript(ENGINE_BASE + 'jspdf.umd.min.js'); await pmLoadScript(ENGINE_BASE + 'vendor/lato/lato-embed.js');
       var res = await pmCapture(function (n, t) { if (btn) btn.textContent = 'Slide ' + n + '/' + t + '…'; });
       var s = PM_W_IN / res.vw, PH = PM_W_IN * res.vh / res.vw;
       var JsPDF = window.jspdf.jsPDF, pdf = new JsPDF({ orientation: 'landscape', unit: 'in', format: [PM_W_IN, PH] });
