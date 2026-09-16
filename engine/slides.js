@@ -119,6 +119,25 @@ function ayT(key) {
 }
 
 
+// Un export (voir pmCapture) rejoue tout le deck dans un iframe hors ecran a
+// 1920x1080 pour obtenir une geometrie fixe. Ce clone reinitialise TOUT le
+// moteur, y compris ce bloc Umami plus bas : sans ce marqueur, chaque export
+// enverrait une session fantome (page vue humaine, evenements deck_*) au
+// tableau de bord reel. Lu via window.frameElement, seul moyen pour un
+// document dans un iframe de savoir depuis SON PROPRE contexte global si
+// c'est bien l'element que pmCapture a cree et marque.
+var PM_OFFSCREEN = (function () {
+  try { return !!(window.frameElement && window.frameElement.hasAttribute('data-pm-offscreen')); }
+  catch (e) { return false; }
+})();
+// La copie hors ecran partage le stockage de la vraie page, mais son adresse n'a pas
+// le parametre pm= : elle se croirait rep et ecrirait ay-role=rep chez un client qui
+// exporte depuis un lien partage. Toute ecriture est neutralisee, dans son seul
+// royaume JS, la vraie page garde son propre Storage.prototype.
+if (PM_OFFSCREEN) {
+  try { Storage.prototype.setItem = Storage.prototype.removeItem = Storage.prototype.clear = function () {}; } catch (e) { }
+}
+
 // ===== Umami analytics (self-hosted on Vercel, privacy-friendly) =====
 // Injected once here so every deck that loads the shared engine is tracked with
 // zero per-deck markup. Pageviews are automatic; the deck's own custom events
@@ -126,6 +145,7 @@ function ayT(key) {
 // internal track() helper further down.
 (function injectUmami() {
   try {
+    if (PM_OFFSCREEN) return; // pas de session fantome pour une capture d'export
     if (window.__umamiInjected) return; window.__umamiInjected = true;
     // Allow-list: only the client-facing offer decks are tracked. Internal /
     // personal decks (marketing dashboards, lead prioritization, abo-dat, the
@@ -921,11 +941,18 @@ window.addEventListener('load', function () {
     if (_mb) sessionStorage.setItem('ay-by', decodeURIComponent(_mb[1]));
   } catch (e) {}
   (function ayIdentify() {
-    if (!AY_RECIPIENT) return;
+    if (PM_OFFSCREEN || !AY_RECIPIENT) return;
     if (window.umami && window.umami.identify) { try { window.umami.identify(AY_RECIPIENT, { role: AY_ROLE }); } catch (e) {} }
     else setTimeout(ayIdentify, 300);
   })();
   function track(event, detail) {
+    // Cloning the live page for an offscreen export (pmOffscreenClone) also
+    // clones whatever injectUmami already appended to <head> at runtime, the
+    // umami <script> tag itself, so window.umami exists in the clone even
+    // though injectUmami's own gate never re-runs there. Guard here too,
+    // the actual send path, or every slide navigated during capture would
+    // bridge a real event to the dashboard for an export nobody watched.
+    if (PM_OFFSCREEN) return;
     window.dataLayer.push(Object.assign({ event: event }, detail || {}));
     // Attribute the event to a rep: their own first name when they are logged
     // in as "rep", else the name of the rep who shared the "?by=" link with
@@ -1671,7 +1698,10 @@ window.addEventListener('load', function () {
     try { var s = Array.prototype.slice.call(document.scripts).filter(function (x) { return /\/engine\/slides\.js/.test(x.src); })[0]; return s ? s.src.replace(/slides\.js.*$/, '') : 'https://ayming-france.github.io/assets/engine/'; }
     catch (e) { return 'https://ayming-france.github.io/assets/engine/'; }
   })();
-  function pmLoadScript(src) { return new Promise(function (res, rej) { if (document.querySelector('script[data-pm="' + src + '"]')) return res(); var s = document.createElement('script'); s.src = src; s.dataset.pm = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
+  // doc optionnel : charge le script dans un AUTRE document (l'iframe hors
+  // ecran de pmOffscreenClone), qui a sa propre balise <head> et son propre
+  // garde-fou data-pm, plutot que dans la page du commercial.
+  function pmLoadScript(src, doc) { doc = doc || document; return new Promise(function (res, rej) { if (doc.querySelector('script[data-pm="' + src + '"]')) return res(); var s = doc.createElement('script'); s.src = src; s.dataset.pm = src; s.onload = res; s.onerror = rej; doc.head.appendChild(s); }); }
   // Copying can fail for reasons the rep never sees: the clipboard permission
   // refused, the document not focused, an older browser. A silent failure is the
   // worst outcome, since the success toast sends them off to paste whatever the
@@ -1929,9 +1959,12 @@ window.addEventListener('load', function () {
       + (window.PM_LATO_FONTFACE_CSS || '');
     document.head.appendChild(st);
     var keep = currentSlide, out = [], visible = [], _ac = window.animateCounter, failedImages = [], failedSlides = [];
-    // Capture the ACTUAL viewport: fitSlide lays content out for the real window
-    // (scaling up to 1.2x), so a hardcoded size would crop/misscale. This matches
-    // exactly what's on screen. Page aspect is derived from vw/vh below.
+    // pmCapture runs inside pmOffscreenClone's 1920x1080 iframe (see
+    // pmExportPptx/pmExportPdf), a REAL window of that size, not the rep's
+    // own. fitSlide lays content out for it exactly like it would for any
+    // other window, so reading vw/vh here still matches what was just
+    // rendered, it is simply always 1920x1080 now, page aspect always 16:9
+    // regardless of the rep's real browser window.
     var vw = Math.round(window.innerWidth), vh = Math.round(window.innerHeight);
     // Stat counters (animateIntroCounters) re-run on each slide entry and count
     // 0->target over ~800ms; freeze them at their CURRENT value so an edited
@@ -1942,9 +1975,32 @@ window.addEventListener('load', function () {
       for (var j = 0; j < visible.length; j++) {
         if (progress) progress(j + 1, visible.length);
         goToSlide(visible[j]);
-        await new Promise(function (r) { setTimeout(r, 450); });
         var active = document.querySelector('.slide.active');
         var chapter = (active && active.getAttribute('data-chapter')) || ('slide ' + (j + 1));
+        // Wait for the REAL signals instead of a flat delay : fonts (a font
+        // still loading paints with a wider fallback, cutting titles) and
+        // every image on this slide decoded (a still-loading photo paints
+        // blank). A per-slide ceiling keeps a font or image that never
+        // settles from stalling the whole export.
+        await Promise.race([
+          (async function () {
+            try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) { }
+            var imgs = active ? active.querySelectorAll('img') : [];
+            await Promise.all(Array.prototype.map.call(imgs, function (im) {
+              if (typeof im.decode === 'function') return im.decode().catch(function () { });
+              if (im.complete) return Promise.resolve();
+              return new Promise(function (res) { im.addEventListener('load', res, { once: true }); im.addEventListener('error', res, { once: true }); });
+            }));
+          })(),
+          new Promise(function (r) { setTimeout(r, 1500); })
+        ]);
+        // A short beat for a one-shot entrance animation to finish its single
+        // frame (the CSS freeze below already collapses it to near zero, this
+        // just lets that frame paint), then a fresh fitSlide() : fonts and
+        // images just settled, so this reflects the final geometry rather
+        // than the one measured the instant the slide became active.
+        await new Promise(function (r) { setTimeout(r, 60); });
+        try { fitSlide(); } catch (e) { }
         var undoMaps = await pmInlineMaps(active);
         var inlined = await pmInlineImages(active);
         // Restauration garantie meme si la capture echoue : sinon la carte inline en
@@ -1991,11 +2047,77 @@ window.addEventListener('load', function () {
     if (res.failedImages && res.failedImages.length) parts.push(res.failedImages.length + ' image(s) manquante(s)');
     return parts.length ? (label + ', ' + parts.join(', ') + '.') : (label + '.');
   }
+  // Rend chaque slide comme si la fenetre du commercial faisait exactement
+  // 1920x1080, quelle que soit sa vraie fenetre (portable sans plein ecran,
+  // barre de favoris, ecran 16:10...). window.innerWidth est en lecture
+  // seule, et le redefinir ne tromperait que le calcul de fitSlide lui-meme :
+  // le reste de la mise en page (media queries, unites vw, largeur du rail de
+  // navigation) resterait cale sur la vraie fenetre, exactement le rognage /
+  // la mauvaise echelle que pmCapture met deja en garde plus haut a propos
+  // d'une taille figee en dur. Un iframe hors ecran donne une VRAIE fenetre
+  // 1920x1080 a tous les etages (fitSlide ET le CSS), sans jamais toucher a
+  // l'ecran du commercial : rien n'y bouge, l'export entier se deroule dans
+  // ce clone jetable, detruit qu'il reussisse ou non.
+  function pmOffscreenClone() {
+    return new Promise(function (resolve, reject) {
+      var ifr = document.createElement('iframe');
+      ifr.setAttribute('data-pm-offscreen', '1');
+      ifr.setAttribute('aria-hidden', 'true');
+      ifr.tabIndex = -1;
+      ifr.style.cssText = 'position:fixed;top:0;left:-10000px;width:1920px;height:1080px;border:0;pointer-events:none;';
+      var settled = false;
+      var to = setTimeout(function () {
+        if (settled) return; settled = true; ifr.remove();
+        reject(new Error('la fenetre de capture 1920x1080 ne repond pas'));
+      }, 20000);
+      ifr.onerror = function () {
+        if (settled) return; settled = true; clearTimeout(to); ifr.remove();
+        reject(new Error('copie hors ecran introuvable'));
+      };
+      // Sonde directement plutot que d'attendre 'load' : un srcdoc peut
+      // charger sans jamais emettre ce second load une fois le document
+      // initial about:blank deja pris en compte par le navigateur, or c'est
+      // justement ce qui s'est produit a l'essai (readonly a about:srcdoc,
+      // totalement prete, sans que 'load' se declenche).
+      document.body.appendChild(ifr);
+      (function poll() {
+        if (settled) return;
+        try {
+          var w = ifr.contentWindow;
+          // totalSlides is declared "const" at top level : that binding is
+          // real inside the iframe's own scripts (goToSlide reads it directly),
+          // but a top-level const/let never becomes a window PROPERTY, so
+          // w.totalSlides would read undefined forever. Check the DOM instead,
+          // it carries the same count and is a real window/document property.
+          if (w && typeof w.pmCapture === 'function'
+            && w.document.querySelector('.brand-banner')
+            && w.document.querySelectorAll('.slide').length > 0) {
+            settled = true; clearTimeout(to); resolve(ifr); return;
+          }
+        } catch (e) { }
+        setTimeout(poll, 40);
+      })();
+      // Copie exacte du DOM actuel (edits de personnalisation, slides masquees
+      // comprises, puisque cet etat vit deja dans le DOM) : le moteur redemarre
+      // dedans, a une vraie taille 1920x1080.
+      ifr.srcdoc = '<!doctype html>' + document.documentElement.outerHTML;
+    });
+  }
+  async function pmCaptureOffscreen(progress) {
+    var ifr = await pmOffscreenClone();
+    try {
+      await pmLoadScript(ENGINE_BASE + 'html-to-image.js', ifr.contentDocument);
+      await pmLoadScript(ENGINE_BASE + 'vendor/lato/lato-embed.js', ifr.contentDocument);
+      return await ifr.contentWindow.pmCapture(progress);
+    } finally {
+      ifr.remove();
+    }
+  }
   async function pmExportPptx(btn) {
     pmBtnBusy(btn, true); toast('Génération du PowerPoint…');
     try {
-      await pmLoadScript(ENGINE_BASE + 'html-to-image.js'); await pmLoadScript(ENGINE_BASE + 'pptxgen.bundle.js'); await pmLoadScript(ENGINE_BASE + 'vendor/lato/lato-embed.js');
-      var res = await pmCapture(function (n, t) { if (btn) btn.textContent = 'Slide ' + n + '/' + t + '…'; });
+      await pmLoadScript(ENGINE_BASE + 'pptxgen.bundle.js');
+      var res = await pmCaptureOffscreen(function (n, t) { if (btn) btn.textContent = 'Slide ' + n + '/' + t + '…'; });
       var s = PM_W_IN / res.vw, PH = PM_W_IN * res.vh / res.vw;
       var pptx = new PptxGenJS(); pptx.defineLayout({ name: 'AY', width: PM_W_IN, height: PH }); pptx.layout = 'AY';
       res.caps.forEach(function (c) {
@@ -2011,8 +2133,8 @@ window.addEventListener('load', function () {
   async function pmExportPdf(btn) {
     pmBtnBusy(btn, true); toast('Génération du PDF…');
     try {
-      await pmLoadScript(ENGINE_BASE + 'html-to-image.js'); await pmLoadScript(ENGINE_BASE + 'jspdf.umd.min.js'); await pmLoadScript(ENGINE_BASE + 'vendor/lato/lato-embed.js');
-      var res = await pmCapture(function (n, t) { if (btn) btn.textContent = 'Slide ' + n + '/' + t + '…'; });
+      await pmLoadScript(ENGINE_BASE + 'jspdf.umd.min.js');
+      var res = await pmCaptureOffscreen(function (n, t) { if (btn) btn.textContent = 'Slide ' + n + '/' + t + '…'; });
       var s = PM_W_IN / res.vw, PH = PM_W_IN * res.vh / res.vw;
       var JsPDF = window.jspdf.jsPDF, pdf = new JsPDF({ orientation: 'landscape', unit: 'in', format: [PM_W_IN, PH] });
       res.caps.forEach(function (c, idx) {
@@ -2034,6 +2156,10 @@ window.addEventListener('load', function () {
   window.pmNotesOpen = openPresenter;
   window.pmExportPptx = pmExportPptx;
   window.pmExportPdf = pmExportPdf;
+  // Appele depuis le PARENT sur ifr.contentWindow.pmCapture (pmCaptureOffscreen) :
+  // execute dans le contexte de l'iframe hors ecran, donc avec le document et le
+  // window de CE clone, jamais celui du commercial.
+  window.pmCapture = pmCapture;
   window.pmHasEdits = function () { return !!(Object.keys(state.text).length || state.masked.length || Object.keys(state.opacity).length || state.slidesHidden.length); };
   // The rep must be identified before a link goes out, so any client event on
   // it can be credited back to them. Chained (never stacked): the "who are
@@ -2571,7 +2697,7 @@ window.addEventListener('load', function () {
   // rien en memoire : sans ce garde-fou, le guide se lancerait et finirait
   // imprime dans chaque PDF.
   function automated() {
-    return !!(navigator.webdriver || /[?&]notour=1/.test(location.search) || window.__ayNoTour);
+    return !!(PM_OFFSCREEN || navigator.webdriver || /[?&]notour=1/.test(location.search) || window.__ayNoTour);
   }
   function tourRunning() { return !!document.querySelector('.driver-popover'); }
 
