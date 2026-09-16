@@ -79,6 +79,45 @@ var AY_TOKENS = {
   'deco-teal': '#7fdcc4', // confettis
 };
 
+// Table de chaines de la chrome du moteur (bandeau de confidentialite, rappels
+// clavier, et toute autre chaine de chrome a venir). Portee module comme
+// AY_TOKENS : visible de toutes les IIFE soeurs. fr est la langue par defaut.
+var AY_STRINGS = {
+  fr: {
+    confidential: 'CONFIDENTIEL · Document propriété exclusive d’Ayming',
+    kbdNav: 'naviguer',
+    kbdFs: 'F plein écran',
+    kbdTools: 'T outils',
+    kbdShare: 'P partager',
+  },
+  es: {
+    confidential: 'CONFIDENCIAL · Documento propiedad exclusiva de Ayming',
+    kbdNav: 'navegar',
+    kbdFs: 'F pantalla completa',
+    kbdTools: 'T herramientas',
+    kbdShare: 'P compartir',
+  },
+  en: {
+    confidential: 'CONFIDENTIAL · Document the exclusive property of Ayming',
+    kbdNav: 'navigate',
+    kbdFs: 'F full screen',
+    kbdTools: 'T tools',
+    kbdShare: 'P share',
+  },
+};
+
+// Langue du deck lue sur <html lang>, normalisee sur les deux premieres
+// lettres, repli fr si absente ou inconnue de AY_STRINGS.
+function ayLang() {
+  var raw = (document.documentElement.lang || '').slice(0, 2).toLowerCase();
+  return AY_STRINGS[raw] ? raw : 'fr';
+}
+
+// Acces a une chaine de chrome dans la langue du deck courant.
+function ayT(key) {
+  return AY_STRINGS[ayLang()][key];
+}
+
 
 // ===== Umami analytics (self-hosted on Vercel, privacy-friendly) =====
 // Injected once here so every deck that loads the shared engine is tracked with
@@ -372,7 +411,7 @@ let bannerCounter = null;
     banner.innerHTML =
       '<div class="banner-logo"><img src="' + logoSrc + '" alt="Ayming"></div>'
       + '<div class="banner-divider"></div>'
-      + '<div class="banner-confidential">CONFIDENTIEL · Document propriété exclusive d’Ayming</div>'
+      + '<div class="banner-confidential">' + ayT('confidential') + '</div>'
       + '<div class="banner-controls">'
       +   '<button class="banner-btn" data-act="prev" aria-label="Précédent">' + svg('<polyline points="15 18 9 12 15 6"/>') + '</button>'
       +   '<span class="banner-counter"></span>'
@@ -692,9 +731,9 @@ document.addEventListener('keydown', e => {
     // Meme logique que pour la touche E : un client qui a recu un lien « ?pm= »
     // n'a pas a decouvrir les outils du commercial.
     var forClient = /[?&]pm=/.test(location.search);
-    hint.innerHTML = '<span>&#8592; &#8594; naviguer</span><span>F plein écran</span>'
-      + (forClient ? '' : '<span>T outils</span>')
-      + '<span>P partager</span>';
+    hint.innerHTML = '<span>&#8592; &#8594; ' + ayT('kbdNav') + '</span><span>' + ayT('kbdFs') + '</span>'
+      + (forClient ? '' : '<span>' + ayT('kbdTools') + '</span>')
+      + '<span>' + ayT('kbdShare') + '</span>';
     document.body.appendChild(hint);
   } catch (e) { /* never let the hint break the deck */ }
 })();
