@@ -230,9 +230,11 @@ const CLIENTS_SLIDE = {
 })();
 
 /* ============================================================================
-   Slide Partenaires, injectee dans TOUS les decks. Contrairement a la slide
-   Clients, aucun deck n'a de placeholder a poser : le moteur ajoute la section
-   lui-meme, en DERNIERE position. C'est la seule place qui ne casse rien, les
+   Slide Partenaires, reservee aux decks d'offre du hub. Le signal est la slide
+   Clients partagee (section[data-shared="clients"]) : les 17 offres du hub la
+   portent, aucun autre deck (rapports marketing, decks etrangers, abo-dat,
+   Ecosystem Digital). Verifie sur les decks en ligne le 2026-09-16. Le moteur
+   ajoute la section lui-meme, en DERNIERE position. C'est la seule place qui ne casse rien, les
    numeros « data-slide » de la nav etant ecrits a la main dans chaque deck et
    un decalage en milieu de deck les invaliderait tous.
    Un partenaire peut appartenir a plusieurs marches : « m » est une liste, et
@@ -283,6 +285,8 @@ const PARTNERS_SLIDE = {
     // Les partenaires listes ici sont francais et n'ont pas leur place, par
     // exemple, sur un deck espagnol.
     if (document.body && document.body.hasAttribute('data-no-partners')) return;
+    // Hors deck d'offre, pas de partenaires (un rapport mensuel les recevait).
+    if (!document.querySelector('section[data-shared="clients"]')) return;
     if (document.querySelector('section[data-shared="partenaires"]')) return;
     var all = document.querySelectorAll('.slide');
     if (!all.length) return;
