@@ -1707,6 +1707,18 @@ window.addEventListener('load', function () {
       var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help', 'deck-ink', 'deck-tools', 'driver-overlay', 'driver-popover', 'ay-tour-invite'];
       for (var i = 0; i < ex.length; i++) if (node.classList.contains(ex[i])) return false;
     }
+    // The capture is exactly the viewport (vw x vh in pmCapture), so an <img>
+    // whose box has no overlap with it cannot show up in the output no matter
+    // what, an infinite-scroll carousel (.intro-hero-collage) keeps most of its
+    // frames scrolled fully out of view at any one time. Excluding them here
+    // means html-to-image never rasterizes or embeds them, instead of paying
+    // to decode and base64 several full-size off-screen photos per slide. On
+    // the introduction slide this is what pushed the composited capture past
+    // the size WebKit accepts for an <img src> data URI (see pmCapture).
+    if (node && node.tagName === 'IMG') {
+      var r = node.getBoundingClientRect();
+      if (r.right <= 0 || r.bottom <= 0 || r.left >= window.innerWidth || r.top >= window.innerHeight) return false;
+    }
     return true;
   }
   // A map slide (spain-map.svg, eu-map*.svg...) shows city labels drawn INSIDE the
@@ -1763,9 +1775,32 @@ window.addEventListener('load', function () {
   // its actual on-slide box (at the capture's pixelRatio) before handing it
   // to html-to-image, so nothing crosses the threshold. Restored right
   // after the capture so the live page keeps using the full-resolution src.
+  // WebKit (Safari, every iOS browser) silently paints an embedded image
+  // blank inside html-to-image's SVG foreignObject somewhere past ~140k
+  // decoded pixels (see the note above pmInlineImages). Chrome and Edge, what
+  // the reps actually export from, have no such ceiling, so the size cap
+  // below must apply to WebKit only : capping it everywhere would blur every
+  // full-bleed photo on the desktop export the whole fleet actually uses.
+  // CriOS (Chrome on iOS) still runs on WebKit under Apple's rules, so it is
+  // deliberately caught here despite the name "Chrome".
+  var PM_IS_WEBKIT = (function () {
+    try { return /AppleWebKit/.test(navigator.userAgent) && !/Chrome\/|Chromium\/|Edg\//.test(navigator.userAgent); }
+    catch (e) { return false; }
+  })();
   async function pmInlineImages(root) {
     if (!root) return { undo: function () { }, failed: [] };
     var imgs = root.querySelectorAll('img[src^="http"]'), restore = [], failed = [];
+    var failedKeys = {};
+    // The intro carousel loops the same 5 photos twice, back to back, for a
+    // seamless scroll : 10 <img> elements, 5 distinct URLs, each rendered pair
+    // at an identical on-screen size. Without this cache each duplicate was
+    // fetched and redrawn a second time for a byte-identical result, doubling
+    // both the network calls and the size of the embedded payload for this
+    // slide. A slide heavy enough that way is what pushed the composited
+    // capture past what WebKit accepts as an <img src> data URI (see pmCapture).
+    // Keyed on the URL plus the rendered box, so two elements sharing a URL
+    // at different sizes still get their own conversion.
+    var cache = {};
     await Promise.all(Array.prototype.map.call(imgs, function (img) {
       var original = img.src;
       // Wrapped in Promise.resolve().then(...) so a SYNCHRONOUS throw anywhere
@@ -1775,52 +1810,93 @@ window.addEventListener('load', function () {
       // for every other logo too.
       return Promise.resolve().then(function () {
         var rect = img.getBoundingClientRect();
-        // fetch() has no built-in deadline: one stalled request would hang
-        // the whole export forever instead of just losing one logo. 8s is
-        // generous for a same-origin logo file and short enough not to
-        // stall the button.
-        var ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-        var timer = ac ? setTimeout(function () { ac.abort(); }, 8000) : null;
-        return fetch(original, { mode: 'cors', signal: ac ? ac.signal : undefined }).then(function (res) {
-          if (timer) clearTimeout(timer);
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          return res.blob();
-        }).then(function (blob) {
-          var url = URL.createObjectURL(blob);
-          return new Promise(function (resolve, reject) {
-            var im = new Image();
-            im.onload = function () { resolve(im); };
-            im.onerror = reject;
-            im.src = url;
-          }).finally(function () { URL.revokeObjectURL(url); });
-        }).then(function (bitmap) {
-          // Downscale to the box it actually occupies on the slide (2x,
-          // matching pmCapture's own pixelRatio), never upscale past the
-          // source's own size.
-          var w = Math.min(bitmap.naturalWidth || bitmap.width, Math.max(1, Math.round((rect.width || bitmap.width) * 2)));
-          var h = Math.min(bitmap.naturalHeight || bitmap.height, Math.max(1, Math.round((rect.height || bitmap.height) * 2)));
-          var canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = h;
-          canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
-          return canvas.toDataURL('image/png');
-        }).then(function (dataUrl) {
-          restore.push({ img: img, src: original });
-          img.src = dataUrl;
-        }).catch(function (e) {
-          if (timer) clearTimeout(timer);
-          throw e;
-        });
+        var key = original + '|' + Math.round(rect.width) + 'x' + Math.round(rect.height);
+        if (!cache[key]) cache[key] = (function () {
+          // fetch() has no built-in deadline: one stalled request would hang
+          // the whole export forever instead of just losing one logo. 8s is
+          // generous for a same-origin logo file and short enough not to
+          // stall the button.
+          var ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+          var timer = ac ? setTimeout(function () { ac.abort(); }, 8000) : null;
+          return fetch(original, { mode: 'cors', signal: ac ? ac.signal : undefined }).then(function (res) {
+            if (timer) clearTimeout(timer);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.blob();
+          }).then(function (blob) {
+            var url = URL.createObjectURL(blob);
+            return new Promise(function (resolve, reject) {
+              var im = new Image();
+              im.onload = function () { resolve(im); };
+              im.onerror = reject;
+              im.src = url;
+            }).finally(function () { URL.revokeObjectURL(url); });
+          }).then(function (bitmap) {
+            // Downscale to the box it actually occupies on the slide (2x,
+            // matching pmCapture's own pixelRatio), never upscale past the
+            // source's own size.
+            var w = Math.min(bitmap.naturalWidth || bitmap.width, Math.max(1, Math.round((rect.width || bitmap.width) * 2)));
+            var h = Math.min(bitmap.naturalHeight || bitmap.height, Math.max(1, Math.round((rect.height || bitmap.height) * 2)));
+            // The on-screen box is a fine cap for a logo, never more than a
+            // couple hundred px wide, but a full-bleed photo (hero, carousel)
+            // asks for millions of pixels at 2x. Under WebKit only, keep the
+            // area under a ceiling safely below the ~140k pixels where that
+            // engine starts painting an embedded image blank (see the note
+            // above). This shrinks the photo, it does not keep it sharp at
+            // its displayed size : it is redrawn smaller, then stretched
+            // back up by the browser, so it reads softer than the source.
+            // Chrome and Edge never hit that WebKit ceiling, so they keep
+            // the full on-screen-box resolution computed above.
+            var PM_LARGE_IMAGE_AREA = 90000;
+            if (PM_IS_WEBKIT && w * h > PM_LARGE_IMAGE_AREA) {
+              var scale = Math.sqrt(PM_LARGE_IMAGE_AREA / (w * h));
+              w = Math.max(1, Math.round(w * scale));
+              h = Math.max(1, Math.round(h * scale));
+            }
+            var canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
+            // A large photo in PNG (lossless) runs several MB of base64 per
+            // image, five of them in the intro carousel alone. JPEG at 0.9
+            // keeps the same pixels for a fraction of the payload. Only above
+            // the same area line, and only for images still that large after
+            // the WebKit cap above (so a capped WebKit photo stays PNG too,
+            // it is small by then) : a logo never crosses this line, and JPEG
+            // has no alpha channel, so one that did would lose its
+            // transparency to a black background.
+            return (w * h > PM_LARGE_IMAGE_AREA) ? canvas.toDataURL('image/jpeg', 0.9) : canvas.toDataURL('image/png');
+          }).catch(function (e) {
+            if (timer) clearTimeout(timer);
+            throw e;
+          });
+        })();
+        return cache[key];
+      }).then(function (dataUrl) {
+        restore.push({ img: img, src: original });
+        img.src = dataUrl;
       }).catch(function (e) {
         // Catches a rejection from anywhere above, including a synchronous
         // throw before the fetch even starts (getBoundingClientRect, the
         // AbortController construction): without this outer catch, that kind
         // of failure would reject the whole Promise.all and lose every other
-        // logo along with this one.
-        failed.push(original);
+        // logo along with this one. A shared cache entry rejects once but is
+        // awaited by every duplicate, so dedupe the report too.
+        if (!failedKeys[original]) { failedKeys[original] = true; failed.push(original); }
         if (window.console) console.warn('[export] image indisponible pour la capture : ' + original, e);
       });
     }));
     return { undo: function () { restore.forEach(function (x) { x.img.src = x.src; }); }, failed: failed };
+  }
+  // html-to-image sometimes rejects with the raw DOM Event from an onerror
+  // handler (an <img> or <script> that failed to load) instead of an Error,
+  // which prints as the unreadable "[object Event]". Turn that into the type
+  // plus the element and resource it names, so the console line and the
+  // toast both say something a rep or a developer can act on.
+  function pmDescribeError(e) {
+    if (e && typeof Event !== 'undefined' && e instanceof Event) {
+      var t = e.target, ref = t && (t.src || t.href);
+      return 'evenement ' + e.type + (t && t.tagName ? ' sur <' + t.tagName.toLowerCase() + '>' : '') + (ref ? ' (' + String(ref).slice(0, 200) + ')' : '');
+    }
+    return (e && e.message) ? e.message : String(e);
   }
   async function pmCapture(progress) {
     var st = document.createElement('style');
@@ -1841,9 +1917,18 @@ window.addEventListener('load', function () {
       + '.testimonial-card-inner{transform:none!important;transform-style:flat!important}'
       + '.testimonial-front{transform:none!important;backface-visibility:visible!important;-webkit-backface-visibility:visible!important}'
       + '.testimonial-back{display:none!important}'
+      // The intro carousel (.intro-hero-collage) loops forever
+      // (animation-iteration-count:infinite). Forcing its duration near zero
+      // like every other, one-shot animation leaves the browser to resolve an
+      // unstable fraction of an infinite loop, which can land the frozen frame
+      // squarely between two photos, a blank strip, and differs by engine.
+      // Reverting its duration to the class's own declared 45s and pausing
+      // instead keeps it exactly where it already was on screen, the same
+      // "capture what's on screen" rule pmCapture already follows for vw/vh.
+      + '.intro-hero-collage{animation-duration:revert!important;animation-play-state:paused!important}'
       + (window.PM_LATO_FONTFACE_CSS || '');
     document.head.appendChild(st);
-    var keep = currentSlide, out = [], visible = [], _ac = window.animateCounter, failedImages = [];
+    var keep = currentSlide, out = [], visible = [], _ac = window.animateCounter, failedImages = [], failedSlides = [];
     // Capture the ACTUAL viewport: fitSlide lays content out for the real window
     // (scaling up to 1.2x), so a hardcoded size would crop/misscale. This matches
     // exactly what's on screen. Page aspect is derived from vw/vh below.
@@ -1858,16 +1943,28 @@ window.addEventListener('load', function () {
         if (progress) progress(j + 1, visible.length);
         goToSlide(visible[j]);
         await new Promise(function (r) { setTimeout(r, 450); });
-        var undoMaps = await pmInlineMaps(document.querySelector('.slide.active'));
-        var inlined = await pmInlineImages(document.querySelector('.slide.active'));
+        var active = document.querySelector('.slide.active');
+        var chapter = (active && active.getAttribute('data-chapter')) || ('slide ' + (j + 1));
+        var undoMaps = await pmInlineMaps(active);
+        var inlined = await pmInlineImages(active);
         // Restauration garantie meme si la capture echoue : sinon la carte inline en
         // position fixe et les logos reduits restent a l'ecran pendant la presentation.
-        var img;
+        // La capture de CETTE slide est elle-meme isolee : une ressource que WebKit
+        // refuse de charger (voir pmInlineImages) ne doit plus faire echouer les
+        // 21 autres slides, seulement celle-ci, qui est alors omise du fichier.
+        var img = null, slideErr = null;
         try {
           img = await htmlToImage.toJpeg(document.body, { quality: 0.92, pixelRatio: 2, width: vw, height: vh, backgroundColor: AY_TOKENS['bg-white'], cacheBust: true, filter: pmFilter });
+        } catch (e) {
+          slideErr = e;
         } finally {
           undoMaps();
           inlined.undo();
+        }
+        if (slideErr) {
+          failedSlides.push(chapter);
+          if (window.console) console.warn('[export] slide non capturee (' + chapter + ') : ' + pmDescribeError(slideErr), slideErr);
+          continue;
         }
         if (inlined.failed.length) failedImages = failedImages.concat(inlined.failed);
         var links = [];
@@ -1881,9 +1978,19 @@ window.addEventListener('load', function () {
         out.push({ img: img, links: links });
       }
     } finally { goToSlide(keep); st.remove(); try { window.animateCounter = _ac; } catch (e) { } }
-    return { caps: out, vw: vw, vh: vh, failedImages: failedImages };
+    return { caps: out, vw: vw, vh: vh, failedImages: failedImages, failedSlides: failedSlides };
   }
   function pmBtnBusy(btn, on, label) { if (!btn) return; btn.style.pointerEvents = on ? 'none' : ''; btn.style.opacity = on ? '.6' : ''; if (on) { btn.dataset.prev = btn.innerHTML; btn.textContent = label || 'Génération…'; } else { btn.innerHTML = btn.dataset.prev || btn.innerHTML; } }
+  // Un seul toast final pour les deux types de perte possibles : des images
+  // manquantes dans une slide presente, et des slides entieres absentes du
+  // fichier (pmCapture, resilience par slide). Les deux se combinent sur une
+  // meme ligne plutot que d'ecraser l'une avec l'autre.
+  function pmDownloadToast(label, res) {
+    var parts = [];
+    if (res.failedSlides && res.failedSlides.length) parts.push(res.failedSlides.length + ' slide(s) non exportée(s)');
+    if (res.failedImages && res.failedImages.length) parts.push(res.failedImages.length + ' image(s) manquante(s)');
+    return parts.length ? (label + ', ' + parts.join(', ') + '.') : (label + '.');
+  }
   async function pmExportPptx(btn) {
     pmBtnBusy(btn, true); toast('Génération du PowerPoint…');
     try {
@@ -1897,7 +2004,7 @@ window.addEventListener('load', function () {
       });
       await pptx.writeFile({ fileName: deckKey + '-personnalise.pptx' });
       track('deck_download', { format: 'pptx', hidden_count: state.slidesHidden.length });
-      toast(res.failedImages.length ? 'PowerPoint téléchargé, ' + res.failedImages.length + ' image(s) manquante(s).' : 'PowerPoint téléchargé.');
+      toast(pmDownloadToast('PowerPoint téléchargé', res));
     } catch (err) { if (window.console) console.warn('[perso] pptx', err); toast('Export PowerPoint indisponible.'); }
     pmBtnBusy(btn, false);
   }
@@ -1915,7 +2022,7 @@ window.addEventListener('load', function () {
       });
       pdf.save(deckKey + '-personnalise.pdf');
       track('deck_download', { format: 'pdf', hidden_count: state.slidesHidden.length });
-      toast(res.failedImages.length ? 'PDF téléchargé, ' + res.failedImages.length + ' image(s) manquante(s).' : 'PDF téléchargé.');
+      toast(pmDownloadToast('PDF téléchargé', res));
     } catch (err) { if (window.console) console.warn('[perso] pdf', err); toast('Export PDF indisponible.'); }
     pmBtnBusy(btn, false);
   }
