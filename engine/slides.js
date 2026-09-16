@@ -476,6 +476,8 @@ function updateSlide() {
   slides[currentSlide].querySelectorAll('img').forEach(img => {
     if (!img.complete) img.addEventListener('load', fitSlide, { once: true });
   });
+
+  if (pmSlidesPanelSync) pmSlidesPanelSync();
 }
 
 // Auto-fit: scale a slide's content wrapper so it always fits the viewport on
@@ -602,9 +604,16 @@ function pmSlideHidden(i) { return !!(slides[i] && slides[i].dataset.pmHidden ==
 function pmSeek(i, step) { while (i >= 0 && i < totalSlides && pmSlideHidden(i)) i += step; return (i >= 0 && i < totalSlides) ? i : -1; }
 function pmVisibleTotal() { return Array.prototype.filter.call(slides, function (s) { return s.dataset.pmHidden !== '1'; }).length; }
 function pmVisibleIndex() { var n = 0; for (var i = 0; i <= currentSlide && i < totalSlides; i++) { if (!pmSlideHidden(i)) n++; } return n || 1; }
+// Le numero qu'une slide montrerait dans le bandeau si on y allait, null si
+// elle est masquee. Seule source de numerotation, le bandeau ET la liste de
+// l'editeur l'appellent tous les deux, pour ne jamais diverger.
+function pmDisplayIndex(i) { if (pmSlideHidden(i)) return null; var n = 0; for (var k = 0; k <= i; k++) { if (!pmSlideHidden(k)) n++; } return n; }
 function nextSlide() { const t = pmSeek(currentSlide + 1, 1); if (t !== -1) { currentSlide = t; updateSlide(); } }
 function prevSlide() { const t = pmSeek(currentSlide - 1, -1); if (t !== -1) { currentSlide = t; updateSlide(); } }
 function goToSlide(i) { if (i < 0 || i >= totalSlides) return; let t = pmSeek(i, 1); if (t === -1) t = pmSeek(i, -1); if (t !== -1) { currentSlide = t; updateSlide(); } }
+// Poste par l'editeur une fois son panneau construit : synchronise la ligne
+// active de la liste de slides a chaque navigation, meme au clavier.
+var pmSlidesPanelSync = null;
 function toggleFullscreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
 
 // Introduction slide counter animation
@@ -1220,7 +1229,9 @@ window.addEventListener('load', function () {
       '<div class="pm-row2"><button id="pm-hide" class="pm-mini">Masquer</button><button id="pm-deselect" class="pm-mini">Désélectionner</button></div>' +
       '<div class="pm-oprow"><span class="pm-oplab">Opacité</span><input type="range" id="pm-opacity" min="0" max="100" value="100"><span id="pm-opval">100%</span></div></div>' +
       '<div id="pm-maskedwrap"><div class="pm-modhd">Éléments masqués</div><div id="pm-masked"></div></div>') +
-    sec('slides', ICON.layers, 'Slides', '<span id="pm-count" class="pm-count"></span>', '<div id="pm-slides"></div>') +
+    sec('slides', ICON.layers, 'Slides', '<span id="pm-count" class="pm-count"></span>',
+      '<div class="pm-sbulk"><button id="pm-sbulk-hide" class="pm-mini" disabled>Masquer</button><button id="pm-sbulk-show" class="pm-mini" disabled>Afficher</button><button id="pm-sbulk-showall" class="pm-mini">Tout afficher</button></div>' +
+      '<div id="pm-slides"></div>') +
     sec('versions', ICON.save, 'Versions', '',
       '<div class="pm-hint">Sauvegardez vos modifications sous un nom. Vos retouches sont aussi gardées automatiquement après un refresh.</div>' +
       '<div class="pm-vrow"><input id="pm-vname" placeholder="Nom de la version" /><button id="pm-vsave" class="pm-mini">Enregistrer</button></div>' +
@@ -1254,7 +1265,8 @@ window.addEventListener('load', function () {
     '#pm-panel #pm-maskedwrap{display:none;padding:6px 16px 0}#pm-panel .pm-modhd{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:' + AY_TOKENS['ui-slate-hint'] + ';font-weight:700;margin-bottom:4px}#pm-panel .pm-modrow{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0;gap:8px}#pm-panel .pm-modrow span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '#pm-panel .pm-vactive{background:' + AY_TOKENS['ui-mist-7'] + ';border-radius:8px;padding:3px 8px;margin:0 -8px}#pm-panel .pm-vactive .pm-vname-txt{color:' + AY_TOKENS['ui-blue-active'] + '}' +
     '#pm-panel .pm-vrow{display:flex;gap:8px;padding:0 16px 8px}#pm-panel #pm-vname{flex:1;border:1px solid ' + AY_TOKENS['ui-border'] + ';border-radius:8px;padding:7px 10px;font-size:12px}#pm-panel #pm-saves{padding:0 16px}#pm-panel .pm-reset{margin:8px 16px 0;color:' + AY_TOKENS['ui-red'] + ';border-color:' + AY_TOKENS['ui-red-border'] + '}' +
-    '#pm-panel #pm-slides{display:flex;flex-direction:column;gap:1px;max-height:200px;overflow:auto;padding:0 8px}#pm-panel .pm-srow{display:flex;gap:8px;align-items:center;font-size:12px;padding:4px 8px;border-radius:7px}#pm-panel .pm-srow:hover{background:' + AY_TOKENS['ui-mist-5'] + '}#pm-panel .pm-srow.pm-hidden .pm-sname{opacity:.4;text-decoration:line-through}#pm-panel .pm-eye{cursor:pointer;display:inline-flex}' +
+    '#pm-panel #pm-slides{display:flex;flex-direction:column;gap:1px;max-height:200px;overflow:auto;padding:0 8px}#pm-panel .pm-srow{display:flex;gap:8px;align-items:center;font-size:12px;padding:4px 8px;border-radius:7px;cursor:pointer}#pm-panel .pm-srow:hover{background:' + AY_TOKENS['ui-mist-5'] + '}#pm-panel .pm-srow.pm-active{background:' + AY_TOKENS['ui-mist-7'] + ';font-weight:600}#pm-panel .pm-srow.pm-hidden .pm-sname{opacity:.4;text-decoration:line-through}#pm-panel .pm-eye{cursor:pointer;display:inline-flex}#pm-panel .pm-schk{margin:0;cursor:pointer;flex:none}' +
+    '#pm-panel .pm-sbulk{display:flex;gap:6px;padding:4px 8px 8px}#pm-panel .pm-sbulk .pm-mini{padding:5px 9px;font-size:11px}#pm-panel .pm-sbulk .pm-mini:disabled{opacity:.4;cursor:not-allowed}' +
     '#pm-panel .pm-fixed{border-top:1px solid ' + AY_TOKENS['ui-mist-3'] + ';padding:12px 16px;background:' + AY_TOKENS['ui-mist-8'] + '}#pm-panel .pm-fxhd{display:flex;align-items:center;gap:9px;font-weight:700;font-size:13px;margin-bottom:9px}#pm-panel .pm-fixed .pm-row{padding:0}' +
     '#pm-panel .pm-log{background:' + AY_TOKENS['ui-log-bg'] + ';color:' + AY_TOKENS['ui-log-text'] + ';border-radius:10px;margin:0 16px;padding:9px;font-family:ui-monospace,monospace;font-size:11px;line-height:1.5;max-height:200px;overflow:auto}#pm-panel .pm-log-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid rgba(255,255,255,.06);padding:2px 0}' +
     '#pm-panel svg{vertical-align:-2px;flex:none}#pm-panel .pm-h svg{opacity:.85}#pm-panel .pm-modrow svg{margin-right:3px}#pm-panel .pm-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:' + AY_TOKENS['gradient-blue-start'] + ';margin-right:7px;vertical-align:1px}';
@@ -1266,12 +1278,59 @@ window.addEventListener('load', function () {
     state.masked.forEach(function (k) { var el = resolve(k); var r = document.createElement('div'); r.className = 'pm-modrow'; r.innerHTML = '<span>' + ICON.eyeOff + ' ' + elName(el, k) + '</span><button class="pm-mini" data-k="' + k + '">Démasquer</button>'; box.appendChild(r); });
   }
   var list = document.getElementById('pm-slides');
+  var sbulkHide = document.getElementById('pm-sbulk-hide'), sbulkShow = document.getElementById('pm-sbulk-show'), sbulkShowAll = document.getElementById('pm-sbulk-showall');
+  var sLastChecked = null; // pour l'etendue au clic Maj
   function updateCount() { var v = Array.prototype.filter.call(slides, function (s) { return s.dataset.pmHidden !== '1'; }).length; document.getElementById('pm-count').textContent = v + '/' + slides.length; }
+  function getCheckedSlideIndices() { return Array.prototype.map.call(list.querySelectorAll('.pm-schk:checked'), function (c) { return +c.dataset.i; }); }
+  function updateBulkBar() { var n = getCheckedSlideIndices().length; sbulkHide.disabled = !n; sbulkShow.disabled = !n; }
+  // Le numero affiche ET la ligne active viennent tous les deux d'une seule
+  // source (pmDisplayIndex, currentSlide) : jamais de decalage avec le bandeau.
   function renderSlides() {
+    var checked = {};
+    Array.prototype.forEach.call(list.querySelectorAll('.pm-schk:checked'), function (c) { checked[c.dataset.i] = true; });
     list.innerHTML = '';
-    slides.forEach(function (s, i) { var hidden = s.dataset.pmHidden === '1'; var r = document.createElement('div'); r.className = 'pm-srow' + (hidden ? ' pm-hidden' : ''); r.innerHTML = '<span class="pm-eye" data-i="' + i + '">' + (hidden ? ICON.eyeOff : ICON.eye) + '</span><span class="pm-sname">' + (i + 1) + '. ' + (s.dataset.chapter || 'slide') + '</span>'; list.appendChild(r); });
+    slides.forEach(function (s, i) {
+      var hidden = s.dataset.pmHidden === '1';
+      var num = hidden ? '' : pmDisplayIndex(i);
+      var r = document.createElement('div');
+      r.className = 'pm-srow' + (hidden ? ' pm-hidden' : '') + (i === currentSlide ? ' pm-active' : '');
+      r.dataset.i = i;
+      r.innerHTML = '<input type="checkbox" class="pm-schk" data-i="' + i + '"' + (checked[i] ? ' checked' : '') + '>' +
+        '<span class="pm-eye" data-i="' + i + '">' + (hidden ? ICON.eyeOff : ICON.eye) + '</span>' +
+        '<span class="pm-sname">' + (hidden ? '' : num + '. ') + (s.dataset.chapter || 'slide') + '</span>';
+      list.appendChild(r);
+    });
     updateCount();
+    updateBulkBar();
   }
+  // Suit la navigation (clavier compris) sans reconstruire la liste, pour
+  // garder la selection de cases intacte.
+  function syncActiveRow() { Array.prototype.forEach.call(list.children, function (r, i) { r.classList.toggle('pm-active', i === currentSlide); }); }
+  pmSlidesPanelSync = syncActiveRow;
+  // La selection est un etat d'interface, elle ne survit pas a l'action.
+  function clearSelection() { Array.prototype.forEach.call(list.querySelectorAll('.pm-schk:checked'), function (c) { c.checked = false; }); sLastChecked = null; }
+  function bulkSetHidden(hide) {
+    var idxs = getCheckedSlideIndices(); if (!idxs.length) return;
+    idxs.forEach(function (i) {
+      slides[i].dataset.pmHidden = hide ? '1' : '';
+      track(hide ? 'deck_slide_hidden' : 'deck_slide_shown', { slide: i + 1, title: slideTitle(slides[i]), chapter: slides[i].dataset.chapter || '' });
+    });
+    state.slidesHidden = Array.prototype.filter.call(slides, function (s) { return s.dataset.pmHidden === '1'; }).map(function (s) { return Array.prototype.indexOf.call(slides, s); });
+    clearSelection();
+    // Si la slide affichee vient d'etre masquee, on la quitte tout de suite.
+    var t = pmSeek(currentSlide, 1); if (t === -1) t = pmSeek(currentSlide, -1); if (t !== -1) currentSlide = t;
+    updateSlide(); renderSlides(); autosave();
+  }
+  function bulkShowAll() {
+    Array.prototype.forEach.call(slides, function (s) { s.dataset.pmHidden = ''; });
+    state.slidesHidden = [];
+    clearSelection();
+    track('deck_slide_shown', { slide: 'all' });
+    updateSlide(); renderSlides(); autosave();
+  }
+  sbulkHide.addEventListener('click', function () { bulkSetHidden(true); });
+  sbulkShow.addEventListener('click', function () { bulkSetHidden(false); });
+  sbulkShowAll.addEventListener('click', bulkShowAll);
   function renderSaves() {
     var box = document.getElementById('pm-saves'), o = getSaves(); box.innerHTML = '';
     Object.keys(o).forEach(function (name) {
@@ -1550,16 +1609,32 @@ window.addEventListener('load', function () {
   });
 
   list.addEventListener('click', function (e) {
-    var eye = e.target.closest('.pm-eye'); if (!eye) return;
-    var i = +eye.dataset.i, hide = slides[i].dataset.pmHidden !== '1';
-    slides[i].dataset.pmHidden = hide ? '1' : '';
-    state.slidesHidden = Array.prototype.filter.call(slides, function (s) { return s.dataset.pmHidden === '1'; }).map(function (s) { return Array.prototype.indexOf.call(slides, s); });
-    eye.innerHTML = hide ? ICON.eyeOff : ICON.eye; eye.closest('.pm-srow').classList.toggle('pm-hidden', hide);
-    // Masquer la slide affichee doit la quitter tout de suite, sinon le client
-    // continue de voir celle que le commercial vient de retirer.
-    if (hide && slides[i].classList.contains('active')) { nextSlide(); if (slides[i].classList.contains('active')) prevSlide(); }
-    else { updateSlide(); }
-    track(hide ? 'deck_slide_hidden' : 'deck_slide_shown', { slide: i + 1, title: slideTitle(slides[i]), chapter: slides[i].dataset.chapter || '' }); updateCount(); autosave();
+    var chk = e.target.closest('.pm-schk');
+    if (chk) {
+      var ci = +chk.dataset.i;
+      if (e.shiftKey && sLastChecked !== null) {
+        var lo = Math.min(sLastChecked, ci), hi = Math.max(sLastChecked, ci);
+        for (var k = lo; k <= hi; k++) { var box = list.querySelector('.pm-schk[data-i="' + k + '"]'); if (box) box.checked = chk.checked; }
+      }
+      sLastChecked = ci;
+      updateBulkBar();
+      return;
+    }
+    var eye = e.target.closest('.pm-eye');
+    if (eye) {
+      var i = +eye.dataset.i, hide = slides[i].dataset.pmHidden !== '1';
+      slides[i].dataset.pmHidden = hide ? '1' : '';
+      state.slidesHidden = Array.prototype.filter.call(slides, function (s) { return s.dataset.pmHidden === '1'; }).map(function (s) { return Array.prototype.indexOf.call(slides, s); });
+      // Masquer la slide affichee doit la quitter tout de suite, sinon le client
+      // continue de voir celle que le commercial vient de retirer.
+      if (hide && slides[i].classList.contains('active')) { nextSlide(); if (slides[i].classList.contains('active')) prevSlide(); }
+      else { updateSlide(); }
+      track(hide ? 'deck_slide_hidden' : 'deck_slide_shown', { slide: i + 1, title: slideTitle(slides[i]), chapter: slides[i].dataset.chapter || '' });
+      renderSlides(); autosave();
+      return;
+    }
+    var row = e.target.closest('.pm-srow');
+    if (row) goToSlide(+row.dataset.i);
   });
 
   // versions
