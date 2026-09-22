@@ -1042,6 +1042,10 @@ window.addEventListener('load', function () {
     if (window.umami && window.umami.identify) { try { window.umami.identify(AY_RECIPIENT, { role: AY_ROLE }); } catch (e) {} }
     else setTimeout(ayIdentify, 300);
   })();
+  // Un deck traduit sert chaque langue dans un sous-dossier du meme depot :
+  // l'evenement porte le depot comme deck et la langue a part, pour que les
+  // versions se comptent ensemble et se filtrent par langue.
+  var trackDeck = location.pathname.split('/').filter(Boolean)[0] || deckKey;
   function track(event, detail) {
     // Cloning the live page for an offscreen export (pmOffscreenClone) also
     // clones whatever injectUmami already appended to <head> at runtime, the
@@ -1058,7 +1062,7 @@ window.addEventListener('load', function () {
     if (AY_ROLE === 'rep' && AY_REP) repTag = AY_REP;
     else if (AY_ROLE === 'client') { try { repTag = sessionStorage.getItem('ay-by') || ''; } catch (e) {} }
     // Bridge every deck event into Umami, tagged with role + deck name (+ company + rep).
-    try { if (window.umami && window.umami.track) window.umami.track(event, Object.assign({ role: AY_ROLE, deck: deckKey }, AY_RECIPIENT ? { recipient: AY_RECIPIENT } : {}, AY_SIREN ? { siren: AY_SIREN } : {}, repTag ? { rep: repTag } : {}, detail || {})); } catch (e) { }
+    try { if (window.umami && window.umami.track) window.umami.track(event, Object.assign({ role: AY_ROLE, deck: trackDeck, lang: ayLang() }, AY_RECIPIENT ? { recipient: AY_RECIPIENT } : {}, AY_SIREN ? { siren: AY_SIREN } : {}, repTag ? { rep: repTag } : {}, detail || {})); } catch (e) { }
     var l = document.getElementById('pm-log');
     if (l) { var d = document.createElement('div'); d.className = 'pm-log-line'; d.innerHTML = '<span class="pm-dot"></span>'; d.appendChild(document.createTextNode(event + '  ' + JSON.stringify(detail || {}))); l.prepend(d); }
   }
