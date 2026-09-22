@@ -1985,8 +1985,24 @@ window.addEventListener('load', function () {
             // Downscale to the box it actually occupies on the slide (2x,
             // matching pmCapture's own pixelRatio), never upscale past the
             // source's own size.
-            var w = Math.min(bitmap.naturalWidth || bitmap.width, Math.max(1, Math.round((rect.width || bitmap.width) * 2)));
-            var h = Math.min(bitmap.naturalHeight || bitmap.height, Math.max(1, Math.round((rect.height || bitmap.height) * 2)));
+            var nw = bitmap.naturalWidth || bitmap.width, nh = bitmap.naturalHeight || bitmap.height;
+            var w = Math.min(nw, Math.max(1, Math.round((rect.width || nw) * 2)));
+            var h = Math.min(nh, Math.max(1, Math.round((rect.height || nh) * 2)));
+            // Sizing the canvas to the box only suits object-fit: fill. Under
+            // cover or contain the box rarely has the source's proportions (a
+            // 3:2 photo in a portrait panel), so a box-shaped canvas squashes
+            // the whole photo into it and object-fit then has nothing left to
+            // crop : the export showed the people stretched. Keep the source's
+            // proportions instead, scaled to cover (or fit inside) the box at
+            // 2x, and let object-fit and object-position crop it as on screen.
+            var fit = getComputedStyle(img).objectFit;
+            if (fit && fit !== 'fill' && rect.width && rect.height) {
+              var s = fit === 'cover' ? Math.max(rect.width * 2 / nw, rect.height * 2 / nh)
+                : fit === 'none' ? 1 : Math.min(rect.width * 2 / nw, rect.height * 2 / nh);
+              s = Math.min(1, s);
+              w = Math.max(1, Math.round(nw * s));
+              h = Math.max(1, Math.round(nh * s));
+            }
             // The on-screen box is a fine cap for a logo, never more than a
             // couple hundred px wide, but a full-bleed photo (hero, carousel)
             // asks for millions of pixels at 2x. Under WebKit only, keep the
