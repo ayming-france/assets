@@ -190,10 +190,11 @@ if (PM_OFFSCREEN) {
     // TRACKED-START (généré par sync_tracked.py)
     var TRACKED = [
       'accidents-tiers', 'accompagnement-controle-urssaf',
-      'aides-apprentissage', 'collecte-et-traitement-des-arrets',
-      'cotisations-atmp', 'declarer-un-accident-du-travail', 'duerp',
-      'ecosystem-digital', 'en-contribution-rate-review',
-      'es-revision-tipo-cotizacion', 'gestion-des-atmp',
+      'aides-apprentissage', 'air-liquide-cotizaciones',
+      'collecte-et-traitement-des-arrets', 'cotisations-atmp',
+      'declarer-un-accident-du-travail', 'duerp', 'ecosystem-digital',
+      'en-contribution-rate-review', 'es-revision-tipo-cotizacion',
+      'gestion-des-atmp', 'ij-activite-non-autorisee',
       'maitrise-des-charges-sociales', 'maitrise-des-ijss', 'offre-essentiel',
       'pilotage-arrets-longue-duree',
       'questionnaires-de-maladie-professionnelle',
