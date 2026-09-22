@@ -851,7 +851,7 @@ document.addEventListener('keydown', e => {
     btn.setAttribute('aria-haspopup', 'true');
     btn.setAttribute('aria-expanded', 'false');
     btn.setAttribute('aria-label', ayT('langSwitch'));
-    btn.innerHTML = cur.toUpperCase() + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+    btn.textContent = cur.toUpperCase();
     var menu = document.createElement('div');
     menu.className = 'deck-lang-menu';
     menu.setAttribute('role', 'menu');

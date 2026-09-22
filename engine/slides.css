@@ -2952,9 +2952,6 @@
 }
 .deck-help .deck-lang { border-left: 1px solid rgba(0, 61, 121, 0.15); padding-left: 10px; }
 .deck-lang-btn {
-  display: flex;
-  align-items: center;
-  gap: 3px;
   background: none;
   border: 0;
   padding: 0;
@@ -2966,8 +2963,6 @@
 }
 .deck-lang-btn:hover,
 .deck-lang.open .deck-lang-btn { color: var(--blue-accent); }
-.deck-lang-btn svg { width: 11px; height: 11px; transition: transform 0.15s; }
-.deck-lang.open .deck-lang-btn svg { transform: rotate(180deg); }
 .deck-lang-menu {
   display: none;
   position: absolute;
