@@ -2947,25 +2947,49 @@
    versions soeurs (<link rel="alternate" hreflang>). La pastille laisse passer
    la souris, le selecteur seul la reprend. */
 .deck-lang {
-  display: flex;
-  gap: 2px;
+  position: relative;
   pointer-events: auto;
 }
 .deck-help .deck-lang { border-left: 1px solid rgba(0, 61, 121, 0.15); padding-left: 10px; }
-.deck-lang a {
-  color: var(--tint-slate);
-  text-decoration: none;
+.deck-lang-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
   font-weight: 600;
   letter-spacing: 0.4px;
-  padding: 1px 5px;
+  color: var(--tint-slate);
+  cursor: pointer;
+}
+.deck-lang-btn:hover,
+.deck-lang.open .deck-lang-btn { color: var(--blue-accent); }
+.deck-lang-btn svg { width: 11px; height: 11px; transition: transform 0.15s; }
+.deck-lang.open .deck-lang-btn svg { transform: rotate(180deg); }
+.deck-lang-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 10px);
+  right: -13px;
+  min-width: 118px;
+  padding: 5px;
+  background: var(--tint-white);
   border-radius: 10px;
+  box-shadow: 0 6px 22px rgba(2, 30, 60, 0.14);
 }
-.deck-lang a:hover { color: var(--blue-accent); }
-.deck-lang a.is-current {
-  color: var(--tint-white);
-  background: var(--blue-accent);
-  cursor: default;
+.deck-lang.open .deck-lang-menu { display: block; }
+.deck-lang-menu a {
+  display: block;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: var(--blue-dark);
+  text-decoration: none;
+  font-size: 12px;
 }
+.deck-lang-menu a:hover { background: var(--bg-light, #f2f8fc); color: var(--blue-accent); }
+.deck-lang-menu a.is-current { color: var(--blue-accent); font-weight: 700; cursor: default; }
 
 .brand-banner {
   position: fixed;

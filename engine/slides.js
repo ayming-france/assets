@@ -814,7 +814,7 @@ document.addEventListener('keydown', e => {
 // Selecteur de langue. Un deck traduit declare ses versions soeurs dans son
 // <head> par des <link rel="alternate" hreflang="xx" href="...">, la sienne
 // comprise, et le moteur en tire un choix ES · EN · FR a cote des rappels
-// clavier. Une URL sert ainsi toutes les langues. Sans au moins deux versions
+// clavier, en petit menu deroulant. Une URL sert ainsi toutes les langues. Sans au moins deux versions
 // declarees, rien ne s'affiche, les decks monolingues ne changent donc pas.
 // On garde la slide courante d'une langue a l'autre. Un lien personnalise
 // « ?pm= » garde ses slides et elements masques, mais pas ses textes retouches,
@@ -845,24 +845,41 @@ document.addEventListener('keydown', e => {
     }
     var box = document.createElement('div');
     box.className = 'deck-lang';
-    box.setAttribute('role', 'navigation');
-    box.setAttribute('aria-label', ayT('langSwitch'));
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'deck-lang-btn';
+    btn.setAttribute('aria-haspopup', 'true');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-label', ayT('langSwitch'));
+    btn.innerHTML = cur.toUpperCase() + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+    var menu = document.createElement('div');
+    menu.className = 'deck-lang-menu';
+    menu.setAttribute('role', 'menu');
     alts.forEach(function (l) {
       var code = l.hreflang.toLowerCase();
       var a = document.createElement('a');
-      a.textContent = code.toUpperCase();
+      a.setAttribute('role', 'menuitem');
       a.lang = code;
-      a.title = names[code] || code;
-      if (code === cur) { a.className = 'is-current'; a.setAttribute('aria-current', 'true'); }
+      a.textContent = names[code] || code.toUpperCase();
       a.href = l.href;
+      if (code === cur) { a.className = 'is-current'; a.setAttribute('aria-current', 'true'); }
       a.addEventListener('click', function (ev) {
         ev.preventDefault();
-        if (code === cur) return;
+        if (code === cur) { toggle(false); return; }
         try { sessionStorage.setItem('ay-lang-slide', String(currentSlide)); } catch (e) { }
         location.href = l.href.split('?')[0].split('#')[0] + carrySearch();
       });
-      box.appendChild(a);
+      menu.appendChild(a);
     });
+    function toggle(open) {
+      box.classList.toggle('open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    btn.addEventListener('click', function (ev) { ev.stopPropagation(); toggle(!box.classList.contains('open')); });
+    document.addEventListener('click', function (ev) { if (!box.contains(ev.target)) toggle(false); });
+    document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') toggle(false); });
+    box.appendChild(btn);
+    box.appendChild(menu);
     var hint = document.querySelector('.deck-help');
     if (hint) { hint.classList.add('has-lang'); hint.appendChild(box); } else { document.body.appendChild(box); }
   } catch (e) { /* never let the switch break the deck */ }
