@@ -3172,6 +3172,10 @@ window.addEventListener('load', function () {
       { element: '.banner-controls [data-act="fs"]', popover: { title: 'Plein écran', description:
         "Touche <span class='kbd'>F</span>. Le deck occupe l'écran, sans navigateur autour.", side: 'top', align: 'end' } },
 
+      // Absent des decks monolingues : le filtre de build() retire l'etape.
+      { element: '.deck-lang', popover: { title: 'La langue', description:
+        "Ce deck existe en plusieurs langues. Le menu en change sans quitter la slide affichée. Un lien personnalisé garde ses slides masquées, mais pas les textes retouchés, écrits dans l'autre langue.", side: 'bottom', align: 'end' } },
+
       { element: '#pm-panel', popover: { title: "L'éditeur", description:
         "Touche <span class='kbd'>E</span>. Quatre réglages pour adapter le deck à un client. Le deck d'origine ne change pas.",
         side: 'left', align: 'start' }, onHighlightStarted: openEditor },
