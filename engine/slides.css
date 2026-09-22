@@ -2943,6 +2943,29 @@
 }
 :fullscreen .deck-help,
 :-webkit-full-screen .deck-help { display: none; }
+/* Selecteur de langue, dans la pastille d'aide quand le deck declare ses
+   versions soeurs (<link rel="alternate" hreflang>). La pastille laisse passer
+   la souris, le selecteur seul la reprend. */
+.deck-lang {
+  display: flex;
+  gap: 2px;
+  pointer-events: auto;
+}
+.deck-help .deck-lang { border-left: 1px solid rgba(0, 61, 121, 0.15); padding-left: 10px; }
+.deck-lang a {
+  color: var(--tint-slate);
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  padding: 1px 5px;
+  border-radius: 10px;
+}
+.deck-lang a:hover { color: var(--blue-accent); }
+.deck-lang a.is-current {
+  color: var(--tint-white);
+  background: var(--blue-accent);
+  cursor: default;
+}
 
 .brand-banner {
   position: fixed;

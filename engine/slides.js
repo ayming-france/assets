@@ -89,6 +89,7 @@ var AY_STRINGS = {
     kbdFs: 'F plein écran',
     kbdTools: 'T outils',
     kbdShare: 'P partager',
+    langSwitch: 'Langue du document',
     pmPdfTitle: 'Préparation de votre PDF',
     pmPptxTitle: 'Préparation de votre PowerPoint',
     pmSlideOf: 'Slide {n} sur {t}',
@@ -108,6 +109,7 @@ var AY_STRINGS = {
     kbdFs: 'F pantalla completa',
     kbdTools: 'T herramientas',
     kbdShare: 'P compartir',
+    langSwitch: 'Idioma del documento',
     pmPdfTitle: 'Preparando su PDF',
     pmPptxTitle: 'Preparando su PowerPoint',
     pmSlideOf: 'Diapositiva {n} de {t}',
@@ -127,6 +129,7 @@ var AY_STRINGS = {
     kbdFs: 'F full screen',
     kbdTools: 'T tools',
     kbdShare: 'P share',
+    langSwitch: 'Document language',
     pmPdfTitle: 'Preparing your PDF',
     pmPptxTitle: 'Preparing your PowerPoint',
     pmSlideOf: 'Slide {n} of {t}',
@@ -806,6 +809,63 @@ document.addEventListener('keydown', e => {
       + '<span>' + ayT('kbdShare') + '</span>';
     document.body.appendChild(hint);
   } catch (e) { /* never let the hint break the deck */ }
+})();
+
+// Selecteur de langue. Un deck traduit declare ses versions soeurs dans son
+// <head> par des <link rel="alternate" hreflang="xx" href="...">, la sienne
+// comprise, et le moteur en tire un choix ES · EN · FR a cote des rappels
+// clavier. Une URL sert ainsi toutes les langues. Sans au moins deux versions
+// declarees, rien ne s'affiche, les decks monolingues ne changent donc pas.
+// On garde la slide courante d'une langue a l'autre. Un lien personnalise
+// « ?pm= » garde ses slides et elements masques, mais pas ses textes retouches,
+// qui sont ecrits dans la langue quittee.
+(function () {
+  try {
+    var alts = Array.prototype.slice.call(document.querySelectorAll('link[rel="alternate"][hreflang][href]'))
+      .filter(function (l) { return /^[a-z]{2}$/i.test(l.hreflang); });
+    // Retour d'un changement de langue : on reprend la slide quittee.
+    try {
+      var back = sessionStorage.getItem('ay-lang-slide');
+      if (back !== null) {
+        sessionStorage.removeItem('ay-lang-slide');
+        setTimeout(function () { goToSlide(parseInt(back, 10) || 0); }, 0);
+      }
+    } catch (e) { }
+    if (alts.length < 2) return;
+    var cur = ayLang();
+    var names = { fr: 'Français', es: 'Español', en: 'English' };
+    function carrySearch() {
+      var m = /[?&]pm=([^&]*)/.exec(location.search);
+      if (!m) return '';
+      try {
+        var st = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(m[1])))));
+        st.text = {};
+        return '?pm=' + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(st)))));
+      } catch (e) { return ''; }
+    }
+    var box = document.createElement('div');
+    box.className = 'deck-lang';
+    box.setAttribute('role', 'navigation');
+    box.setAttribute('aria-label', ayT('langSwitch'));
+    alts.forEach(function (l) {
+      var code = l.hreflang.toLowerCase();
+      var a = document.createElement('a');
+      a.textContent = code.toUpperCase();
+      a.lang = code;
+      a.title = names[code] || code;
+      if (code === cur) { a.className = 'is-current'; a.setAttribute('aria-current', 'true'); }
+      a.href = l.href;
+      a.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        if (code === cur) return;
+        try { sessionStorage.setItem('ay-lang-slide', String(currentSlide)); } catch (e) { }
+        location.href = l.href.split('?')[0].split('#')[0] + carrySearch();
+      });
+      box.appendChild(a);
+    });
+    var hint = document.querySelector('.deck-help');
+    if (hint) { hint.classList.add('has-lang'); hint.appendChild(box); } else { document.body.appendChild(box); }
+  } catch (e) { /* never let the switch break the deck */ }
 })();
 
 // Nav clicks: data-slide values are always slide indices
@@ -1774,7 +1834,7 @@ window.addEventListener('load', function () {
   function pmFilter(node) {
     if (node && node.classList) {
       if (node.id === 'pm-panel') return false;
-      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help', 'deck-ink', 'deck-tools', 'driver-overlay', 'driver-popover', 'ay-tour-invite', 'pm-progress-card'];
+      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help', 'deck-ink', 'deck-tools', 'driver-overlay', 'driver-popover', 'ay-tour-invite', 'pm-progress-card', 'deck-lang'];
       for (var i = 0; i < ex.length; i++) if (node.classList.contains(ex[i])) return false;
     }
     // The capture is exactly the viewport (vw x vh in pmCapture), so an <img>
