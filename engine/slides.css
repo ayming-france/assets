@@ -3097,7 +3097,9 @@
 
 /* ==== Shared certification strip on every cover (rendered by slides.js into .cover-right) ==== */
 .cover .cover-right { position:relative; }
-.cover .cover-right::after { content:''; position:absolute; left:0; right:0; bottom:0; height:42%; background:linear-gradient(to top, var(--tint-white) 4%, rgba(255,255,255,0.92) 30%, rgba(255,255,255,0) 100%); z-index:3; pointer-events:none; }
+/* Le fondu blanc porte le bandeau de certifications, qui ne vit que sur la couverture :
+   les intercalaires (data-chapter="divider") partagent la mise en page .cover sans le bandeau. */
+.cover:not([data-chapter="divider"]) .cover-right::after { content:''; position:absolute; left:0; right:0; bottom:0; height:42%; background:linear-gradient(to top, var(--tint-white) 4%, rgba(255,255,255,0.92) 30%, rgba(255,255,255,0) 100%); z-index:3; pointer-events:none; }
 /* Fond blanc arrondi derrière le bandeau : les PNG de badges ont des fonds
    blancs opaques et le patchwork se voyait sur les couvertures photo, surtout
    dans l'export PPTX. Porté depuis le fix local de es-cotizaciones-sociales.
