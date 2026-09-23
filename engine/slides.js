@@ -430,8 +430,11 @@ const CERT_BADGES = ['afaq-iso-9001', 'afaq-iso-27001', 'rse-iso-26000', 'opqcm'
     var base = 'https://ayming-france.github.io/assets/imagery/certifications/';
     var strip = document.createElement('div');
     strip.className = 'cert-strip';
+    // The UN Global Compact badge carries a sentence, so non-French decks get the English one.
+    var lang = (document.documentElement.getAttribute('lang') || 'fr').slice(0, 2).toLowerCase();
     strip.innerHTML = CERT_BADGES.map(function (s) {
-      return '<span class="cert-chip"><img src="' + base + s + '.png" alt="' + s + '"></span>';
+      var file = (s === 'un-global-compact' && lang !== 'fr') ? s + '-en' : s;
+      return '<span class="cert-chip"><img src="' + base + file + '.png" alt="' + s + '"></span>';
     }).join('');
     cr.appendChild(strip);
   } catch (e) { if (window.console) console.warn('cert strip render failed', e); }
