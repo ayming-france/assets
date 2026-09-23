@@ -420,6 +420,31 @@ const PARTNERS_SLIDE = {
    CERT_BADGES once here. Guarded: never breaks a deck.
    ========================================================================== */
 const CERT_BADGES = ['afaq-iso-9001', 'afaq-iso-27001', 'rse-iso-26000', 'opqcm', 'qualiopi', 'un-global-compact', 'ecovadis'];
+
+/* Product brands, opted into with <body data-brand="...">. A brand swaps every
+   Ayming logo (cover, nav, shared slides, and the banner, which reads the nav
+   logo below) and adjusts the cover certifications. Acciline+ is sold by Ayming
+   Digital, a subsidiary, so the group certs still cover it: it adds its own HDS
+   badge after ISO 27001 and drops OPQCM, a consulting qualification outside the
+   product perimeter. Mapping: ayming repo, references/certifications.md. */
+const BRANDS = {
+  acciline: {
+    logo: 'https://ayming-france.github.io/assets/imagery/essentiel/acciline-logo.png',
+    alt: 'Acciline+',
+    certAdd: [{ slug: 'afaq-hds', after: 'afaq-iso-27001' }],
+    certDrop: ['opqcm']
+  }
+};
+const DECK_BRAND = BRANDS[document.body.getAttribute('data-brand')] || null;
+(function applyBrandLogos() {
+  try {
+    if (!DECK_BRAND) return;
+    document.querySelectorAll('.cover-logo img, .company-logo img, .nav-logo img').forEach(function (img) {
+      img.src = DECK_BRAND.logo; img.alt = DECK_BRAND.alt;
+    });
+  } catch (e) { if (window.console) console.warn('brand logo swap failed', e); }
+})();
+
 (function renderCertStrip() {
   try {
     // Only client-facing sales decks opt in (marked <body data-audience="client">).
@@ -432,7 +457,15 @@ const CERT_BADGES = ['afaq-iso-9001', 'afaq-iso-27001', 'rse-iso-26000', 'opqcm'
     strip.className = 'cert-strip';
     // The UN Global Compact badge carries a sentence, so non-French decks get the English one.
     var lang = (document.documentElement.getAttribute('lang') || 'fr').slice(0, 2).toLowerCase();
-    strip.innerHTML = CERT_BADGES.map(function (s) {
+    var badges = CERT_BADGES.slice();
+    if (DECK_BRAND) {
+      badges = badges.filter(function (s) { return DECK_BRAND.certDrop.indexOf(s) < 0; });
+      DECK_BRAND.certAdd.forEach(function (a) {
+        var i = badges.indexOf(a.after);
+        badges.splice(i < 0 ? badges.length : i + 1, 0, a.slug);
+      });
+    }
+    strip.innerHTML = badges.map(function (s) {
       var file = (s === 'un-global-compact' && lang !== 'fr') ? s + '-en' : s;
       return '<span class="cert-chip"><img src="' + base + file + '.png" alt="' + s + '"></span>';
     }).join('');
@@ -469,14 +502,15 @@ let brandBanner = null;
 let bannerCounter = null;
 (function injectBrandBanner() {
   try {
-    const logoSrc = (document.querySelector('.nav-logo img, .company-logo img') || {}).src
-      || 'https://ayming-france.github.io/assets/logos/ayming-logo.png';
+    const logoImg = document.querySelector('.nav-logo img, .company-logo img') || {};
+    const logoSrc = logoImg.src || 'https://ayming-france.github.io/assets/logos/ayming-logo.png';
+    const logoAlt = DECK_BRAND ? DECK_BRAND.alt : 'Ayming';
     const svg = (inner) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
       + 'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>';
     const banner = document.createElement('div');
     banner.className = 'brand-banner';
     banner.innerHTML =
-      '<div class="banner-logo"><img src="' + logoSrc + '" alt="Ayming"></div>'
+      '<div class="banner-logo"><img src="' + logoSrc + '" alt="' + logoAlt + '"></div>'
       + '<div class="banner-divider"></div>'
       + '<div class="banner-confidential">' + ayT('confidential') + '</div>'
       + '<div class="banner-controls">'
