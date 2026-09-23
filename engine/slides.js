@@ -194,12 +194,14 @@ if (PM_OFFSCREEN) {
     var TRACKED = [
       'accidents-tiers', 'accompagnement-controle-urssaf',
       'aides-apprentissage', 'air-liquide-cotizaciones',
+      'alstom-defensa-propuesta', 'alstom-tratamiento-datos',
       'collecte-et-traitement-des-arrets', 'cotisations-atmp',
       'cotizacion-at-ep', 'declarer-un-accident-du-travail', 'duerp',
       'ecosystem-digital', 'en-contribution-rate-review',
-      'es-revision-tipo-cotizacion', 'gestion-des-atmp',
-      'ij-activite-non-autorisee', 'maitrise-des-charges-sociales',
-      'maitrise-des-ijss', 'offre-essentiel', 'pilotage-arrets-longue-duree',
+      'es-cotizaciones-sociales', 'es-revision-tipo-cotizacion',
+      'gestion-des-atmp', 'ij-activite-non-autorisee',
+      'maitrise-des-charges-sociales', 'maitrise-des-ijss', 'offre-essentiel',
+      'pilotage-arrets-longue-duree',
       'questionnaires-de-maladie-professionnelle',
       'rattrapage-visites-medicales', 'recuperer-ij', 'remboursements-ijss',
       'veille-net-entreprises', 'visites-medicales'
