@@ -1083,16 +1083,10 @@ window.addEventListener('load', function () {
     if (AY_SIREN) sessionStorage.setItem('ay-siren', AY_SIREN);
     else AY_SIREN = sessionStorage.getItem('ay-siren') || '';
   } catch (e) {}
-  // Rep identity: the commercial's own first name, remembered locally on their
-  // browser so every event they trigger carries "who". A share link can also
-  // carry "?by=<prénom>" so a client's later events are credited to the rep who
-  // sent the link (attribution, not identification of the client).
-  var AY_REP = '';
-  try { AY_REP = localStorage.getItem('ay-rep') || ''; } catch (e) {}
-  try {
-    var _mb = location.search.match(/[?&]by=([^&]+)/);
-    if (_mb) sessionStorage.setItem('ay-by', decodeURIComponent(_mb[1]));
-  } catch (e) {}
+  // No rep identity: the company typed on a share link is the only label a
+  // read carries. Clear the first name older engines stored, and ignore the
+  // "?by=" of links sent before that change.
+  try { localStorage.removeItem('ay-rep'); sessionStorage.removeItem('ay-by'); } catch (e) {}
   (function ayIdentify() {
     if (PM_OFFSCREEN || !AY_RECIPIENT) return;
     if (window.umami && window.umami.identify) { try { window.umami.identify(AY_RECIPIENT, { role: AY_ROLE }); } catch (e) {} }
@@ -1111,14 +1105,8 @@ window.addEventListener('load', function () {
     // bridge a real event to the dashboard for an export nobody watched.
     if (PM_OFFSCREEN) return;
     window.dataLayer.push(Object.assign({ event: event }, detail || {}));
-    // Attribute the event to a rep: their own first name when they are logged
-    // in as "rep", else the name of the rep who shared the "?by=" link with
-    // this client.
-    var repTag = '';
-    if (AY_ROLE === 'rep' && AY_REP) repTag = AY_REP;
-    else if (AY_ROLE === 'client') { try { repTag = sessionStorage.getItem('ay-by') || ''; } catch (e) {} }
-    // Bridge every deck event into Umami, tagged with role + deck name (+ company + rep).
-    try { if (window.umami && window.umami.track) window.umami.track(event, Object.assign({ role: AY_ROLE, deck: trackDeck, lang: ayLang() }, AY_RECIPIENT ? { recipient: AY_RECIPIENT } : {}, AY_SIREN ? { siren: AY_SIREN } : {}, repTag ? { rep: repTag } : {}, detail || {})); } catch (e) { }
+    // Bridge every deck event into Umami, tagged with role + deck name (+ company).
+    try { if (window.umami && window.umami.track) window.umami.track(event, Object.assign({ role: AY_ROLE, deck: trackDeck, lang: ayLang() }, AY_RECIPIENT ? { recipient: AY_RECIPIENT } : {}, AY_SIREN ? { siren: AY_SIREN } : {}, detail || {})); } catch (e) { }
     var l = document.getElementById('pm-log');
     if (l) { var d = document.createElement('div'); d.className = 'pm-log-line'; d.innerHTML = '<span class="pm-dot"></span>'; d.appendChild(document.createTextNode(event + '  ' + JSON.stringify(detail || {}))); l.prepend(d); }
   }
@@ -1151,37 +1139,6 @@ window.addEventListener('load', function () {
     ov.querySelector('.pm-dlg-go').addEventListener('click', go);
     input.addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Enter') go(); else if (e.key === 'Escape') close(); });
     ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
-  }
-  // One-time prompt asking the rep's first name, so every event they trigger
-  // (and every client event on a link they later share) can be credited to
-  // them. Cancelling just closes the dialog, it never blocks whatever the
-  // rep was trying to do.
-  function askRep(onDone) {
-    var ov = document.createElement('div'); ov.className = 'pm-ovl';
-    ov.innerHTML = '<div class="pm-dlg pm-share">'
-      + '<div class="pm-dlg-title">Votre prénom</div>'
-      + '<div class="pm-dlg-sub">Une seule fois : votre prénom permet de suivre l’usage des decks par commercial.</div>'
-      + '<input class="pm-dlg-input" type="text" placeholder="Prénom">'
-      + '<div class="pm-dlg-btns"><button class="pm-dlg-cancel">Annuler</button><button class="pm-dlg-go">Confirmer</button></div>'
-      + '</div>';
-    var input = ov.querySelector('.pm-dlg-input');
-    document.body.appendChild(ov);
-    setTimeout(function () { input.focus(); }, 50);
-    // Every exit path continues to onDone: declining to give a name must never
-    // block the action the rep was in the middle of (sharing, editing).
-    function finish() { ov.remove(); if (onDone) onDone(); }
-    function go() {
-      var v = input.value.trim();
-      if (v) {
-        try { localStorage.setItem('ay-rep', v); } catch (e) {}
-        AY_REP = v;
-      }
-      finish();
-    }
-    ov.querySelector('.pm-dlg-cancel').addEventListener('click', finish);
-    ov.querySelector('.pm-dlg-go').addEventListener('click', go);
-    input.addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Enter') go(); else if (e.key === 'Escape') finish(); });
-    ov.addEventListener('click', function (e) { if (e.target === ov) finish(); });
   }
   function ICO(p, s) { return '<svg xmlns="http://www.w3.org/2000/svg" width="' + (s || 15) + '" height="' + (s || 15) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; }
   var ICON = {
@@ -2480,13 +2437,7 @@ window.addEventListener('load', function () {
   // window de CE clone, jamais celui du commercial.
   window.pmCapture = pmCapture;
   window.pmHasEdits = function () { return !!(Object.keys(state.text).length || state.masked.length || Object.keys(state.opacity).length || state.slidesHidden.length); };
-  // The rep must be identified before a link goes out, so any client event on
-  // it can be credited back to them. Chained (never stacked): the "who are
-  // you" prompt closes before the share dialog opens.
-  window.pmCopyLink = function () {
-    if (!AY_REP) { askRep(openShareDialog); return; }
-    openShareDialog();
-  };
+  window.pmCopyLink = function () { openShareDialog(); };
   function openShareDialog() {
     var ov = document.createElement('div'); ov.className = 'pm-ovl';
     ov.innerHTML = '<div class="pm-dlg pm-share">'
@@ -2553,7 +2504,6 @@ window.addEventListener('load', function () {
       var link = pmLink();
       if (name) link += (link.indexOf('?') >= 0 ? '&' : '?') + 'to=' + encodeURIComponent(name);
       if (siren) link += '&siren=' + encodeURIComponent(siren);
-      if (AY_REP) link += '&by=' + encodeURIComponent(AY_REP);
       track('deck_link_share', Object.assign({ hidden_count: state.slidesHidden.length, recipient: name || '' }, siren ? { siren: siren } : {}));
       copyLink(link).then(function (ok) {
         if (ok) toast(name ? ('Lien pour « ' + name + ' » copié.') : 'Lien copié.');
@@ -2599,9 +2549,6 @@ window.addEventListener('load', function () {
       try { localStorage.setItem('ay-role', 'rep'); AY_ROLE = 'rep'; } catch (ex) {}
       // Le guide contextuel de l'editeur ecoute cette annonce.
       document.dispatchEvent(new CustomEvent('ay-editor-open'));
-      // Ouvrir l'éditeur ne demande plus de prénom : les retouches et les notes
-      // restent anonymes. Le partage d'un lien continue de proposer le prénom,
-      // qui sert l'attribution "?by=" côté analytics.
     } else {
       // Closing the editor must fully return to view mode. Collapse the
       // accordions and clear the active mode so no element stays editable or
