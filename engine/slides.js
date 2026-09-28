@@ -195,13 +195,13 @@ if (PM_OFFSCREEN) {
       'accidents-tiers', 'accompagnement-controle-urssaf',
       'aides-apprentissage', 'air-liquide-cotizaciones',
       'alstom-defensa-propuesta', 'alstom-tratamiento-datos',
-      'collecte-et-traitement-des-arrets', 'cotisations-atmp',
-      'cotizacion-at-ep', 'declarer-un-accident-du-travail', 'duerp',
-      'ecosystem-digital', 'en-contribution-rate-review',
-      'es-cotizaciones-sociales', 'es-revision-tipo-cotizacion',
-      'gestion-des-atmp', 'ij-activite-non-autorisee',
-      'maitrise-des-charges-sociales', 'maitrise-des-ijss', 'offre-essentiel',
-      'pilotage-arrets-longue-duree',
+      'charges-sociales-spain', 'collecte-et-traitement-des-arrets',
+      'cotisations-atmp', 'cotizacion-at-ep',
+      'declarer-un-accident-du-travail', 'duerp', 'ecosystem-digital',
+      'en-contribution-rate-review', 'es-cotizaciones-sociales',
+      'es-revision-tipo-cotizacion', 'gestion-des-atmp',
+      'ij-activite-non-autorisee', 'maitrise-des-charges-sociales',
+      'maitrise-des-ijss', 'offre-essentiel', 'pilotage-arrets-longue-duree',
       'questionnaires-de-maladie-professionnelle',
       'rattrapage-visites-medicales', 'recuperer-ij', 'remboursements-ijss',
       'veille-net-entreprises', 'visites-medicales'
@@ -1151,6 +1151,11 @@ window.addEventListener('load', function () {
     save: ICO('<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>', 14),
     activity: ICO('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>', 14),
     note: ICO('<path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/><path d="M9 13h6"/><path d="M9 17h4"/>', 15),
+    bold: ICO('<path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"/>', 14),
+    italic: ICO('<line x1="19" x2="10" y1="4" y2="4"/><line x1="14" x2="5" y1="20" y2="20"/><line x1="15" x2="9" y1="4" y2="20"/>', 14),
+    underline: ICO('<path d="M6 4v6a6 6 0 0 0 12 0V4"/><line x1="4" x2="20" y1="20" y2="20"/>', 14),
+    list: ICO('<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>', 14),
+    clearFmt: ICO('<path d="M4 7V4h16v3"/><path d="M5 20h6"/><path d="M13 4 8 20"/><path d="m15 15 5 5"/><path d="m20 15-5 5"/>', 14),
     grip: ICO('<circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>', 14)
   };
 
@@ -1178,8 +1183,10 @@ window.addEventListener('load', function () {
     return true;
   }
   function editableEls() {
-    var out = [];
-    slides.forEach(function (s) { s.querySelectorAll('*').forEach(function (el) { if (isTextLeaf(el)) out.push(el); }); });
+    // Un bloc déjà retouché reste éditable même si la mise en forme y a mis une liste,
+    // qui n'est pas un enfant inline et le sortirait sinon de isTextLeaf.
+    var out = Object.keys(state.text).map(resolve).filter(Boolean);
+    slides.forEach(function (s) { s.querySelectorAll('*').forEach(function (el) { if (out.indexOf(el) < 0 && isTextLeaf(el)) out.push(el); }); });
     return out.filter(function (el) { return !out.some(function (o) { return o !== el && o.contains(el); }); });
   }
 
@@ -1237,7 +1244,10 @@ window.addEventListener('load', function () {
     updateHideBtn();
   }
   function isRow(p) { var k = Array.prototype.filter.call(p.children, function (c) { return c.offsetWidth > 0 && c.offsetHeight > 0; }); if (k.length < 2) return false; var r0 = k[0].getBoundingClientRect(), r1 = k[1].getBoundingClientRect(); return Math.abs(r0.top - r1.top) < r0.height && r1.left > r0.left + 3; }
-  function pickBlock(el) { var slide = el.closest('.slide'); if (!slide) return el; var n = el; while (n && n.parentElement && n !== slide) { var p = n.parentElement; if (p === slide || p.closest('#pm-panel')) break; if (isRow(p)) return n; n = p; } return el; }
+  // Une carte se sélectionne entière : sa mise en page interne (icône à côté du texte,
+  // image sous un bandeau) forme elle aussi une rangée, que isRow prendrait pour les colonnes.
+  function isCard(n) { return /(^|\s)([\w-]+-card|value-detail|feature-item|tool-detail|dual-panel-grid-item)(\s|$)/.test((n.getAttribute && n.getAttribute('class')) || ''); }
+  function pickBlock(el) { var slide = el.closest('.slide'); if (!slide) return el; var card = null; for (var c = el; c && c !== slide; c = c.parentElement) if (isCard(c)) card = c; if (card) return card; var n = el; while (n && n.parentElement && n !== slide) { var p = n.parentElement; if (p === slide || p.closest('#pm-panel')) break; if (isRow(p)) return n; n = p; } return el; }
   // Center remaining columns with minimal change: keep the grid, just narrow it to
   // the visible cards (at their original width) and center the group. Restore on un-hide.
   function recenterRow(row) {
@@ -1248,9 +1258,11 @@ window.addEventListener('load', function () {
       row.dataset.pmJC2 = row.style.justifyContent || '__none__';
       var c0 = Array.prototype.filter.call(row.children, function (c) { return c.offsetWidth > 0; })[0];
       row.dataset.pmCardW = c0 ? c0.offsetWidth : 0;
+      // nombre de colonnes d'origine : une grille 2x2 doit rester sur deux colonnes
+      row.dataset.pmCols = grid ? getComputedStyle(row).gridTemplateColumns.split(' ').length : 0;
     }
     var n = Array.prototype.filter.call(row.children, function (c) { return getComputedStyle(c).display !== 'none'; }).length;
-    if (grid && +row.dataset.pmCardW > 0) row.style.gridTemplateColumns = 'repeat(' + n + ', ' + row.dataset.pmCardW + 'px)';
+    if (grid && +row.dataset.pmCardW > 0) row.style.gridTemplateColumns = 'repeat(' + Math.max(1, Math.min(n, +row.dataset.pmCols || n)) + ', ' + row.dataset.pmCardW + 'px)';
     row.style.justifyContent = 'center';
   }
   function restoreRow(row) {
@@ -1259,7 +1271,7 @@ window.addEventListener('load', function () {
     if (anyMasked || row.dataset.pmGTC === undefined) return;
     row.style.gridTemplateColumns = row.dataset.pmGTC === '__none__' ? '' : row.dataset.pmGTC;
     row.style.justifyContent = row.dataset.pmJC2 === '__none__' ? '' : row.dataset.pmJC2;
-    delete row.dataset.pmGTC; delete row.dataset.pmJC2; delete row.dataset.pmCardW;
+    delete row.dataset.pmGTC; delete row.dataset.pmJC2; delete row.dataset.pmCardW; delete row.dataset.pmCols;
   }
 
   function maskEl(el) { var k = elPath(el); el.dataset.pmPrev = el.style.display; el.style.display = 'none'; recenterRow(el.parentElement); if (state.masked.indexOf(k) < 0) state.masked.push(k); }
@@ -1367,7 +1379,14 @@ window.addEventListener('load', function () {
   var panel = document.createElement('div'); panel.id = 'pm-panel';
   panel.innerHTML =
     '<div class="pm-h" id="pm-drag">' + ICON.grip + ' Personnalisation</div><div class="pm-body">' +
-    sec('text', ICON.type, 'Texte', '', '<div class="pm-hint">Cliquez un texte (titre, chiffre, description) et tapez.</div>') +
+    sec('text', ICON.type, 'Texte', '', '<div class="pm-hint">Cliquez un texte (titre, chiffre, description) et tapez. Sélectionnez un passage pour le mettre en forme.</div>' +
+      '<div class="pm-fmt">' +
+      '<button data-cmd="bold" title="Gras (Cmd+B)">' + ICON.bold + '</button>' +
+      '<button data-cmd="italic" title="Italique (Cmd+I)">' + ICON.italic + '</button>' +
+      '<button data-cmd="underline" title="Souligné (Cmd+U)">' + ICON.underline + '</button>' +
+      '<button data-cmd="insertUnorderedList" title="Liste à puces">' + ICON.list + '</button>' +
+      '<button data-cmd="removeFormat" title="Effacer la mise en forme">' + ICON.clearFmt + '</button>' +
+      '</div>') +
     sec('visual', ICON.contrast, 'Visuel', '',
       '<div class="pm-hint">Cliquez un bloc (colonne, carte, image).</div>' +
       '<div id="pm-style"><div class="pm-elname">Élément : <b id="pm-selname">—</b></div>' +
@@ -1403,6 +1422,11 @@ window.addEventListener('load', function () {
     '#pm-panel .pm-acbody{display:none;padding:2px 0 12px}#pm-panel .pm-acc.open .pm-acbody{display:block}' +
     '#pm-panel .pm-hint{font-size:11.5px;color:' + AY_TOKENS['ui-slate-hint'] + ';font-style:italic;padding:0 16px 6px}' +
     '#pm-panel #pm-style{display:none;padding:0 16px}#pm-panel .pm-elname{font-size:11px;color:' + AY_TOKENS['ui-slate-label'] + ';margin:6px 0}' +
+    '#pm-panel .pm-fmt{display:flex;gap:6px;padding:2px 16px 12px}'
+    + '#pm-panel .pm-fmt button{display:flex;align-items:center;justify-content:center;width:34px;height:30px;background:' + AY_TOKENS['tint-white'] + ';border:1px solid ' + AY_TOKENS['ui-border'] + ';border-radius:8px;cursor:pointer;color:' + AY_TOKENS['ui-slate-dark'] + '}'
+    + '#pm-panel .pm-fmt button:hover:not(:disabled):not(.on){border-color:' + AY_TOKENS['gradient-blue-start'] + ';color:' + AY_TOKENS['gradient-blue-start'] + '}'
+    + '#pm-panel .pm-fmt button.on{background:' + AY_TOKENS['gradient-blue-start'] + ';border-color:' + AY_TOKENS['gradient-blue-start'] + ';color:' + AY_TOKENS['tint-white'] + '}'
+    + '#pm-panel .pm-fmt button:disabled{opacity:.4;cursor:default}' +
     '#pm-panel .pm-row{display:flex;gap:8px;padding:0 16px}#pm-panel .pm-row2{display:flex;gap:8px;margin:2px 0 8px}' +
     '#pm-panel .pm-btn{flex:1;padding:10px;border:0;border-radius:10px;background:' + AY_TOKENS['gradient-blue-start'] + ';color:' + AY_TOKENS['tint-white'] + ';font-weight:700;cursor:pointer}' +
     '#pm-panel .pm-mini{font-size:11.5px;background:' + AY_TOKENS['tint-white'] + ';border:1px solid ' + AY_TOKENS['ui-border'] + ';border-radius:8px;padding:7px 11px;cursor:pointer;color:' + AY_TOKENS['ui-slate-dark'] + ';font-weight:600}#pm-panel .pm-mini:hover{border-color:' + AY_TOKENS['gradient-blue-start'] + ';color:' + AY_TOKENS['gradient-blue-start'] + '}' +
@@ -1736,6 +1760,30 @@ window.addEventListener('load', function () {
       if (willOpen) { acc.classList.add('open'); applyMode(s === 'text' ? 'text' : s === 'visual' ? 'style' : null); } else applyMode(null);
     });
   });
+
+  // Mise en forme du texte, dans la section Texte pour que toute retouche de texte
+  // se fasse au même endroit. execCommand agit sur la sélection et déclenche
+  // l'évènement input du bloc édité, donc bindText sauvegarde sans code en plus.
+  function fmtHost() {
+    var sel = window.getSelection(); if (mode !== 'text' || !sel.rangeCount) return null;
+    var n = sel.anchorNode; if (n && n.nodeType === 3) n = n.parentElement;
+    var h = n && n.closest && n.closest('[contenteditable="true"]');
+    return h && !h.closest('#pm-panel') ? h : null;
+  }
+  function fmtSync() {
+    var host = fmtHost();
+    panel.querySelectorAll('.pm-fmt button').forEach(function (b) {
+      var on = false; try { on = !!host && b.dataset.cmd !== 'removeFormat' && document.queryCommandState(b.dataset.cmd); } catch (e) { }
+      b.disabled = !host; b.classList.toggle('on', on);
+    });
+  }
+  panel.querySelectorAll('.pm-fmt button').forEach(function (b) {
+    // sans ce preventDefault le clic prendrait le focus et la sélection du deck serait perdue
+    b.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    b.addEventListener('click', function () { if (!fmtHost()) return; document.execCommand(b.dataset.cmd, false, null); fmtSync(); });
+  });
+  document.addEventListener('selectionchange', fmtSync);
+  fmtSync();
 
   document.getElementById('pm-deselect').addEventListener('click', deselect);
   document.getElementById('pm-hide').addEventListener('click', function () {
