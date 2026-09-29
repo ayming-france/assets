@@ -1192,7 +1192,17 @@ window.addEventListener('load', function () {
   // ---- live state (auto-saved as draft; named saves are snapshots) ----
   function blank() { return { text: {}, masked: [], opacity: {}, slidesHidden: [] }; }
   var state = blank();
-  function autosave() { try { localStorage.setItem('pm:draft:' + deckKey, JSON.stringify(state)); } catch (e) { } }
+  // Le brouillon est gardé à chaque retouche mais n'est plus réappliqué seul à l'ouverture :
+  // un masquage oublié cachait sinon une slide pour toujours, et les mises à jour du deck
+  // restaient invisibles. À l'ouverture suivante, un bandeau propose de le restaurer.
+  function autosave() {
+    try { localStorage.setItem('pm:draft:' + deckKey, JSON.stringify(state)); localStorage.setItem('pm:draftts:' + deckKey, String(Date.now())); } catch (e) { }
+    var b = document.getElementById('pm-restore'); if (b) b.remove();
+  }
+  function isBlankState(st) { return !st || (!Object.keys(st.text || {}).length && !(st.masked || []).length && !Object.keys(st.opacity || {}).length && !(st.slidesHidden || []).length); }
+  function sameState(a, b) { return JSON.stringify(Object.assign(blank(), a)) === JSON.stringify(Object.assign(blank(), b)); }
+  // Retouches absentes de toute version enregistrée : c'est elles que la fermeture perdrait.
+  function isDirty() { if (isBlankState(state)) return false; var sv = getSaves()[curVersion]; return !(curVersion && sv && sameState(sv, state)); }
   // La version chargee est ce qui identifie le client du moment. Les notes
   // s'estampillent avec, sinon celles de La Poste et celles de Bobcat finissent
   // dans le meme tas, separees par rien.
@@ -1395,7 +1405,7 @@ window.addEventListener('load', function () {
       '<div class="pm-sbulk"><button id="pm-sbulk-hide" class="pm-mini" disabled>Masquer</button><button id="pm-sbulk-show" class="pm-mini" disabled>Afficher</button><button id="pm-sbulk-showall" class="pm-mini">Tout afficher</button></div>' +
       '<div id="pm-slides"></div>') +
     sec('versions', ICON.save, 'Versions', '',
-      '<div class="pm-hint">Sauvegardez vos modifications sous un nom. Vos retouches sont aussi gardées automatiquement après un refresh.</div>' +
+      '<div class="pm-hint">Sauvegardez vos modifications sous un nom. Le deck se rouvre toujours tel que publié ; des retouches non enregistrées vous sont proposées à l\'ouverture suivante.</div>' +
       '<div class="pm-vrow"><input id="pm-vname" placeholder="Nom de la version" /><button id="pm-vsave" class="pm-mini">Enregistrer</button></div>' +
       '<div id="pm-saves"></div><button id="pm-vreset" class="pm-mini pm-reset">Réinitialiser le deck</button>') +
     sec('events', ICON.activity, 'Évènements (GA4)', '', '<div id="pm-log" class="pm-log"></div>') +
@@ -1409,6 +1419,8 @@ window.addEventListener('load', function () {
   var css = document.createElement('style');
   css.textContent =
     '#pm-panel{position:fixed;top:14px;right:14px;width:300px;max-height:92vh;flex-direction:column;z-index:99999;background:' + AY_TOKENS['tint-white'] + ';border-radius:16px;box-shadow:0 18px 50px rgba(2,30,60,.32);font-family:system-ui,Arial,sans-serif;font-size:13px;color:' + AY_TOKENS['ui-ink'] + ';border:1px solid rgba(0,61,121,.08);overflow:hidden}' +
+    '#pm-restore{position:fixed;bottom:58px;left:50%;transform:translateX(-50%);z-index:100000;display:flex;align-items:center;gap:10px;background:' + AY_TOKENS['ui-navy'] + ';color:' + AY_TOKENS['tint-white'] + ';font-family:system-ui,Arial,sans-serif;font-size:13px;font-weight:600;padding:9px 10px 9px 16px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.28)}'
+    + '#pm-restore button{font:inherit;font-size:12px;border:0;border-radius:8px;padding:6px 12px;cursor:pointer;background:' + AY_TOKENS['tint-white'] + ';color:' + AY_TOKENS['ui-navy'] + '}#pm-restore button[data-r="0"]{background:transparent;color:' + AY_TOKENS['tint-white'] + ';box-shadow:inset 0 0 0 1px rgba(255,255,255,.45)}' +
     '.pm-toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(10px);z-index:100000;background:' + AY_TOKENS['ui-navy'] + ';color:' + AY_TOKENS['tint-white'] + ';font-family:system-ui,Arial,sans-serif;font-size:13px;font-weight:600;padding:11px 20px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.28);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}.pm-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}' +
     '.pm-ovl{position:fixed;inset:0;z-index:100000;background:rgba(8,24,44,.45);display:flex;align-items:center;justify-content:center;font-family:system-ui,Arial,sans-serif}.pm-dlg{background:' + AY_TOKENS['tint-white'] + ';border-radius:16px;padding:22px;max-width:340px;box-shadow:0 24px 70px rgba(0,0,0,.32)}.pm-dlg-msg{font-size:14px;color:' + AY_TOKENS['ui-ink'] + ';margin-bottom:18px;line-height:1.5}.pm-dlg-btns{display:flex;gap:10px;justify-content:flex-end}.pm-dlg button{font-size:13px;font-weight:700;border-radius:9px;padding:9px 18px;cursor:pointer;border:0}.pm-dlg-cancel{background:' + AY_TOKENS['ui-mist-1'] + ';color:' + AY_TOKENS['ui-slate-dark'] + '}.pm-dlg-ok{background:' + AY_TOKENS['ui-red'] + ';color:' + AY_TOKENS['tint-white'] + '}.pm-dlg-input{width:100%;box-sizing:border-box;border:1px solid ' + AY_TOKENS['ui-border'] + ';border-radius:9px;padding:10px 12px;font-size:14px;margin-bottom:16px;font-family:inherit}.pm-dlg-input:focus{outline:none;border-color:' + AY_TOKENS['gradient-blue-start'] + '}.pm-dlg-go{background:' + AY_TOKENS['gradient-blue-start'] + '!important;color:' + AY_TOKENS['tint-white'] + '!important}.pm-share{max-width:400px;padding:26px;text-align:left}.pm-share-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,' + AY_TOKENS['blue-primary'] + ',' + AY_TOKENS['gradient-green-end'] + ');color:' + AY_TOKENS['tint-white'] + ';margin-bottom:15px}.pm-dlg-title{font-size:17px;font-weight:800;color:' + AY_TOKENS['ui-navy-title'] + ';margin-bottom:6px}.pm-dlg-sub{font-size:13px;color:' + AY_TOKENS['ui-slate'] + ';line-height:1.5;margin-bottom:16px}.pm-dlg-go:hover{filter:brightness(1.06)}.pm-dlg-cancel:hover{background:' + AY_TOKENS['ui-mist-2'] + '}.pm-ac-wrap{position:relative;margin-bottom:16px}.pm-ac-wrap .pm-dlg-input{margin-bottom:0}.pm-ac{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:2;background:' + AY_TOKENS['tint-white'] + ';border:1px solid ' + AY_TOKENS['ui-border'] + ';border-radius:10px;box-shadow:0 14px 32px rgba(8,24,44,.18);max-height:236px;overflow:auto;display:none}.pm-ac.on{display:block}.pm-ac-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid ' + AY_TOKENS['ui-mist-1'] + ';font-size:14px;line-height:1.35;color:' + AY_TOKENS['ui-ink'] + '}.pm-ac-item:last-child{border-bottom:0}.pm-ac-item.hi,.pm-ac-item:hover{background:' + AY_TOKENS['ui-mist-4'] + '}.pm-ac-sub{display:block;font-size:12px;color:' + AY_TOKENS['ui-slate-sub'] + ';margin-top:1px}' +
     '#pm-dlpop{position:fixed;bottom:58px;left:14px;z-index:100000;background:' + AY_TOKENS['tint-white'] + ';border-radius:12px;box-shadow:0 12px 40px rgba(2,30,60,.3);display:none;flex-direction:column;overflow:hidden;border:1px solid rgba(0,61,121,.08);font-family:system-ui,Arial,sans-serif}#pm-dlpop.show{display:flex}#pm-dlpop .pm-dlbtn{display:flex;align-items:center;gap:9px;padding:12px 18px;background:' + AY_TOKENS['tint-white'] + ';border:0;font-size:13px;font-weight:600;color:' + AY_TOKENS['ui-navy'] + ';cursor:pointer;white-space:nowrap}#pm-dlpop .pm-dlbtn:hover{background:' + AY_TOKENS['ui-mist-5'] + '}#pm-dlpop .pm-dlbtn+.pm-dlbtn{border-top:1px solid ' + AY_TOKENS['ui-mist-3'] + '}#pm-dlpop svg{vertical-align:-2px}' +
@@ -1845,7 +1857,7 @@ window.addEventListener('load', function () {
       if (curVersion === d.dataset.del) setVersion(''); else renderSaves();
     }
   });
-  document.getElementById('pm-vreset').addEventListener('click', function () { confirmDialog('Effacer toutes vos modifications sur ce deck ?', function () { localStorage.removeItem('pm:draft:' + deckKey); location.reload(); }); });
+  document.getElementById('pm-vreset').addEventListener('click', function () { confirmDialog('Effacer toutes vos modifications sur ce deck ?', function () { localStorage.removeItem('pm:draft:' + deckKey); state = blank(); location.reload(); }); });
 
   // Self-service personalized export, generated entirely in the browser (no
   // server, zero cost). We snapshot each live (edited) slide with html-to-image
@@ -1897,7 +1909,7 @@ window.addEventListener('load', function () {
   function pmFilter(node) {
     if (node && node.classList) {
       if (node.id === 'pm-panel') return false;
-      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help', 'deck-ink', 'deck-tools', 'driver-overlay', 'driver-popover', 'ay-tour-invite', 'pm-progress-card', 'deck-lang'];
+      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help', 'deck-ink', 'deck-tools', 'driver-overlay', 'driver-popover', 'ay-tour-invite', 'pm-progress-card', 'deck-lang', 'pm-restore'];
       for (var i = 0; i < ex.length; i++) if (node.classList.contains(ex[i])) return false;
     }
     // The capture is exactly the viewport (vw x vh in pmCapture), so an <img>
@@ -2612,8 +2624,29 @@ window.addEventListener('load', function () {
   try {
     var pmParam = new URLSearchParams(location.search).get('pm');
     if (pmParam) { applyState(pmDecode(pmParam)); }
-    else { var dr = localStorage.getItem('pm:draft:' + deckKey); if (dr) applyState(JSON.parse(dr)); }
+    else {
+      // Le deck s'ouvre tel que publié. Un brouillon qui diffère de sa version enregistrée
+      // est proposé dans un bandeau, jamais réappliqué sans le demander.
+      var dr = localStorage.getItem('pm:draft:' + deckKey), ds = dr ? JSON.parse(dr) : null, prevV = curVersion;
+      setVersion('');
+      var sv = getSaves()[prevV];
+      if (!isBlankState(ds) && !(sv && sameState(sv, ds))) offerRestore(ds, prevV);
+      window.addEventListener('beforeunload', function (e) { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+    }
   } catch (e) { }
+  function offerRestore(ds, v) {
+    var ts = 0; try { ts = +localStorage.getItem('pm:draftts:' + deckKey) || 0; } catch (e) { }
+    var b = document.createElement('div'); b.id = 'pm-restore'; b.className = 'pm-restore';
+    b.innerHTML = '<span></span><button data-r="1">Restaurer</button><button data-r="0">Ignorer</button>';
+    b.querySelector('span').textContent = 'Retouches non enregistrées' + (ts ? ' du ' + new Date(ts).toLocaleDateString('fr-FR') : '') + (v ? ' sur la version « ' + v + ' »' : '') + '.';
+    b.addEventListener('click', function (e) {
+      var r = e.target.closest('[data-r]'); if (!r) return;
+      if (r.dataset.r === '1') { applyState(ds); if (v && getSaves()[v]) setVersion(v); }
+      else { try { localStorage.removeItem('pm:draft:' + deckKey); } catch (x) { } }
+      b.remove();
+    });
+    document.body.appendChild(b);
+  }
   // No deck_open event: Umami's gated pageview already marks "opened this deck"
   // (one URL per deck), so deck_open was a duplicate at the same timestamp.
   } catch (e) { if (window.console) console.warn('[perso] editor disabled:', e); }
