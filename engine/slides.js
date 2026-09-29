@@ -1299,7 +1299,10 @@ window.addEventListener('load', function () {
   function restoreRow(row) {
     if (!row) return;
     var anyMasked = Array.prototype.some.call(row.children, function (c) { return c.style.display === 'none'; });
-    if (anyMasked || row.dataset.pmGTC === undefined) return;
+    if (row.dataset.pmGTC === undefined) return;
+    // une autre carte reste masquee : recalculer le nombre de colonnes, sinon la grille
+    // reste a une colonne et les cartes reaffichees s'empilent
+    if (anyMasked) { recenterRow(row); return; }
     row.style.gridTemplateColumns = row.dataset.pmGTC === '__none__' ? '' : row.dataset.pmGTC;
     row.style.justifyContent = row.dataset.pmJC2 === '__none__' ? '' : row.dataset.pmJC2;
     delete row.dataset.pmGTC; delete row.dataset.pmJC2; delete row.dataset.pmCardW; delete row.dataset.pmCols;
