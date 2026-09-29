@@ -1250,12 +1250,17 @@ window.addEventListener('load', function () {
   var mode = null, selected = null;
   function deselect() { if (selected) { selected.style.outline = ''; selected = null; } document.getElementById('pm-style').style.display = 'none'; }
   function clearEditable() { editableEls().forEach(function (el) { el.style.outline = ''; el.style.cursor = ''; el.contentEditable = 'false'; }); deselect(); }
+  // HTML publié de chaque bloc, pris avant toute retouche : un texte revenu à l'identique
+  // n'est pas une retouche et ne doit ni rester dans le brouillon ni rouvrir le bandeau.
+  var pubHtml = new WeakMap();
+  function markPub(el) { if (!pubHtml.has(el)) pubHtml.set(el, el.innerHTML); }
   function bindText(el) {
+    markPub(el);
     if (el.dataset.pmBound) return; el.dataset.pmBound = '1'; var t;
     // Snapshot the text as it was when first made editable, so each edit event
     // can report what it changed from -> to (truncated for analytics).
     if (el.dataset.pmOrig === undefined) el.dataset.pmOrig = textNorm(el);
-    el.addEventListener('input', function () { clearTimeout(t); t = setTimeout(function () { var k = elPath(el); state.text[k] = el.innerHTML; autosave(); track('deck_field_edit', { field: fieldName(el), slide: slideIndex(el), title: slideTitle(el.closest('.slide')), before: (el.dataset.pmOrig || '').slice(0, 500), after: (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 500) }); }, 500); });
+    el.addEventListener('input', function () { clearTimeout(t); t = setTimeout(function () { var k = elPath(el); if (el.innerHTML === pubHtml.get(el)) delete state.text[k]; else state.text[k] = el.innerHTML; autosave(); track('deck_field_edit', { field: fieldName(el), slide: slideIndex(el), title: slideTitle(el.closest('.slide')), before: (el.dataset.pmOrig || '').slice(0, 500), after: (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 500) }); }, 500); });
     el.addEventListener('keydown', function (e) { e.stopPropagation(); });
   }
   function applyMode(m) {
@@ -1559,7 +1564,7 @@ window.addEventListener('load', function () {
     state.masked.forEach(function (k) { var r = at(k); if (r && mk.indexOf(r.k) < 0) mk.push(r.k); });
     state.text = tx; state.opacity = op; state.masked = mk;
     Object.keys(ref).forEach(function (k) { var r = ref[k]; if (r && tx[r.k] !== undefined && r.el.dataset.pmOrig === undefined) r.el.dataset.pmOrig = textNorm(r.el); });
-    Object.keys(state.text).forEach(function (k) { var el = resolve(k); if (el) { el.innerHTML = state.text[k]; bindText(el); } });
+    Object.keys(state.text).forEach(function (k) { var el = resolve(k); if (!el) return; markPub(el); if (state.text[k] === pubHtml.get(el)) { delete state.text[k]; return; } el.innerHTML = state.text[k]; bindText(el); });
     Object.keys(state.opacity).forEach(function (k) { var el = resolve(k); if (el) { el.style.setProperty('animation', 'none', 'important'); el.style.setProperty('opacity', state.opacity[k] / 100, 'important'); } });
     state.masked.forEach(function (k) { var el = resolve(k); if (el && el.style.display !== 'none') { el.dataset.pmPrev = el.style.display; el.style.display = 'none'; recenterRow(el.parentElement); } });
     state.slidesHidden.forEach(function (i) { if (slides[i]) slides[i].dataset.pmHidden = '1'; });
@@ -2666,7 +2671,10 @@ window.addEventListener('load', function () {
       var dr = localStorage.getItem('pm:draft:' + deckKey), ds = dr ? JSON.parse(dr) : null, prevV = curVersion;
       setVersion('');
       var sv = getSaves()[prevV];
+      // un texte identique à la page publiée ne compte pas comme retouche
+      if (ds && ds.text) Object.keys(ds.text).forEach(function (k) { var el = resolve(k); if (el && el.innerHTML === ds.text[k]) delete ds.text[k]; });
       if (!isBlankState(ds) && !(sv && sameState(sv, ds))) offerRestore(ds, prevV);
+      else if (ds && isBlankState(ds)) { try { localStorage.removeItem('pm:draft:' + deckKey); } catch (x) { } }
       window.addEventListener('beforeunload', function (e) { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
     }
   } catch (e) { }
