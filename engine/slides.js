@@ -1192,9 +1192,13 @@ window.addEventListener('load', function () {
   // ---- live state (auto-saved as draft; named saves are snapshots) ----
   function blank() { return { text: {}, masked: [], opacity: {}, slidesHidden: [] }; }
   var state = blank();
-  // Aucune retouche n'est gardée hors d'une version nommée : le deck se rouvre toujours tel
-  // que publié, pour que chaque mise à jour poussée se voie (décidé le 2026-09-29, après un
-  // masquage oublié qui cachait une slide sans que personne s'en aperçoive).
+  // Le brouillon est gardé à chaque retouche mais n'est plus réappliqué seul à l'ouverture :
+  // un masquage oublié cachait sinon une slide pour toujours, et les mises à jour du deck
+  // restaient invisibles. À l'ouverture suivante, un bandeau propose de le restaurer.
+  function autosave() {
+    try { localStorage.setItem('pm:draft:' + deckKey, JSON.stringify(state)); localStorage.setItem('pm:draftts:' + deckKey, String(Date.now())); } catch (e) { }
+    var b = document.getElementById('pm-restore'); if (b) b.remove();
+  }
   function isBlankState(st) { return !st || (!Object.keys(st.text || {}).length && !(st.masked || []).length && !Object.keys(st.opacity || {}).length && !(st.slidesHidden || []).length); }
   function sameState(a, b) { return JSON.stringify(Object.assign(blank(), a)) === JSON.stringify(Object.assign(blank(), b)); }
   // Retouches absentes de toute version enregistrée : c'est elles que la fermeture perdrait.
@@ -1229,7 +1233,7 @@ window.addEventListener('load', function () {
     // Snapshot the text as it was when first made editable, so each edit event
     // can report what it changed from -> to (truncated for analytics).
     if (el.dataset.pmOrig === undefined) el.dataset.pmOrig = (el.innerText || '').replace(/\s+/g, ' ').trim();
-    el.addEventListener('input', function () { clearTimeout(t); t = setTimeout(function () { var k = elPath(el); state.text[k] = el.innerHTML; track('deck_field_edit', { field: fieldName(el), slide: slideIndex(el), title: slideTitle(el.closest('.slide')), before: (el.dataset.pmOrig || '').slice(0, 500), after: (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 500) }); }, 500); });
+    el.addEventListener('input', function () { clearTimeout(t); t = setTimeout(function () { var k = elPath(el); state.text[k] = el.innerHTML; autosave(); track('deck_field_edit', { field: fieldName(el), slide: slideIndex(el), title: slideTitle(el.closest('.slide')), before: (el.dataset.pmOrig || '').slice(0, 500), after: (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 500) }); }, 500); });
     el.addEventListener('keydown', function (e) { e.stopPropagation(); });
   }
   function applyMode(m) {
@@ -1401,7 +1405,7 @@ window.addEventListener('load', function () {
       '<div class="pm-sbulk"><button id="pm-sbulk-hide" class="pm-mini" disabled>Masquer</button><button id="pm-sbulk-show" class="pm-mini" disabled>Afficher</button><button id="pm-sbulk-showall" class="pm-mini">Tout afficher</button></div>' +
       '<div id="pm-slides"></div>') +
     sec('versions', ICON.save, 'Versions', '',
-      '<div class="pm-hint">Sauvegardez vos modifications sous un nom. Le deck se rouvre toujours tel que publié : enregistrez une version pour garder vos retouches.</div>' +
+      '<div class="pm-hint">Sauvegardez vos modifications sous un nom. Le deck se rouvre toujours tel que publié ; des retouches non enregistrées vous sont proposées à l\'ouverture suivante.</div>' +
       '<div class="pm-vrow"><input id="pm-vname" placeholder="Nom de la version" /><button id="pm-vsave" class="pm-mini">Enregistrer</button></div>' +
       '<div id="pm-saves"></div><button id="pm-vreset" class="pm-mini pm-reset">Réinitialiser le deck</button>') +
     sec('events', ICON.activity, 'Évènements (GA4)', '', '<div id="pm-log" class="pm-log"></div>') +
@@ -1415,6 +1419,8 @@ window.addEventListener('load', function () {
   var css = document.createElement('style');
   css.textContent =
     '#pm-panel{position:fixed;top:14px;right:14px;width:300px;max-height:92vh;flex-direction:column;z-index:99999;background:' + AY_TOKENS['tint-white'] + ';border-radius:16px;box-shadow:0 18px 50px rgba(2,30,60,.32);font-family:system-ui,Arial,sans-serif;font-size:13px;color:' + AY_TOKENS['ui-ink'] + ';border:1px solid rgba(0,61,121,.08);overflow:hidden}' +
+    '#pm-restore{position:fixed;bottom:58px;left:50%;transform:translateX(-50%);z-index:100000;display:flex;align-items:center;gap:10px;background:' + AY_TOKENS['ui-navy'] + ';color:' + AY_TOKENS['tint-white'] + ';font-family:system-ui,Arial,sans-serif;font-size:13px;font-weight:600;padding:9px 10px 9px 16px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.28)}'
+    + '#pm-restore button{font:inherit;font-size:12px;border:0;border-radius:8px;padding:6px 12px;cursor:pointer;background:' + AY_TOKENS['tint-white'] + ';color:' + AY_TOKENS['ui-navy'] + '}#pm-restore button[data-r="0"]{background:transparent;color:' + AY_TOKENS['tint-white'] + ';box-shadow:inset 0 0 0 1px rgba(255,255,255,.45)}' +
     '.pm-toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(10px);z-index:100000;background:' + AY_TOKENS['ui-navy'] + ';color:' + AY_TOKENS['tint-white'] + ';font-family:system-ui,Arial,sans-serif;font-size:13px;font-weight:600;padding:11px 20px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.28);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}.pm-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}' +
     '.pm-ovl{position:fixed;inset:0;z-index:100000;background:rgba(8,24,44,.45);display:flex;align-items:center;justify-content:center;font-family:system-ui,Arial,sans-serif}.pm-dlg{background:' + AY_TOKENS['tint-white'] + ';border-radius:16px;padding:22px;max-width:340px;box-shadow:0 24px 70px rgba(0,0,0,.32)}.pm-dlg-msg{font-size:14px;color:' + AY_TOKENS['ui-ink'] + ';margin-bottom:18px;line-height:1.5}.pm-dlg-btns{display:flex;gap:10px;justify-content:flex-end}.pm-dlg button{font-size:13px;font-weight:700;border-radius:9px;padding:9px 18px;cursor:pointer;border:0}.pm-dlg-cancel{background:' + AY_TOKENS['ui-mist-1'] + ';color:' + AY_TOKENS['ui-slate-dark'] + '}.pm-dlg-ok{background:' + AY_TOKENS['ui-red'] + ';color:' + AY_TOKENS['tint-white'] + '}.pm-dlg-input{width:100%;box-sizing:border-box;border:1px solid ' + AY_TOKENS['ui-border'] + ';border-radius:9px;padding:10px 12px;font-size:14px;margin-bottom:16px;font-family:inherit}.pm-dlg-input:focus{outline:none;border-color:' + AY_TOKENS['gradient-blue-start'] + '}.pm-dlg-go{background:' + AY_TOKENS['gradient-blue-start'] + '!important;color:' + AY_TOKENS['tint-white'] + '!important}.pm-share{max-width:400px;padding:26px;text-align:left}.pm-share-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,' + AY_TOKENS['blue-primary'] + ',' + AY_TOKENS['gradient-green-end'] + ');color:' + AY_TOKENS['tint-white'] + ';margin-bottom:15px}.pm-dlg-title{font-size:17px;font-weight:800;color:' + AY_TOKENS['ui-navy-title'] + ';margin-bottom:6px}.pm-dlg-sub{font-size:13px;color:' + AY_TOKENS['ui-slate'] + ';line-height:1.5;margin-bottom:16px}.pm-dlg-go:hover{filter:brightness(1.06)}.pm-dlg-cancel:hover{background:' + AY_TOKENS['ui-mist-2'] + '}.pm-ac-wrap{position:relative;margin-bottom:16px}.pm-ac-wrap .pm-dlg-input{margin-bottom:0}.pm-ac{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:2;background:' + AY_TOKENS['tint-white'] + ';border:1px solid ' + AY_TOKENS['ui-border'] + ';border-radius:10px;box-shadow:0 14px 32px rgba(8,24,44,.18);max-height:236px;overflow:auto;display:none}.pm-ac.on{display:block}.pm-ac-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid ' + AY_TOKENS['ui-mist-1'] + ';font-size:14px;line-height:1.35;color:' + AY_TOKENS['ui-ink'] + '}.pm-ac-item:last-child{border-bottom:0}.pm-ac-item.hi,.pm-ac-item:hover{background:' + AY_TOKENS['ui-mist-4'] + '}.pm-ac-sub{display:block;font-size:12px;color:' + AY_TOKENS['ui-slate-sub'] + ';margin-top:1px}' +
     '#pm-dlpop{position:fixed;bottom:58px;left:14px;z-index:100000;background:' + AY_TOKENS['tint-white'] + ';border-radius:12px;box-shadow:0 12px 40px rgba(2,30,60,.3);display:none;flex-direction:column;overflow:hidden;border:1px solid rgba(0,61,121,.08);font-family:system-ui,Arial,sans-serif}#pm-dlpop.show{display:flex}#pm-dlpop .pm-dlbtn{display:flex;align-items:center;gap:9px;padding:12px 18px;background:' + AY_TOKENS['tint-white'] + ';border:0;font-size:13px;font-weight:600;color:' + AY_TOKENS['ui-navy'] + ';cursor:pointer;white-space:nowrap}#pm-dlpop .pm-dlbtn:hover{background:' + AY_TOKENS['ui-mist-5'] + '}#pm-dlpop .pm-dlbtn+.pm-dlbtn{border-top:1px solid ' + AY_TOKENS['ui-mist-3'] + '}#pm-dlpop svg{vertical-align:-2px}' +
@@ -1492,14 +1498,14 @@ window.addEventListener('load', function () {
     clearSelection();
     // Si la slide affichee vient d'etre masquee, on la quitte tout de suite.
     var t = pmSeek(currentSlide, 1); if (t === -1) t = pmSeek(currentSlide, -1); if (t !== -1) currentSlide = t;
-    updateSlide(); renderSlides();
+    updateSlide(); renderSlides(); autosave();
   }
   function bulkShowAll() {
     Array.prototype.forEach.call(slides, function (s) { s.dataset.pmHidden = ''; });
     state.slidesHidden = [];
     clearSelection();
     track('deck_slide_shown', { slide: 'all' });
-    updateSlide(); renderSlides();
+    updateSlide(); renderSlides(); autosave();
   }
   sbulkHide.addEventListener('click', function () { bulkSetHidden(true); });
   sbulkShow.addEventListener('click', function () { bulkSetHidden(false); });
@@ -1521,7 +1527,7 @@ window.addEventListener('load', function () {
     Object.keys(state.opacity).forEach(function (k) { var el = resolve(k); if (el) { el.style.setProperty('animation', 'none', 'important'); el.style.setProperty('opacity', state.opacity[k] / 100, 'important'); } });
     state.masked.forEach(function (k) { var el = resolve(k); if (el && el.style.display !== 'none') { el.dataset.pmPrev = el.style.display; el.style.display = 'none'; recenterRow(el.parentElement); } });
     state.slidesHidden.forEach(function (i) { if (slides[i]) slides[i].dataset.pmHidden = '1'; });
-    renderMasked(); renderSlides();
+    renderMasked(); renderSlides(); autosave();
   }
 
   // ---- notes (retours terrain saisis pendant un rendez-vous) ----
@@ -1794,15 +1800,15 @@ window.addEventListener('load', function () {
     if (!selected) return; var el = selected;
     if (el.style.display === 'none') { unmaskKey(elPath(el)); track('deck_element_show', { target: fieldName(el), slide: slideIndex(el), title: slideTitle(el.closest('.slide')) }); }
     else { maskEl(el); track('deck_element_hide', { target: fieldName(el), slide: slideIndex(el), title: slideTitle(el.closest('.slide')) }); }
-    updateHideBtn(); renderMasked();
+    updateHideBtn(); renderMasked(); autosave();
   });
-  document.getElementById('pm-masked').addEventListener('click', function (e) { var b = e.target.closest('[data-k]'); if (!b) return; unmaskKey(b.dataset.k); if (selected && elPath(selected) === b.dataset.k) updateHideBtn(); renderMasked(); });
+  document.getElementById('pm-masked').addEventListener('click', function (e) { var b = e.target.closest('[data-k]'); if (!b) return; unmaskKey(b.dataset.k); if (selected && elPath(selected) === b.dataset.k) updateHideBtn(); renderMasked(); autosave(); });
   document.getElementById('pm-opacity').addEventListener('input', function (e) {
     if (!selected) return; var el = selected, v = e.target.value, k = elPath(el);
     el.style.setProperty('animation', 'none', 'important'); el.style.setProperty('opacity', v / 100, 'important');
     document.getElementById('pm-opval').textContent = v + '%';
     if (+v === 100) delete state.opacity[k]; else state.opacity[k] = +v;
-    clearTimeout(window.__pmop); window.__pmop = setTimeout(function () { track('deck_style_change', { target: fieldName(el), opacity: +v }); }, 400);
+    clearTimeout(window.__pmop); window.__pmop = setTimeout(function () { autosave(); track('deck_style_change', { target: fieldName(el), opacity: +v }); }, 400);
   });
 
   list.addEventListener('click', function (e) {
@@ -1827,7 +1833,7 @@ window.addEventListener('load', function () {
       if (hide && slides[i].classList.contains('active')) { nextSlide(); if (slides[i].classList.contains('active')) prevSlide(); }
       else { updateSlide(); }
       track(hide ? 'deck_slide_hidden' : 'deck_slide_shown', { slide: i + 1, title: slideTitle(slides[i]), chapter: slides[i].dataset.chapter || '' });
-      renderSlides();
+      renderSlides(); autosave();
       return;
     }
     var row = e.target.closest('.pm-srow');
@@ -1903,7 +1909,7 @@ window.addEventListener('load', function () {
   function pmFilter(node) {
     if (node && node.classList) {
       if (node.id === 'pm-panel') return false;
-      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help', 'deck-ink', 'deck-tools', 'driver-overlay', 'driver-popover', 'ay-tour-invite', 'pm-progress-card', 'deck-lang'];
+      var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help', 'deck-ink', 'deck-tools', 'driver-overlay', 'driver-popover', 'ay-tour-invite', 'pm-progress-card', 'deck-lang', 'pm-restore'];
       for (var i = 0; i < ex.length; i++) if (node.classList.contains(ex[i])) return false;
     }
     // The capture is exactly the viewport (vw x vh in pmCapture), so an <img>
@@ -2619,12 +2625,28 @@ window.addEventListener('load', function () {
     var pmParam = new URLSearchParams(location.search).get('pm');
     if (pmParam) { applyState(pmDecode(pmParam)); }
     else {
-      // Le deck s'ouvre tel que publié ; les brouillons laissés par l'ancien moteur sont effacés.
-      try { localStorage.removeItem('pm:draft:' + deckKey); localStorage.removeItem('pm:draftts:' + deckKey); } catch (x) { }
+      // Le deck s'ouvre tel que publié. Un brouillon qui diffère de sa version enregistrée
+      // est proposé dans un bandeau, jamais réappliqué sans le demander.
+      var dr = localStorage.getItem('pm:draft:' + deckKey), ds = dr ? JSON.parse(dr) : null, prevV = curVersion;
       setVersion('');
+      var sv = getSaves()[prevV];
+      if (!isBlankState(ds) && !(sv && sameState(sv, ds))) offerRestore(ds, prevV);
       window.addEventListener('beforeunload', function (e) { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
     }
   } catch (e) { }
+  function offerRestore(ds, v) {
+    var ts = 0; try { ts = +localStorage.getItem('pm:draftts:' + deckKey) || 0; } catch (e) { }
+    var b = document.createElement('div'); b.id = 'pm-restore'; b.className = 'pm-restore';
+    b.innerHTML = '<span></span><button data-r="1">Restaurer</button><button data-r="0">Ignorer</button>';
+    b.querySelector('span').textContent = 'Retouches non enregistrées' + (ts ? ' du ' + new Date(ts).toLocaleDateString('fr-FR') : '') + (v ? ' sur la version « ' + v + ' »' : '') + '.';
+    b.addEventListener('click', function (e) {
+      var r = e.target.closest('[data-r]'); if (!r) return;
+      if (r.dataset.r === '1') { applyState(ds); if (v && getSaves()[v]) setVersion(v); }
+      else { try { localStorage.removeItem('pm:draft:' + deckKey); } catch (x) { } }
+      b.remove();
+    });
+    document.body.appendChild(b);
+  }
   // No deck_open event: Umami's gated pageview already marks "opened this deck"
   // (one URL per deck), so deck_open was a duplicate at the same timestamp.
   } catch (e) { if (window.console) console.warn('[perso] editor disabled:', e); }
