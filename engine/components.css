@@ -319,3 +319,57 @@
 .slide.active .value-detail-list li:nth-child(6) {
   animation-delay: 0.65s;
 }
+
+
+/* ===== COVERAGE MATRIX (slide « cobertura » des decks Espagne) =====
+   Matrice services x pays : .cob-matrix, .cob-head, .cob-label, .cob-cell et
+   leurs pastilles. Promue le 2026-09-29 depuis neuf copies locales identiques,
+   d'où les sélecteurs gardés sous .slide[data-chapter="cobertura"]. */
+/* .slide-inner est une colonne flex centree : sans width 100% la grille se reduit a
+   son contenu et la slide parait etriquee. On elargit aussi le cadre pour ce chapitre. */
+.slide[data-chapter="cobertura"] .slide-inner { max-width: 1340px; }
+/* .slide-inner > dans le sélecteur : il doit battre la règle de deck
+   .slide-inner > .slide-title + .content-paragraph (même poids sans lui), qui
+   ajoute 36px sous le sous-titre et que la copie locale battait par l'ordre. */
+.slide[data-chapter="cobertura"] .slide-inner > .content-paragraph { max-width: 880px; margin: -34px auto 0; text-align: center; }
+.slide[data-chapter="cobertura"] .cob-matrix { width: 100%; display: grid; grid-template-columns: 360px repeat(6, 1fr);
+  border: 1px solid var(--bg-subtle); border-radius: var(--radius-xl); overflow: hidden;
+  margin-top: var(--space-26); }
+.slide[data-chapter="cobertura"] .cob-corner { background: var(--bg-light); display: flex; align-items: flex-end;
+  padding: 0 0 var(--space-16) var(--space-22); }
+.slide[data-chapter="cobertura"] .cob-corner span { font-size: var(--font-11); font-weight: var(--weight-semibold);
+  letter-spacing: .8px; text-transform: uppercase; color: var(--text-light); }
+.slide[data-chapter="cobertura"] .cob-head { background: var(--bg-light); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: var(--space-6); padding: var(--space-16) var(--space-4);
+  border-left: 1px solid var(--bg-subtle); }
+.slide[data-chapter="cobertura"] .cob-flag { width: 42px; height: 28px; border-radius: var(--radius-md);
+  overflow: hidden; box-shadow: 0 0 0 1px rgba(var(--blue-dark-rgb), .18); }
+.slide[data-chapter="cobertura"] .cob-flag svg { display: block; width: 100%; height: 100%; }
+.slide[data-chapter="cobertura"] .cob-head b { font-size: var(--font-11); font-weight: var(--weight-bold);
+  letter-spacing: .8px; color: var(--blue-dark); }
+.slide[data-chapter="cobertura"] .cob-head i { font-style: normal; font-size: 10px; color: var(--text-light); }
+.slide[data-chapter="cobertura"] .cob-label { display: flex; align-items: center; gap: var(--space-12);
+  padding: 0 var(--space-16) 0 var(--space-22); height: 78px; border-top: 1px solid var(--bg-subtle);
+  text-align: left; }
+.slide[data-chapter="cobertura"] .cob-ic { width: 34px; height: 34px; border-radius: 50%; flex: 0 0 34px;
+  background: var(--overlay-blue-soft); display: flex; align-items: center; justify-content: center; }
+.slide[data-chapter="cobertura"] .cob-ic svg { width: 18px; height: 18px; color: var(--blue-primary); stroke-width: 1.8; }
+.slide[data-chapter="cobertura"] .cob-label strong { font-size: var(--font-15); font-weight: var(--weight-bold);
+  line-height: var(--leading-tight); color: var(--text-dark); }
+.slide[data-chapter="cobertura"] .cob-cell { height: 78px; border-top: 1px solid var(--bg-subtle);
+  border-left: 1px solid var(--bg-subtle); display: flex; align-items: center; justify-content: center; }
+.slide[data-chapter="cobertura"] .cob-dot { width: 26px; height: 26px; border-radius: 50%;
+  background: var(--gradient-green-end); display: flex; align-items: center; justify-content: center; }
+.slide[data-chapter="cobertura"] .cob-dot svg,
+.slide[data-chapter="cobertura"] .cob-soon svg { width: 13px; height: 13px; color: var(--bg-white); stroke-width: 3; }
+.slide[data-chapter="cobertura"] .cob-none { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--bg-subtle); }
+.slide[data-chapter="cobertura"] .cob-soon { width: 26px; height: 26px; border-radius: 50%; background: var(--blue-primary);
+  display: flex; align-items: center; justify-content: center; }
+.slide[data-chapter="cobertura"] .cob-legend { display: flex; align-items: center; justify-content: center;
+  gap: var(--space-26); margin-top: var(--space-18); font-size: var(--font-12); color: var(--text-gray); }
+.slide[data-chapter="cobertura"] .cob-legend span { display: flex; align-items: center; gap: var(--space-8); }
+.slide[data-chapter="cobertura"] .cob-legend .cob-dot,
+.slide[data-chapter="cobertura"] .cob-legend .cob-soon,
+.slide[data-chapter="cobertura"] .cob-legend .cob-none { width: 18px; height: 18px; border-width: 2px; }
+.slide[data-chapter="cobertura"] .cob-legend .cob-dot svg,
+.slide[data-chapter="cobertura"] .cob-legend .cob-soon svg { width: 9px; height: 9px; }
