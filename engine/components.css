@@ -373,3 +373,74 @@
 .slide[data-chapter="cobertura"] .cob-legend .cob-none { width: 18px; height: 18px; border-width: 2px; }
 .slide[data-chapter="cobertura"] .cob-legend .cob-dot svg,
 .slide[data-chapter="cobertura"] .cob-legend .cob-soon svg { width: 9px; height: 9px; }
+
+/* ===== CLIENTES (decks Espagne) =====
+   Toutes les règles sous .slide[data-chapter="clientes"] : en .cl-* nu, la règle .g3 du
+   <head> de chaque deck, chargée après ce fichier, gagnait sur .cl-grid.
+   Promue le 2026-09-29 depuis 13 copies locales ; une règle propre à un deck reste dans son bloc <style>. */
+.slide[data-chapter="clientes"] .slide-inner { max-width: 1160px; }
+.slide[data-chapter="clientes"] .slide-title { margin-bottom: 48px; }
+.slide[data-chapter="clientes"] .cl-wrap { display: grid; grid-template-columns: 1.18fr 1px 0.92fr 1px 0.92fr; gap: 0 var(--space-26); width: 100%; align-items: stretch; }
+.slide[data-chapter="clientes"] .cl-div { width: 1px; background: linear-gradient(180deg, transparent 0%, #d6e0ea 14%, #d6e0ea 86%, transparent 100%); }
+.slide[data-chapter="clientes"] .cl-col { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.slide[data-chapter="clientes"] .cl-stat { font-size: 40px; font-weight: var(--weight-black); color: var(--blue-primary); line-height: var(--leading-tight); letter-spacing: -1px; }
+.slide[data-chapter="clientes"] .cl-label { font-size: var(--font-13); font-weight: var(--weight-bold); color: var(--blue-dark); margin-top: var(--space-9); line-height: var(--leading-snug); min-height: 34px; }
+.slide[data-chapter="clientes"] .cl-cap { font-size: 11.5px; font-style: italic; color: var(--text-gray); margin-top: 7px; line-height: 1.35; min-height: 34px; padding: 0 var(--space-6); }
+.slide[data-chapter="clientes"] .cl-grid { display: grid; align-items: center; justify-items: center; width: 100%; margin-top: var(--space-16); }
+.slide[data-chapter="clientes"] .cl-grid.g3 { grid-template-columns: repeat(3, 1fr); gap: var(--space-18) var(--space-16); }
+.slide[data-chapter="clientes"] .cl-grid.g2 { grid-template-columns: repeat(2, 1fr); gap: var(--space-26) var(--space-20); }
+.slide[data-chapter="clientes"] .cl-grid img { max-width: 90%; object-fit: contain; }
+.slide[data-chapter="clientes"] .cl-col-1 .cl-grid img { max-height: 24px; }
+.slide[data-chapter="clientes"] .cl-col-2 .cl-grid img, .slide[data-chapter="clientes"] .cl-col-3 .cl-grid img { max-height: 38px; }
+.slide[data-chapter="clientes"] .cl-col-3 .cl-grid img:last-child { grid-column: 1 / -1; justify-self: center; }
+
+/* ===== GRACIAS (decks Espagne) =====
+   Promue le 2026-09-29 depuis 11 copies locales ; une règle propre à un deck reste dans son bloc <style>. */
+.slide[data-chapter="gracias"] .slide-inner { max-width: none; width: min(42%, 620px); margin: 0 auto 0 max(0px, calc(25% - min(21%, 310px) - 40px)); }
+.gracias-left { text-align: left; }
+.gracias-logos { display: flex; align-items: center; gap: var(--space-16); margin-bottom: var(--space-34); }
+.gracias-logos img { height: 40px; width: auto; display: block; }
+.gracias-logos .gl-sep { font-size: var(--font-18); color: #c3ced6; }
+.gracias-lead { font-size: 22px; font-weight: var(--weight-bold); color: var(--blue-dark); margin: 0 0 var(--space-22); }
+.gc-row { display: flex; align-items: center; gap: var(--space-16); margin-bottom: var(--space-16); }
+.gc-row:last-child { margin-bottom: 0; }
+.gc-ic { width: 44px; height: 44px; border-radius: var(--radius-circle); flex-shrink: 0; background: var(--blue-primary); display: flex; align-items: center; justify-content: center; }
+.gc-ic svg { width: 20px; height: 20px; color: var(--bg-white); }
+.gc-text { font-size: var(--font-14); color: var(--blue-dark); font-weight: var(--weight-semibold); line-height: 1.35; }
+.gc-sub { font-size: 12.5px; color: #5a6b78; font-weight: 400; margin-top: 2px; }
+.gracias-photo { position: absolute; top: 0; right: 0; bottom: var(--banner-h); width: 50%; overflow: hidden; }
+.gracias-photo img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 35%; display: block; }
+
+/* ===== HR-INTL-PRUEBAS (decks Espagne) =====
+   Promue le 2026-09-29 depuis 13 copies locales ; une règle propre à un deck reste dans son bloc <style>. */
+.slide[data-chapter="hr-intl-pruebas"] .pruebas-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-26); width: 100%; max-width: 1160px; margin-top: var(--space-8); }
+.slide[data-chapter="hr-intl-pruebas"] .pruebas-card { background: var(--bg-white); border: 1px solid #e9f0f5; border-radius: var(--radius-xl); overflow: hidden; box-shadow: 0 6px 24px rgba(var(--blue-dark-rgb), .06); text-align: left; }
+.slide[data-chapter="hr-intl-pruebas"] .pruebas-banner { display: block; width: 100%; height: 230px; object-fit: cover; }
+.slide[data-chapter="hr-intl-pruebas"] .pruebas-body { padding: var(--space-12) var(--space-18) var(--space-12); }
+.slide[data-chapter="hr-intl-pruebas"] .pruebas-card h3 { font-size: var(--font-15); color: var(--blue-dark); font-weight: var(--weight-bold); margin: 0 0 var(--space-6); line-height: 1.25; }
+.slide[data-chapter="hr-intl-pruebas"] .pruebas-card p { font-size: 12.5px; color: #4a5b68; line-height: 1.45; margin: 0; }
+.slide[data-chapter="hr-intl-pruebas"] .pruebas-chip { display: inline-block; background: #e9f5fc; color: var(--blue-primary); font-size: 10.5px; font-weight: var(--weight-bold); letter-spacing: .06em; text-transform: uppercase; padding: 3px var(--space-10); border-radius: 999px; margin-bottom: var(--space-8); }
+
+/* ===== IMPLANTATION (decks Espagne) =====
+   Promue le 2026-09-29 depuis 13 copies locales ; une règle propre à un deck reste dans son bloc <style>. */
+.slide[data-chapter="implantation"] .impl-stats { display: flex; justify-content: center; gap: 0; width: 100%; max-width: 900px; margin: var(--space-26) auto 0; }
+.slide[data-chapter="implantation"] .impl-stat { flex: 1; text-align: center; padding: 0 var(--space-12); border-right: 1px solid var(--tint-grey-15); }
+.slide[data-chapter="implantation"] .impl-stat:last-child { border-right: none; }
+.slide[data-chapter="implantation"] .impl-stat-num { font-size: 22px; font-weight: var(--weight-bold); color: var(--blue-primary); line-height: var(--leading-tight); white-space: nowrap; }
+.slide[data-chapter="implantation"] .impl-stat-label { font-size: var(--font-11); font-weight: var(--weight-semibold); color: var(--text-gray); text-transform: uppercase; letter-spacing: .3px; margin-top: var(--space-6); }
+.slide[data-chapter="implantation"] .implantation-container { height: 452px; overflow: hidden; align-items: flex-start; margin: 2px auto 0; }
+.slide[data-chapter="implantation"] .implantation-eu { height: 575px; max-height: none; width: auto; transform: translateY(-122px); }
+
+/* ===== HR-INTL-MODELO (decks Espagne) =====
+   Promue le 2026-09-29 depuis 13 copies locales ; une règle propre à un deck reste dans son bloc <style>. */
+.slide[data-chapter="hr-intl-modelo"] .modelo-flow { display: flex; align-items: stretch; gap: 0; width: 100%; max-width: 1160px; margin-top: var(--space-10); }
+.slide[data-chapter="hr-intl-modelo"] .modelo-step { flex: 1; background: var(--bg-white); border: 1px solid #e9f0f5; border-radius: var(--radius-xl); padding: var(--space-24) var(--space-22) var(--space-20); box-shadow: 0 6px 24px rgba(var(--blue-dark-rgb), .06); text-align: left; }
+.slide[data-chapter="hr-intl-modelo"] .modelo-num { width: 32px; height: 32px; border-radius: var(--radius-circle); color: var(--bg-white); font-size: var(--font-14); font-weight: var(--weight-bold); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-14); }
+.slide[data-chapter="hr-intl-modelo"] .modelo-step.s1 .modelo-num { background: var(--blue-primary); }
+.slide[data-chapter="hr-intl-modelo"] .modelo-step.s2 .modelo-num { background: var(--gradient-green-end); }
+.slide[data-chapter="hr-intl-modelo"] .modelo-step.s3 .modelo-num { background: var(--blue-dark); }
+.slide[data-chapter="hr-intl-modelo"] .modelo-step h3 { font-size: var(--font-16); color: var(--blue-dark); font-weight: var(--weight-bold); margin: 0 0 var(--space-10); line-height: 1.25; }
+.slide[data-chapter="hr-intl-modelo"] .modelo-step p { font-size: var(--font-13); color: #4a5b68; line-height: 1.55; margin: 0; }
+.slide[data-chapter="hr-intl-modelo"] .modelo-chevron { flex: 0 0 40px; display: flex; align-items: center; justify-content: center; }
+.slide[data-chapter="hr-intl-modelo"] .modelo-chevron svg { width: 24px; height: 24px; color: var(--blue-primary); }
+.slide[data-chapter="hr-intl-modelo"] .modelo-close { margin: var(--space-22) auto 0; max-width: 1160px; background: #f7fbfd; border-radius: var(--radius-lg); padding: var(--space-16) var(--space-24); text-align: center; font-size: var(--font-16); font-weight: var(--weight-semibold); color: var(--blue-dark); }
