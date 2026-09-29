@@ -1154,7 +1154,6 @@ window.addEventListener('load', function () {
     bold: ICO('<path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"/>', 14),
     italic: ICO('<line x1="19" x2="10" y1="4" y2="4"/><line x1="14" x2="5" y1="20" y2="20"/><line x1="15" x2="9" y1="4" y2="20"/>', 14),
     underline: ICO('<path d="M6 4v6a6 6 0 0 0 12 0V4"/><line x1="4" x2="20" y1="20" y2="20"/>', 14),
-    list: ICO('<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>', 14),
     clearFmt: ICO('<path d="M4 7V4h16v3"/><path d="M5 20h6"/><path d="M13 4 8 20"/><path d="m15 15 5 5"/><path d="m20 15-5 5"/>', 14),
     grip: ICO('<circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>', 14)
   };
@@ -1183,8 +1182,8 @@ window.addEventListener('load', function () {
     return true;
   }
   function editableEls() {
-    // Un bloc déjà retouché reste éditable même si la mise en forme y a mis une liste,
-    // qui n'est pas un enfant inline et le sortirait sinon de isTextLeaf.
+    // Un bloc déjà retouché reste éditable même si son HTML sauvegardé contient un
+    // enfant non inline (un <div> ou une liste collés), qui le sortirait de isTextLeaf.
     var out = Object.keys(state.text).map(resolve).filter(Boolean);
     slides.forEach(function (s) { s.querySelectorAll('*').forEach(function (el) { if (out.indexOf(el) < 0 && isTextLeaf(el)) out.push(el); }); });
     return out.filter(function (el) { return !out.some(function (o) { return o !== el && o.contains(el); }); });
@@ -1384,7 +1383,6 @@ window.addEventListener('load', function () {
       '<button data-cmd="bold" title="Gras (Cmd+B)">' + ICON.bold + '</button>' +
       '<button data-cmd="italic" title="Italique (Cmd+I)">' + ICON.italic + '</button>' +
       '<button data-cmd="underline" title="Souligné (Cmd+U)">' + ICON.underline + '</button>' +
-      '<button data-cmd="insertUnorderedList" title="Liste à puces">' + ICON.list + '</button>' +
       '<button data-cmd="removeFormat" title="Effacer la mise en forme">' + ICON.clearFmt + '</button>' +
       '</div>') +
     sec('visual', ICON.contrast, 'Visuel', '',
