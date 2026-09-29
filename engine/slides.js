@@ -1170,9 +1170,31 @@ window.addEventListener('load', function () {
     return txt.slice(0, 60) || s.dataset.chapter || ('slide ' + (Array.prototype.indexOf.call(slides, s) + 1));
   }
   function fieldName(el) { var b = (el.className || el.tagName).toString().split(' ')[0].replace(/[^a-z0-9_-]/gi, '') || el.tagName.toLowerCase(); return b + '@s' + slideIndex(el); }
-  // stable path (deck DOM is static across reloads): "slideIdx:child-child-..."
-  function elPath(el) { var s = el.closest('.slide'); if (!s) return null; var si = Array.prototype.indexOf.call(slides, s), idx = [], n = el; while (n && n !== s) { idx.unshift(Array.prototype.indexOf.call(n.parentElement.children, n)); n = n.parentElement; } return si + ':' + idx.join('-'); }
-  function resolve(key) { var pr = key.split(':'), s = slides[+pr[0]]; if (!s) return null; var n = s; if (pr[1]) pr[1].split('-').forEach(function (i) { n = n && n.children[+i]; }); return n; }
+  // Clé d'un élément retouché : "chapitre#rang|chemin|empreinte". La slide est nommée par son
+  // data-chapter (et son rang parmi les slides du même chapitre), pas par sa position, donc
+  // ajouter ou déplacer des slides ne décale plus les versions enregistrées. L'empreinte
+  // (balise, première classe, début du texte d'origine) retrouve l'élément s'il a bougé dans
+  // sa slide ; introuvable, la retouche est ignorée plutôt que posée sur un autre élément.
+  // Les clés d'avant 2026-09-29, "indexSlide:chemin", restent lues comme avant.
+  function textNorm(el) { return (el.textContent || '').replace(/\s+/g, ' ').trim(); }
+  function slideKey(s) { var ch = s.dataset.chapter || '', n = 0; for (var i = 0; i < slides.length && slides[i] !== s; i++) if ((slides[i].dataset.chapter || '') === ch) n++; return ch + '#' + n; }
+  function slideByKey(k) { var m = /^(.*)#(\d+)$/.exec(k), n; if (!m) return null; n = +m[2]; for (var i = 0; i < slides.length; i++) if ((slides[i].dataset.chapter || '') === m[1] && n-- === 0) return slides[i]; return null; }
+  function elFp(el) { var t = el.dataset.pmOrig !== undefined ? el.dataset.pmOrig : textNorm(el); return el.tagName.toLowerCase() + '.' + (String(el.getAttribute('class') || '').split(' ')[0]) + '~' + t.slice(0, 40); }
+  function elPath(el) { var s = el.closest('.slide'); if (!s) return null; var idx = [], n = el; while (n && n !== s) { idx.unshift(Array.prototype.indexOf.call(n.parentElement.children, n)); n = n.parentElement; } return slideKey(s) + '|' + idx.join('-') + '|' + elFp(el); }
+  function resolve(key) {
+    var a = key.indexOf('|'), b = a < 0 ? -1 : key.indexOf('|', a + 1), s, n;
+    if (b < 0) { var pr = key.split(':'); s = slides[+pr[0]]; if (!s) return null; n = s; if (pr[1]) pr[1].split('-').forEach(function (i) { n = n && n.children[+i]; }); return n; }
+    s = slideByKey(key.slice(0, a)); if (!s) return null;
+    var path = key.slice(a + 1, b), fp = key.slice(b + 1); n = s;
+    if (path) path.split('-').forEach(function (i) { n = n && n.children[+i]; });
+    if (n && elFp(n) === fp) return n;
+    var all = s.querySelectorAll('*'); for (var i = 0; i < all.length; i++) if (elFp(all[i]) === fp) return all[i];
+    // même place, même type d'élément, texte reformulé par une mise à jour du deck
+    return n && elFp(n).split('~')[0] === fp.split('~')[0] ? n : null;
+  }
+  // Forme enregistrée (version, brouillon, lien ?pm=) : les slides masquées y sont nommées
+  // comme les éléments, par chapitre, et redeviennent des positions au chargement.
+  function toStored(st) { var o = JSON.parse(JSON.stringify(st)); o.slidesHidden = (o.slidesHidden || []).map(function (i) { return typeof i === 'number' && slides[i] ? slideKey(slides[i]) : i; }); return o; }
   function elName(el, key) { return el ? (el.tagName.toLowerCase() + (el.className ? '.' + String(el.className).split(' ')[0] : '')) : key; }
 
   var INLINE = { STRONG: 1, EM: 1, B: 1, I: 1, A: 1, SPAN: 1, BR: 1, SUP: 1, SUB: 1, SMALL: 1, U: 1, MARK: 1, ABBR: 1 };
@@ -1196,13 +1218,13 @@ window.addEventListener('load', function () {
   // un masquage oublié cachait sinon une slide pour toujours, et les mises à jour du deck
   // restaient invisibles. À l'ouverture suivante, un bandeau propose de le restaurer.
   function autosave() {
-    try { localStorage.setItem('pm:draft:' + deckKey, JSON.stringify(state)); localStorage.setItem('pm:draftts:' + deckKey, String(Date.now())); } catch (e) { }
+    try { localStorage.setItem('pm:draft:' + deckKey, JSON.stringify(toStored(state))); localStorage.setItem('pm:draftts:' + deckKey, String(Date.now())); } catch (e) { }
     var b = document.getElementById('pm-restore'); if (b) b.remove();
   }
   function isBlankState(st) { return !st || (!Object.keys(st.text || {}).length && !(st.masked || []).length && !Object.keys(st.opacity || {}).length && !(st.slidesHidden || []).length); }
   function sameState(a, b) { return JSON.stringify(Object.assign(blank(), a)) === JSON.stringify(Object.assign(blank(), b)); }
   // Retouches absentes de toute version enregistrée : c'est elles que la fermeture perdrait.
-  function isDirty() { if (isBlankState(state)) return false; var sv = getSaves()[curVersion]; return !(curVersion && sv && sameState(sv, state)); }
+  function isDirty() { if (isBlankState(state)) return false; var sv = getSaves()[curVersion]; return !(curVersion && sv && sameState(sv, toStored(state))); }
   // La version chargee est ce qui identifie le client du moment. Les notes
   // s'estampillent avec, sinon celles de La Poste et celles de Bobcat finissent
   // dans le meme tas, separees par rien.
@@ -1223,7 +1245,7 @@ window.addEventListener('load', function () {
   // lives in the URL and is rendered headlessly without re-implementing it.
   function pmEncode(st) { return btoa(unescape(encodeURIComponent(JSON.stringify(st)))); }
   function pmDecode(s) { return JSON.parse(decodeURIComponent(escape(atob(s)))); }
-  function pmLink() { return location.origin + location.pathname + '?pm=' + encodeURIComponent(pmEncode(state)); }
+  function pmLink() { return location.origin + location.pathname + '?pm=' + encodeURIComponent(pmEncode(toStored(state))); }
 
   var mode = null, selected = null;
   function deselect() { if (selected) { selected.style.outline = ''; selected = null; } document.getElementById('pm-style').style.display = 'none'; }
@@ -1232,7 +1254,7 @@ window.addEventListener('load', function () {
     if (el.dataset.pmBound) return; el.dataset.pmBound = '1'; var t;
     // Snapshot the text as it was when first made editable, so each edit event
     // can report what it changed from -> to (truncated for analytics).
-    if (el.dataset.pmOrig === undefined) el.dataset.pmOrig = (el.innerText || '').replace(/\s+/g, ' ').trim();
+    if (el.dataset.pmOrig === undefined) el.dataset.pmOrig = textNorm(el);
     el.addEventListener('input', function () { clearTimeout(t); t = setTimeout(function () { var k = elPath(el); state.text[k] = el.innerHTML; autosave(); track('deck_field_edit', { field: fieldName(el), slide: slideIndex(el), title: slideTitle(el.closest('.slide')), before: (el.dataset.pmOrig || '').slice(0, 500), after: (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 500) }); }, 500); });
     el.addEventListener('keydown', function (e) { e.stopPropagation(); });
   }
@@ -1523,6 +1545,17 @@ window.addEventListener('load', function () {
 
   function applyState(st) {
     state = Object.assign(blank(), st || {});
+    state.slidesHidden = (state.slidesHidden || []).map(function (k) { if (typeof k === 'number') return k; var sl = slideByKey(k); return sl ? Array.prototype.indexOf.call(slides, sl) : -1; }).filter(function (i) { return i >= 0; });
+    // Chaque clé, même d'avant 2026-09-29, est résolue AVANT de poser le moindre texte puis
+    // réécrite au format par nom : l'empreinte se calcule sur le texte d'origine, et une
+    // retouche faite ensuite retombe sur la même clé. Une clé introuvable est abandonnée.
+    var ref = {}; function at(k) { if (!(k in ref)) { var el = resolve(k); ref[k] = el ? { el: el, k: elPath(el) } : null; } return ref[k]; }
+    var tx = {}, op = {}, mk = [];
+    Object.keys(state.text).forEach(function (k) { var r = at(k); if (r) tx[r.k] = state.text[k]; });
+    Object.keys(state.opacity).forEach(function (k) { var r = at(k); if (r) op[r.k] = state.opacity[k]; });
+    state.masked.forEach(function (k) { var r = at(k); if (r && mk.indexOf(r.k) < 0) mk.push(r.k); });
+    state.text = tx; state.opacity = op; state.masked = mk;
+    Object.keys(ref).forEach(function (k) { var r = ref[k]; if (r && tx[r.k] !== undefined && r.el.dataset.pmOrig === undefined) r.el.dataset.pmOrig = textNorm(r.el); });
     Object.keys(state.text).forEach(function (k) { var el = resolve(k); if (el) { el.innerHTML = state.text[k]; bindText(el); } });
     Object.keys(state.opacity).forEach(function (k) { var el = resolve(k); if (el) { el.style.setProperty('animation', 'none', 'important'); el.style.setProperty('opacity', state.opacity[k] / 100, 'important'); } });
     state.masked.forEach(function (k) { var el = resolve(k); if (el && el.style.display !== 'none') { el.dataset.pmPrev = el.style.display; el.style.display = 'none'; recenterRow(el.parentElement); } });
@@ -1843,7 +1876,7 @@ window.addEventListener('load', function () {
   // versions
   document.getElementById('pm-vsave').addEventListener('click', function () {
     var name = (document.getElementById('pm-vname').value || '').trim(); if (!name) { toast('Donnez un nom à la version.'); return; }
-    var o = getSaves(); var existed = !!o[name]; o[name] = state; setSaves(o);
+    var o = getSaves(); var existed = !!o[name]; o[name] = toStored(state); setSaves(o);
     setVersion(name);
     track('deck_version_save', { name: name, overwrite: existed }); toast(existed ? 'Version « ' + name + ' » écrasée.' : 'Version « ' + name + ' » enregistrée.');
   });
