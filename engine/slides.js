@@ -169,6 +169,12 @@ var PM_OFFSCREEN = (function () {
   try { return !!(window.frameElement && window.frameElement.hasAttribute('data-pm-offscreen')); }
   catch (e) { return false; }
 })();
+// Signal public « capture en cours » pour les scripts propres a un deck (un
+// compteur en requestAnimationFrame, par exemple) : le moteur fige les
+// animations CSS lui-meme, mais pas un script qu'il ne connait pas. Un tel
+// script lit window.__ayCapture au moment de jouer et affiche alors
+// directement son etat final. deck_capture.py pose le meme drapeau.
+if (PM_OFFSCREEN) window.__ayCapture = true;
 // La copie hors ecran partage le stockage de la vraie page, mais son adresse n'a pas
 // le parametre pm= : elle se croirait rep et ecrirait ay-role=rep chez un client qui
 // exporte depuis un lien partage. Toute ecriture est neutralisee, dans son seul
