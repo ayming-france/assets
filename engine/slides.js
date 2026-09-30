@@ -2163,6 +2163,51 @@ window.addEventListener('load', function () {
     }
     return (e && e.message) ? e.message : String(e);
   }
+  // html-to-image copies each element's computed style, animation included, into
+  // an SVG <foreignObject>, and the browser paints that SVG from the animation's
+  // FIRST frame. Every entrance animation therefore exported as its start state
+  // (cards greyed, logos and lines invisible), whatever the live slide showed.
+  // Every export shows the slide fully revealed : finish each one-shot animation
+  // on the slide (an infinite loop is paused where it stands), bake the animated
+  // properties' final values inline, and set animation:none so the clone has
+  // nothing to replay. Pseudo-elements get the same through a generated rule.
+  function pmFreezeAnimations(root) {
+    if (!root || typeof document.getAnimations !== 'function') return function () { };
+    var targets = new Map();
+    document.getAnimations().forEach(function (a) {
+      var eff = a.effect, el = eff && eff.target;
+      if (!el || !root.contains(el) || typeof eff.getKeyframes !== 'function') return;
+      try { if (eff.getComputedTiming().iterations === Infinity) a.pause(); else a.finish(); } catch (e) { return; }
+      var pseudo = eff.pseudoElement || '';
+      var rec = targets.get(el) || { el: el, parts: {} };
+      var props = rec.parts[pseudo] || (rec.parts[pseudo] = {});
+      eff.getKeyframes().forEach(function (kf) {
+        Object.keys(kf).forEach(function (p) {
+          if (p === 'offset' || p === 'easing' || p === 'composite' || p === 'computedOffset') return;
+          props[p === 'cssFloat' ? 'float' : p.replace(/[A-Z]/g, function (c) { return '-' + c.toLowerCase(); })] = 1;
+        });
+      });
+      targets.set(el, rec);
+    });
+    var sheet = document.createElement('style'), css = '', restore = [], n = 0;
+    targets.forEach(function (rec) {
+      var el = rec.el;
+      Object.keys(rec.parts).forEach(function (pseudo) {
+        var cs = getComputedStyle(el, pseudo || null), decl = '';
+        Object.keys(rec.parts[pseudo]).forEach(function (p) { decl += p + ':' + cs.getPropertyValue(p) + '!important;'; });
+        if (pseudo) {
+          if (!el.hasAttribute('data-pm-frz')) { el.setAttribute('data-pm-frz', ++n); restore.push(function () { el.removeAttribute('data-pm-frz'); }); }
+          css += '[data-pm-frz="' + el.getAttribute('data-pm-frz') + '"]' + pseudo + '{' + decl + 'animation:none!important}';
+        } else {
+          var before = el.getAttribute('style');
+          el.setAttribute('style', (before ? before + ';' : '') + decl + 'animation:none!important');
+          restore.push(function () { if (before === null) el.removeAttribute('style'); else el.setAttribute('style', before); });
+        }
+      });
+    });
+    sheet.textContent = css; document.head.appendChild(sheet);
+    return function undo() { sheet.remove(); restore.forEach(function (f) { f(); }); };
+  }
   async function pmCapture(progress) {
     var st = document.createElement('style');
     // freeze animations + kill pointer-events so no element stays in :hover
@@ -2236,6 +2281,7 @@ window.addEventListener('load', function () {
         // than the one measured the instant the slide became active.
         await new Promise(function (r) { setTimeout(r, 60); });
         try { fitSlide(); } catch (e) { }
+        var undoFreeze = pmFreezeAnimations(active);
         var undoMaps = await pmInlineMaps(active);
         var inlined = await pmInlineImages(active);
         // Restauration garantie meme si la capture echoue : sinon la carte inline en
@@ -2251,6 +2297,7 @@ window.addEventListener('load', function () {
         } finally {
           undoMaps();
           inlined.undo();
+          undoFreeze();
         }
         if (slideErr) {
           failedSlides.push(chapter);
