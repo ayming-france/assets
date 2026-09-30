@@ -296,9 +296,10 @@ const CLIENTS_SLIDE = {
    Clients partagee (section[data-shared="clients"]) : les 17 offres du hub la
    portent, aucun autre deck (rapports marketing, decks etrangers, abo-dat,
    Ecosystem Digital). Verifie sur les decks en ligne le 2026-09-16. Le moteur
-   ajoute la section lui-meme, en DERNIERE position. C'est la seule place qui ne casse rien, les
-   numeros « data-slide » de la nav etant ecrits a la main dans chaque deck et
-   un decalage en milieu de deck les invaliderait tous.
+   ajoute la section lui-meme, JUSTE APRES la slide Clients (demande du
+   2026-09-30). Les numeros « data-slide » de la nav sont ecrits a la main dans
+   chaque deck : ceux qui pointent au-dela de Clients sont decales d'un cran ici,
+   avant que la navigation ne lise les index plus bas dans ce fichier.
    Un partenaire peut appartenir a plusieurs marches : « m » est une liste, et
    le filtre teste l'appartenance, jamais l'egalite.
    Un logo absent n'enleve pas le partenaire, il s'affiche sous son nom.
@@ -331,7 +332,7 @@ const PARTNERS_SLIDE = {
     { n: 'KPMG', s: 'kpmg', f: 'kpmg.svg', m: ['PUBLIC'] },
     { n: 'AREA Centre-Val de Loire', s: 'area-centre-val-de-loire', f: 'area-centre-val-de-loire.png', c: 'lg-wide', m: ['PRIVE'] },
     { n: 'UPE 13', s: 'upe13', f: 'upe13.png', m: ['PRIVE'] },
-    { n: 'MEOGROUP', s: 'meogroup', m: ['TRANSVERSE'] },
+    { n: 'MEOGROUP', s: 'meogroup', f: 'meogroup.svg', c: 'lg-wide', m: ['TRANSVERSE'] },
     { n: "ACCD'OM", s: 'accdom', f: 'accdom.png', c: 'lg-sq', m: ['PUBLIC', 'DROM'] }
   ]
 };
@@ -348,12 +349,10 @@ const PARTNERS_SLIDE = {
     // exemple, sur un deck espagnol.
     if (document.body && document.body.hasAttribute('data-no-partners')) return;
     // Hors deck d'offre, pas de partenaires (un rapport mensuel les recevait).
-    if (!document.querySelector('section[data-shared="clients"]')) return;
+    var clients = document.querySelector('section[data-shared="clients"]');
+    if (!clients || !clients.parentNode) return;
     if (document.querySelector('section[data-shared="partenaires"]')) return;
-    var all = document.querySelectorAll('.slide');
-    if (!all.length) return;
-    var last = all[all.length - 1];
-    if (!last.parentNode) return;
+    var clientsIdx = Array.prototype.indexOf.call(document.querySelectorAll('.slide'), clients);
 
     function esc(t) {
       return String(t).replace(/[&<>"]/g, function (c) {
@@ -367,7 +366,7 @@ const PARTNERS_SLIDE = {
     }).join('');
 
     var tiles = PARTNERS_SLIDE.items.map(function (it) {
-        // Chargement differe : la slide est la derniere du deck et n'est souvent
+      // Chargement differe : la slide arrive tard dans le deck et n'est souvent
       // jamais atteinte. Sans cela, vingt-quatre images partent a l'ouverture de
       // n'importe quel deck et retardent la fin du chargement pour tout le monde.
       // Le nom sert de repli visible : un logo introuvable laisse une tuile
@@ -392,7 +391,11 @@ const PARTNERS_SLIDE = {
       '<div class="partners-count"></div>' +
       '<div class="partners-grid">' + tiles + '</div></div>' +
       '<div class="company-logo"><img src="https://ayming-france.github.io/assets/logos/ayming-logo.png" alt="Ayming"></div>';
-    last.parentNode.appendChild(sec);
+    clients.parentNode.insertBefore(sec, clients.nextSibling);
+    document.querySelectorAll('.nav-item[data-slide]').forEach(function (n) {
+      var v = parseInt(n.getAttribute('data-slide'), 10);
+      if (!isNaN(v) && v > clientsIdx) n.setAttribute('data-slide', String(v + 1));
+    });
 
     var grid = sec.querySelector('.partners-grid');
     var count = sec.querySelector('.partners-count');
