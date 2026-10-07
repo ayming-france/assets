@@ -1488,6 +1488,12 @@ window.addEventListener('load', function () {
 
   var css = document.createElement('style');
   css.textContent =
+    // Garde : le panneau sert TOUS les decks, donc aucune feuille de style de deck ne doit
+    // l'atteindre (un .pm-mini de deck avait sorti les boutons de la liste des slides).
+    // Specificite d'un id seul : toute regle du moteur, toujours ancree sur #pm-panel PLUS une
+    // classe ou une balise, passe devant ; toute regle de deck sans id passe derriere. Les SVG
+    // gardent leurs attributs de presentation, et le * global de slides.css est repris.
+    '#pm-panel :where(:not(svg, svg *)){all:revert;margin:0;padding:0;box-sizing:border-box}' +
     '#pm-panel{position:fixed;top:14px;right:14px;width:300px;max-height:92vh;flex-direction:column;z-index:99999;background:' + AY_TOKENS['tint-white'] + ';border-radius:16px;box-shadow:0 18px 50px rgba(2,30,60,.32);font-family:system-ui,Arial,sans-serif;font-size:13px;color:' + AY_TOKENS['ui-ink'] + ';border:1px solid rgba(0,61,121,.08);overflow:hidden}' +
     '#pm-restore{position:fixed;bottom:58px;left:50%;transform:translateX(-50%);z-index:100000;display:flex;align-items:center;gap:10px;background:' + AY_TOKENS['ui-navy'] + ';color:' + AY_TOKENS['tint-white'] + ';font-family:system-ui,Arial,sans-serif;font-size:13px;font-weight:600;padding:9px 10px 9px 16px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.28)}'
     + '#pm-restore button{font:inherit;font-size:12px;border:0;border-radius:8px;padding:6px 12px;cursor:pointer;background:' + AY_TOKENS['tint-white'] + ';color:' + AY_TOKENS['ui-navy'] + '}#pm-restore button[data-r="0"]{background:transparent;color:' + AY_TOKENS['tint-white'] + ';box-shadow:inset 0 0 0 1px rgba(255,255,255,.45)}' +
@@ -3811,4 +3817,83 @@ window.addEventListener('load', function () {
   window.addEventListener('load', function () {
     setTimeout(invite, 1400);
   });
+})();
+
+/* ===== MOTION KIT, moitie script (classes dans components.css) =====
+   Toute slide portant data-ay-motion="<nom>" recoit, a chaque fois qu'elle devient active :
+   - [data-ay-to="78000" data-ay-fmt="eur0" data-ay-delay="1" data-ay-dur=".8"] compte de 0,
+   - [data-ay-at="1.2,1.5" data-ay-start="0"] avance d'un a chaque seconde listee (une liste qui se remplit),
+   - chaque fonction qu'un deck a enregistree par ayMotion.on("<nom>", fn(slide, api)).
+   Les minuteries partent a l'activation et s'annulent a la sortie, donc la slide rejoue.
+   Formats : int, pct, pct1, eur (millions), eur0 (euros entiers) ; francais ou anglais selon <html lang>.
+   Sous reduced-motion ou pendant un export (window.__ayCapture), tout s'affiche a l'etat final. */
+(function () {
+  var reduceMq = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+  function reduce() { return !!(window.__ayCapture || (reduceMq && reduceMq.matches)); }
+  var lang = (document.documentElement.lang || 'fr').slice(0, 2);
+  var NB = String.fromCharCode(160);
+  var timers = new WeakMap(), handlers = {};
+  function group(v) { return String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, lang === 'fr' ? NB : ','); }
+  function fmt(v, kind) {
+    if (kind === 'pct') return Math.round(v) + (lang === 'fr' ? NB + '%' : '%');
+    if (kind === 'pct1') { var p = v.toFixed(1); return (lang === 'fr' ? p.replace('.', ',') + NB : p) + '%'; }
+    if (kind === 'eur0') return lang === 'fr' ? group(v) + NB + '€' : '€' + group(v);
+    if (kind === 'eur') { var m = (v / 1e6).toFixed(1); return lang === 'fr' ? m.replace('.', ',') + NB + 'M€' : '€' + m + 'M'; }
+    return group(v);
+  }
+  function later(slide, ms, fn) {
+    var list = timers.get(slide) || [];
+    list.push(setTimeout(fn, reduce() ? 0 : ms));
+    timers.set(slide, list);
+  }
+  function stop(slide) {
+    (timers.get(slide) || []).forEach(clearTimeout);
+    timers.set(slide, []);
+    slide.querySelectorAll('.ay-ghost').forEach(function (g) { g.remove(); });
+  }
+  function countUp(el, from, to, delayS, durS, kind, slide) {
+    el.dataset.cur = to;
+    if (reduce()) { el.textContent = fmt(to, kind); return; }
+    el.textContent = fmt(from, kind);
+    later(slide, delayS * 1000, function () {
+      var t0 = performance.now(), dur = durS * 1000;
+      (function step(now) {
+        var p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+        el.textContent = fmt(from + (to - from) * e, kind);
+        if (p < 1 && slide.classList.contains('active')) requestAnimationFrame(step);
+        else el.textContent = fmt(to, kind);
+      })(t0);
+    });
+  }
+  var api = { fmt: fmt, later: later, countUp: countUp, reduce: reduce, lang: lang };
+  function enter(slide) {
+    slide.querySelectorAll('[data-ay-to]').forEach(function (el) {
+      countUp(el, 0, parseFloat(el.dataset.ayTo), parseFloat(el.dataset.ayDelay || 0),
+        parseFloat(el.dataset.ayDur || 1), el.dataset.ayFmt || 'int', slide);
+    });
+    slide.querySelectorAll('[data-ay-at]').forEach(function (el) {
+      var start = parseInt(el.dataset.ayStart || '0', 10), at = el.dataset.ayAt.split(',');
+      if (reduce()) { el.textContent = start + at.length; return; }
+      el.textContent = start;
+      at.forEach(function (s, i) { later(slide, parseFloat(s) * 1000, function () { el.textContent = start + i + 1; }); });
+    });
+    (handlers[slide.dataset.ayMotion] || []).forEach(function (fn) { try { fn(slide, api); } catch (e) { if (window.console) console.warn('[ayMotion] ' + slide.dataset.ayMotion, e); } });
+  }
+  function watch() {
+    document.querySelectorAll('.slide[data-ay-motion]').forEach(function (slide) {
+      var was = slide.classList.contains('active');
+      if (was) enter(slide);
+      new MutationObserver(function () {
+        var now = slide.classList.contains('active');
+        if (now && !was) enter(slide);
+        if (!now && was) stop(slide);
+        was = now;
+      }).observe(slide, { attributes: true, attributeFilter: ['class'] });
+    });
+  }
+  window.ayMotion = {
+    on: function (name, fn) { (handlers[name] = handlers[name] || []).push(fn); },
+    fmt: fmt, later: later, countUp: countUp
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch); else watch();
 })();

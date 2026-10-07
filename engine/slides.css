@@ -1,3 +1,8 @@
+/* Animations (motion.css) et maquettes produit (mockups.css), a cote de ce fichier, importees
+   ici pour que chaque deck les ait sans lien en plus. Leurs noms (ay-*) n'existent dans aucune
+   slide existante ; les surcharges inline d'un deck, plus tardives, gardent le dernier mot. */
+@import url("motion.css");
+@import url("mockups.css");
 /* Brand design system (single source of truth): DESIGN.md in the ayming-workspace repo root.
    These :root tokens are the reference implementation it mirrors. Keep them in sync. */
 :root {

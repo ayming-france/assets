@@ -1,0 +1,53 @@
+/* ===== MOTION.CSS, animations partagees par TOUS les decks =====
+   Une animation qui rend une slide meilleure vit ici, jamais copiee dans un deck. Classes ay-*,
+   script data-ay-* dans slides.js (window.ayMotion) : ces noms n'existent dans aucune slide
+   existante, donc ce fichier ne change rien tant qu'un deck ne les utilise pas, et ils ne
+   croisent jamais le pm- de l'editeur. Chaque animation est portee par .slide.active et rejoue
+   a chaque passage ; le style de base est l'etat FINAL, donc reduced-motion et les exports
+   montrent la slide terminee. Delai par element : --d. Couleurs : jetons de slides.css.
+   Les maquettes produit sont dans mockups.css. Principes : motion-and-mockups.md (skill slides). */
+
+/* Seule couleur propre aux animations : le flash bleu clair d'une ligne qui arrive. */
+:root { --motion-row-flash: #d9f2fc; }
+
+@keyframes ay-in { from { opacity: 0; transform: translateY(12px); } }
+@keyframes ay-fade { from { opacity: 0; } }
+@keyframes ay-pop { 0% { opacity: 0; transform: scale(.6); } 70% { opacity: 1; transform: scale(1.08); } 100% { opacity: 1; transform: none; } }
+@keyframes ay-grow { from { transform: scaleX(0); } }
+@keyframes ay-type { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes ay-flash { 0%, 100% { color: var(--text-light); transform: none; } 45% { color: var(--blue-primary); transform: scale(1.3); } }
+@keyframes ay-glow { 0% { box-shadow: 0 0 0 0 rgba(var(--blue-primary-rgb),.55); } 100% { box-shadow: 0 0 0 18px rgba(var(--blue-primary-rgb),0); } }
+@keyframes ay-press { 0%, 100% { transform: none; } 50% { transform: scale(.93); filter: brightness(.9); } }
+@keyframes ay-wire { 0% { left: 0; opacity: 0; } 15%, 85% { opacity: 1; } 100% { left: calc(100% - 10px); opacity: 0; } }
+@keyframes ay-scan { 0% { top: 0; opacity: 0; } 10%, 90% { opacity: 1; } 100% { top: calc(100% - 2px); opacity: 0; } }
+@keyframes ay-raw { 0% { opacity: 0; text-decoration-color: transparent; } 8%, 80% { opacity: 1; text-decoration-color: transparent; } 90% { opacity: 1; text-decoration-color: var(--tint-red-problem); } 100% { opacity: 0; text-decoration-color: var(--tint-red-problem); } }
+@keyframes ay-row { from { opacity: 0; transform: translateX(-10px); background: var(--motion-row-flash); } to { opacity: 1; transform: none; background: transparent; } }
+@keyframes ay-rowf { from { opacity: 0; background: var(--motion-row-flash); } to { opacity: 1; background: transparent; } }
+@keyframes ay-light { from { opacity: .3; } }
+@keyframes ay-dim { from { opacity: 1; } }
+@keyframes ay-ring { from { box-shadow: 0 0 0 0 rgba(var(--blue-primary-rgb),0); } to { box-shadow: 0 0 0 2.5px var(--blue-primary); border-color: var(--blue-primary); } }
+@keyframes ay-toast { 0% { opacity: 0; transform: translate(-50%, 8px) scale(.9); } 15%, 70% { opacity: 1; transform: translate(-50%, 0) scale(1); } 100% { opacity: 0; transform: translate(-50%, 44px) scale(.4); } }
+@keyframes ay-toast-l { 0% { opacity: 0; transform: translate(-8px, -50%) scale(.9); } 15%, 70% { opacity: 1; transform: translate(0, -50%) scale(1); } 100% { opacity: 0; transform: translate(60px, -50%) scale(.4); } }
+@keyframes ay-quote-mark { from { color: var(--blue-dark); background-size: 0% 100%; } }
+
+.slide.active .ay-in { animation: ay-in .55s ease-out var(--d, 0s) both; }
+.slide.active .ay-fade { animation: ay-fade .45s ease var(--d, 0s) both; }
+.slide.active .ay-pop { animation: ay-pop .45s ease-out var(--d, 0s) both; }
+.slide.active .ay-type { animation: ay-type var(--t, .9s) steps(var(--n, 24)) var(--d, 0s) both; }
+.slide.active .ay-press { animation: ay-press .35s ease var(--d, 0s) both; }
+.slide.active .ay-flash { display: inline-block; animation: ay-flash .7s ease var(--d, 0s) both; }
+.slide.active .ay-lit { animation: ay-light .5s ease var(--d, 0s) both, ay-glow 1s ease-out calc(var(--d, 0s) + .2s) both; }
+.slide.active .ay-row { animation: ay-row .45s ease-out var(--d, 0s) both; }
+.slide.active tr.ay-row { animation-name: ay-rowf; }
+
+/* quote slides: each <b> in an .ay-mark block turns blue under a highlighter, one after another */
+.ay-mark b { background: linear-gradient(transparent 64%, rgba(var(--blue-primary-rgb),.16) 0) no-repeat left / 100% 100%; }
+.slide.active .ay-mark { animation: ay-in .6s ease-out .1s both; }
+.slide.active .ay-mark b { animation: ay-quote-mark .6s ease both; }
+.slide.active .ay-mark b:nth-of-type(1) { animation-delay: .8s; }
+.slide.active .ay-mark b:nth-of-type(2) { animation-delay: 1.4s; }
+.slide.active .ay-mark b:nth-of-type(3) { animation-delay: 2s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .slide.active :is([class^="ay-"], [class*=" ay-"]), .slide.active :is([class^="ay-"], [class*=" ay-"]) *, .slide.active .ay-mark b { animation: none !important; transition: none !important; }
+}
