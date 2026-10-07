@@ -96,6 +96,15 @@ var AY_STRINGS = {
     pmPdfDone: 'PDF téléchargé',
     pmPptxDone: 'PowerPoint téléchargé',
     pmError: 'L’export n’a pas abouti, réessayez dans un instant.',
+    pmPickTitle: 'Choisissez les slides à inclure',
+    pmPickAll: 'Tout sélectionner',
+    pmPickNone: 'Tout désélectionner',
+    pmPickCancel: 'Annuler',
+    pmPickGo: 'Exporter {n} {s} en {f}',
+    pmPickOne: 'slide',
+    pmPickMany: 'slides',
+    pmPickPrep: 'Préparation des aperçus, {n} sur {t}',
+    pmPickFail: 'Aperçu indisponible',
     pmQuips: [
       'On chauffe l’appareil photo', 'On aligne les logos, ils ne tiennent pas en place',
       'On redresse les drapeaux', 'On vérifie chaque accent, même les plus timides',
@@ -116,6 +125,15 @@ var AY_STRINGS = {
     pmPdfDone: 'PDF descargado',
     pmPptxDone: 'PowerPoint descargado',
     pmError: 'La exportación no se ha completado, inténtelo de nuevo en un momento.',
+    pmPickTitle: 'Elija las diapositivas que incluir',
+    pmPickAll: 'Seleccionar todo',
+    pmPickNone: 'Deseleccionar todo',
+    pmPickCancel: 'Cancelar',
+    pmPickGo: 'Exportar {n} {s} en {f}',
+    pmPickOne: 'diapositiva',
+    pmPickMany: 'diapositivas',
+    pmPickPrep: 'Preparando las vistas previas, {n} de {t}',
+    pmPickFail: 'Vista previa no disponible',
     pmQuips: [
       'Calentando la cámara', 'Alineando los logos, no se están quietos',
       'Enderezando las banderas', 'Revisando cada tilde, incluso las más tímidas',
@@ -136,6 +154,15 @@ var AY_STRINGS = {
     pmPdfDone: 'PDF downloaded',
     pmPptxDone: 'PowerPoint downloaded',
     pmError: 'The export didn’t finish, please try again in a moment.',
+    pmPickTitle: 'Choose the slides to include',
+    pmPickAll: 'Select all',
+    pmPickNone: 'Deselect all',
+    pmPickCancel: 'Cancel',
+    pmPickGo: 'Export {n} {s} as {f}',
+    pmPickOne: 'slide',
+    pmPickMany: 'slides',
+    pmPickPrep: 'Preparing previews, {n} of {t}',
+    pmPickFail: 'Preview unavailable',
     pmQuips: [
       'Warming up the camera', 'Lining up the logos, they never stand still',
       'Straightening the flags', 'Checking every accent, even the shy ones',
@@ -1035,6 +1062,10 @@ updateSlide();
         a.href = f.file; a.setAttribute('download', title + '.' + f.ext);
         a.innerHTML = DL_ICON + f.label;
         a.addEventListener('click', e => {
+          // Export is the moment the rep picks what the client keeps: the
+          // slide picker opens first, and serves the instant static deck
+          // itself when every slide stays ticked on an unedited deck.
+          if (window.pmPickSlides) { e.preventDefault(); window.pmPickSlides(f.ext, oks[i] ? f.file : null, title + '.' + f.ext); return; }
           const edited = window.pmHasEdits && window.pmHasEdits();
           if ((edited || !oks[i]) && window[f.fn]) { e.preventDefault(); window[f.fn](a); }
           // else: the native <a download> serves the instant static deck
@@ -2214,7 +2245,12 @@ window.addEventListener('load', function () {
     sheet.textContent = css; document.head.appendChild(sheet);
     return function undo() { sheet.remove(); restore.forEach(function (f) { f(); }); };
   }
-  async function pmCapture(progress) {
+  // opts, facultatif, sert le choix des slides a l'export (pmPickSlides) :
+  // only = les index a capturer, slides masquees par l'editeur comprises ;
+  // signal.aborted arrete la boucle avant la slide suivante ; onSlide(i, cap)
+  // recoit chaque capture des qu'elle existe, cap a null si la slide a echoue.
+  async function pmCapture(progress, opts) {
+    opts = opts || {};
     var st = document.createElement('style');
     // freeze animations + kill pointer-events so no element stays in :hover
     // (html-to-image bakes the current computed style, incl. a hovered card's overlay).
@@ -2256,9 +2292,18 @@ window.addEventListener('load', function () {
     // 0->target over ~800ms; freeze them at their CURRENT value so an edited
     // number is preserved (not reset, not half-counted). Restored after capture.
     try { window.animateCounter = function (el, target, suffix) { el.textContent = (el.dataset.prefix || '') + (typeof target === 'number' ? target.toLocaleString('fr-FR') : target) + (suffix || ''); }; } catch (e) { }
-    for (var k = 0; k < slides.length; k++) if (state.slidesHidden.indexOf(k) < 0) visible.push(k);
+    if (opts.only) {
+      // Une slide masquee par l'editeur peut etre recochee a l'export : on la
+      // demasque dans CETTE copie seulement, sinon goToSlide la sauterait.
+      for (var u = 0; u < opts.only.length; u++) if (slides[opts.only[u]]) slides[opts.only[u]].dataset.pmHidden = '';
+      state.slidesHidden = state.slidesHidden.filter(function (i) { return opts.only.indexOf(i) < 0; });
+      visible = Array.prototype.slice.call(opts.only);
+    } else {
+      for (var k = 0; k < slides.length; k++) if (state.slidesHidden.indexOf(k) < 0) visible.push(k);
+    }
     try {
       for (var j = 0; j < visible.length; j++) {
+        if (opts.signal && opts.signal.aborted) break;
         if (progress) progress(j + 1, visible.length);
         goToSlide(visible[j]);
         var active = document.querySelector('.slide.active');
@@ -2308,6 +2353,7 @@ window.addEventListener('load', function () {
         if (slideErr) {
           failedSlides.push(chapter);
           if (window.console) console.warn('[export] slide non capturee (' + chapter + ') : ' + pmDescribeError(slideErr), slideErr);
+          if (opts.onSlide) opts.onSlide(visible[j], null);
           continue;
         }
         if (inlined.failed.length) failedImages = failedImages.concat(inlined.failed);
@@ -2319,7 +2365,8 @@ window.addEventListener('load', function () {
           if (r.width < 5 || r.height < 5) return;
           links.push({ x: r.x, y: r.y, w: r.width, h: r.height, url: href });
         });
-        out.push({ img: img, links: links });
+        out.push({ img: img, links: links, vw: vw, vh: vh, failedImages: inlined.failed, chapter: chapter });
+        if (opts.onSlide) opts.onSlide(visible[j], out[out.length - 1]);
       }
     } finally { goToSlide(keep); st.remove(); try { window.animateCounter = _ac; } catch (e) { } }
     return { caps: out, vw: vw, vh: vh, failedImages: failedImages, failedSlides: failedSlides };
@@ -2526,58 +2573,272 @@ window.addEventListener('load', function () {
       ifr.srcdoc = '<!doctype html>' + document.documentElement.outerHTML;
     });
   }
-  async function pmCaptureOffscreen(progress) {
+  async function pmCaptureOffscreen(progress, opts) {
     var ifr = await pmOffscreenClone();
     try {
       await pmLoadScript(ENGINE_BASE + 'html-to-image.js', ifr.contentDocument);
       await pmLoadScript(ENGINE_BASE + 'vendor/lato/lato-embed.js', ifr.contentDocument);
-      return await ifr.contentWindow.pmCapture(progress);
+      return await ifr.contentWindow.pmCapture(progress, opts);
     } finally {
       ifr.remove();
     }
   }
-  async function pmExportPptx(btn) {
-    if (pmExportBusy) return; pmExportBusy = true;
-    var pop = document.querySelector('.pdf-popover'); if (pop) pop.classList.remove('visible');
-    pmBtnBusy(btn, true);
-    pmCardShow('pptx');
-    try {
-      await pmLoadScript(ENGINE_BASE + 'pptxgen.bundle.js');
-      var res = await pmCaptureOffscreen(function (n, t) { pmCardTick(n, t); });
-      var s = PM_W_IN / res.vw, PH = PM_W_IN * res.vh / res.vw;
+  // Assemblage du fichier a partir de captures deja faites (res.caps), sans
+  // rien recapturer : sert l'export direct comme le choix des slides.
+  var PM_LIBS = { pdf: 'jspdf.umd.min.js', pptx: 'pptxgen.bundle.js' };
+  var pmLibLoads = {};
+  function pmLoadLib(kind) { return pmLibLoads[kind] || (pmLibLoads[kind] = pmLoadScript(ENGINE_BASE + PM_LIBS[kind]).catch(function (e) { delete pmLibLoads[kind]; throw e; })); }
+  async function pmSaveFile(kind, res) {
+    await pmLoadLib(kind);
+    var s = PM_W_IN / res.vw, PH = PM_W_IN * res.vh / res.vw;
+    if (kind === 'pptx') {
       var pptx = new PptxGenJS(); pptx.defineLayout({ name: 'AY', width: PM_W_IN, height: PH }); pptx.layout = 'AY';
       res.caps.forEach(function (c) {
         var sl = pptx.addSlide(); sl.addImage({ data: c.img, x: 0, y: 0, w: PM_W_IN, h: PH });
         c.links.forEach(function (l) { sl.addText(' ', { x: l.x * s, y: l.y * s, w: l.w * s, h: l.h * s, hyperlink: { url: l.url }, fill: { color: 'FFFFFF', transparency: 100 }, line: { type: 'none' }, margin: 0 }); });
       });
       await pptx.writeFile({ fileName: deckKey + '-personnalise.pptx' });
-      track('deck_download', { format: 'pptx', hidden_count: state.slidesHidden.length });
-      pmCardFinish('pptx', pmDownloadExtra(res));
-    } catch (err) { if (window.console) console.warn('[perso] pptx', err); pmCardError('pptx'); }
-    pmBtnBusy(btn, false);
-    pmExportBusy = false;
+      return;
+    }
+    var JsPDF = window.jspdf.jsPDF, pdf = new JsPDF({ orientation: 'landscape', unit: 'in', format: [PM_W_IN, PH] });
+    res.caps.forEach(function (c, idx) {
+      if (idx) pdf.addPage([PM_W_IN, PH], 'landscape');
+      pdf.addImage(c.img, 'JPEG', 0, 0, PM_W_IN, PH);
+      c.links.forEach(function (l) { pdf.link(l.x * s, l.y * s, l.w * s, l.h * s, { url: l.url }); });
+    });
+    pdf.save(deckKey + '-personnalise.pdf');
   }
-  async function pmExportPdf(btn) {
+  // Export direct, toutes les slides visibles, sans fenetre de choix. Reste
+  // expose pour test_export_local.py et comme repli si le choix ne s'ouvre pas.
+  async function pmExport(kind, btn) {
     if (pmExportBusy) return; pmExportBusy = true;
     var pop = document.querySelector('.pdf-popover'); if (pop) pop.classList.remove('visible');
     pmBtnBusy(btn, true);
-    pmCardShow('pdf');
+    pmCardShow(kind);
     try {
-      await pmLoadScript(ENGINE_BASE + 'jspdf.umd.min.js');
+      await pmLoadLib(kind);
       var res = await pmCaptureOffscreen(function (n, t) { pmCardTick(n, t); });
-      var s = PM_W_IN / res.vw, PH = PM_W_IN * res.vh / res.vw;
-      var JsPDF = window.jspdf.jsPDF, pdf = new JsPDF({ orientation: 'landscape', unit: 'in', format: [PM_W_IN, PH] });
-      res.caps.forEach(function (c, idx) {
-        if (idx) pdf.addPage([PM_W_IN, PH], 'landscape');
-        pdf.addImage(c.img, 'JPEG', 0, 0, PM_W_IN, PH);
-        c.links.forEach(function (l) { pdf.link(l.x * s, l.y * s, l.w * s, l.h * s, { url: l.url }); });
-      });
-      pdf.save(deckKey + '-personnalise.pdf');
-      track('deck_download', { format: 'pdf', hidden_count: state.slidesHidden.length });
-      pmCardFinish('pdf', pmDownloadExtra(res));
-    } catch (err) { if (window.console) console.warn('[perso] pdf', err); pmCardError('pdf'); }
+      await pmSaveFile(kind, res);
+      track('deck_download', { format: kind, hidden_count: state.slidesHidden.length });
+      pmCardFinish(kind, pmDownloadExtra(res));
+    } catch (err) { if (window.console) console.warn('[perso] ' + kind, err); pmCardError(kind); }
     pmBtnBusy(btn, false);
     pmExportBusy = false;
+  }
+  function pmExportPptx(btn) { return pmExport('pptx', btn); }
+  function pmExportPdf(btn) { return pmExport('pdf', btn); }
+
+  // ===== Choix des slides a l'export =====
+  // L'editeur prepare ce qu'on PRESENTE, l'export ce qu'on ENVOIE. Le choix
+  // fait ici ne vaut que pour ce fichier : il part des slides visibles a
+  // l'ecran mais n'ecrit rien en retour, ni dans les slides masquees de
+  // l'editeur ni dans le lien partage. Toutes les slides sont capturees des
+  // l'ouverture, dans l'ordre du deck, et chaque capture devient la vignette
+  // de sa carte : une fois les cases cochees, le fichier est souvent deja
+  // pret a assembler. Toutes cochees sur un deck intact, c'est le fichier
+  // statique a cote de index.html qui part, instantane comme avant.
+  function pmPickCss() {
+    if (document.getElementById('pm-pick-css')) return;
+    var st = document.createElement('style');
+    st.id = 'pm-pick-css';
+    st.textContent =
+      '.pm-ovl.pm-pick{display:block;background:' + AY_TOKENS['ui-mist-5'] + ';overflow:auto;-webkit-overflow-scrolling:touch}'
+      + '.pm-pick-bar{position:sticky;top:16px;z-index:2;margin:16px auto 0;width:max-content;max-width:calc(100% - 32px);box-sizing:border-box;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;padding:6px 6px 6px 16px;background:' + AY_TOKENS['tint-white'] + ';border:1px solid ' + AY_TOKENS['ui-border-soft'] + ';border-radius:12px;box-shadow:0 8px 28px rgba(8,24,44,.12)}'
+      + '.pm-pick-lbl{font-size:14px;color:' + AY_TOKENS['ui-slate'] + ';padding-right:10px;margin-right:4px;border-right:1px solid ' + AY_TOKENS['ui-mist-11'] + '}'
+      + '.pm-pick-bar button{font:inherit;font-size:14px;font-weight:600;border:0;border-radius:8px;padding:8px 12px;cursor:pointer;background:transparent;color:' + AY_TOKENS['ui-ink'] + '}'
+      + '.pm-pick-bar button:hover{background:' + AY_TOKENS['ui-mist-1'] + '}'
+      + '.pm-pick-bar .pm-pick-go{background:' + AY_TOKENS['ui-navy'] + ';color:' + AY_TOKENS['tint-white'] + '}'
+      + '.pm-pick-bar .pm-pick-go:hover{background:' + AY_TOKENS['ui-blue-active'] + '}'
+      + '.pm-pick-bar .pm-pick-go:disabled{background:' + AY_TOKENS['ui-mist-9'] + ';color:' + AY_TOKENS['ui-slate-disabled'] + ';cursor:default}'
+      + '.pm-pick-status{text-align:center;font-size:13px;color:' + AY_TOKENS['ui-slate-hint'] + ';min-height:18px;margin:12px 16px 0}'
+      + '.pm-pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:28px 22px;padding:20px 32px 48px;max-width:1800px;margin:0 auto;box-sizing:border-box}'
+      + '@media (max-width:600px){.pm-pick-grid{padding:16px 16px 40px;grid-template-columns:1fr 1fr;gap:18px 12px}.pm-pick-lbl{display:none}}'
+      + '.pm-pick-card{cursor:pointer;user-select:none;-webkit-user-select:none}'
+      + '.pm-pick-name{font-size:13px;color:' + AY_TOKENS['ui-slate-dark'] + ';margin:0 0 7px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+      + '.pm-pick-name b{font-weight:700;color:' + AY_TOKENS['ui-ink'] + ';margin-right:6px}'
+      + '.pm-pick-thumb{position:relative;aspect-ratio:16/9;background:' + AY_TOKENS['tint-white'] + ';border-radius:6px;overflow:hidden;box-shadow:0 0 0 1px ' + AY_TOKENS['ui-border-soft'] + ',0 4px 14px rgba(8,24,44,.08);transition:box-shadow .15s,opacity .15s}'
+      + '.pm-pick-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}'
+      + '.pm-pick-ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:12px;text-align:center;font-size:13px;color:' + AY_TOKENS['ui-slate-hint'] + ';background:linear-gradient(100deg,' + AY_TOKENS['ui-mist-6'] + ' 30%,' + AY_TOKENS['ui-mist-1'] + ' 50%,' + AY_TOKENS['ui-mist-6'] + ' 70%);background-size:300% 100%;animation:pmPickShim 1.6s linear infinite}'
+      + '.pm-ready .pm-pick-ph{display:none}.pm-fail .pm-pick-ph{animation:none;background:' + AY_TOKENS['ui-mist-6'] + ';color:' + AY_TOKENS['ui-red'] + '}'
+      + '@keyframes pmPickShim{from{background-position:100% 0}to{background-position:0 0}}'
+      + '@media (prefers-reduced-motion:reduce){.pm-pick-ph{animation:none}}'
+      + '.pm-pick-on .pm-pick-thumb{box-shadow:0 0 0 3px ' + AY_TOKENS['blue-primary'] + ',0 6px 18px rgba(8,24,44,.12)}'
+      + '.pm-pick-card:not(.pm-pick-on) .pm-pick-thumb{opacity:.55}'
+      + '.pm-pick-card:not(.pm-pick-on):hover .pm-pick-thumb{opacity:.8}'
+      + '.pm-pick-chk{position:absolute;top:10px;left:10px;z-index:1;width:26px;height:26px;border-radius:50%;box-sizing:border-box;border:2px solid ' + AY_TOKENS['ui-border'] + ';background:' + AY_TOKENS['tint-white'] + ';display:flex;align-items:center;justify-content:center;color:transparent;box-shadow:0 1px 4px rgba(8,24,44,.18)}'
+      + '.pm-pick-chk svg{width:15px;height:15px}'
+      + '.pm-pick-on .pm-pick-chk{background:' + AY_TOKENS['blue-primary'] + ';border-color:' + AY_TOKENS['blue-primary'] + ';color:' + AY_TOKENS['tint-white'] + '}'
+      + '.pm-pick-card:focus-visible{outline:none}.pm-pick-card:focus-visible .pm-pick-thumb{box-shadow:0 0 0 3px ' + AY_TOKENS['ui-navy'] + '}';
+    document.head.appendChild(st);
+  }
+  // Une vignette legere : la capture fait 3840x2160, et vingt images de
+  // cette taille affichees ensemble occuperaient des centaines de Mo une fois
+  // decodees. On la redessine une fois a 480 px de large.
+  function pmThumb(src) {
+    return new Promise(function (res, rej) {
+      var im = new Image();
+      im.onload = function () {
+        var cv = document.createElement('canvas');
+        cv.width = 480; cv.height = Math.round(480 * im.naturalHeight / im.naturalWidth);
+        cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+        res(cv.toDataURL('image/jpeg', 0.82));
+      };
+      im.onerror = rej;
+      im.src = src;
+    });
+  }
+  function pmPickSlides(kind, staticHref, staticName) {
+    if (pmExportBusy) return; pmExportBusy = true;
+    var pop = document.querySelector('.pdf-popover'); if (pop) pop.classList.remove('visible');
+    pmPickCss();
+    var total = slides.length, caps = {}, settled = 0, capErr = null, signal = { aborted: false }, notify = null, closed = false;
+    var picked = [];
+    for (var i = 0; i < total; i++) picked[i] = slides[i].dataset.pmHidden !== '1';
+    var fmt = kind === 'pptx' ? 'PowerPoint' : 'PDF';
+
+    var ov = document.createElement('div');
+    ov.className = 'pm-ovl pm-pick';
+    ov.setAttribute('role', 'dialog');
+    ov.setAttribute('aria-modal', 'true');
+    ov.innerHTML = '<div class="pm-pick-bar"><span class="pm-pick-lbl"></span>'
+      + '<button type="button" class="pm-pick-all"></button>'
+      + '<button type="button" class="pm-pick-cancel"></button>'
+      + '<button type="button" class="pm-pick-go"></button></div>'
+      + '<div class="pm-pick-status" aria-live="polite"></div>'
+      + '<div class="pm-pick-grid"></div>';
+    ov.querySelector('.pm-pick-lbl').textContent = ayT('pmPickTitle');
+    ov.setAttribute('aria-label', ayT('pmPickTitle'));
+    ov.querySelector('.pm-pick-cancel').textContent = ayT('pmPickCancel');
+    var grid = ov.querySelector('.pm-pick-grid'), btnAll = ov.querySelector('.pm-pick-all'), btnGo = ov.querySelector('.pm-pick-go'), status = ov.querySelector('.pm-pick-status');
+    var cards = Array.prototype.map.call(slides, function (s, i) {
+      var c = document.createElement('div');
+      c.className = 'pm-pick-card';
+      c.tabIndex = 0;
+      c.setAttribute('role', 'checkbox');
+      c.innerHTML = '<div class="pm-pick-name"><b></b><span></span></div>'
+        + '<div class="pm-pick-thumb"><span class="pm-pick-chk">' + PM_CHECK_SVG + '</span><span class="pm-pick-ph"></span></div>';
+      var chapter = slideTitle(s) || s.dataset.chapter || 'slide';
+      c.querySelector('b').textContent = String(i + 1);
+      c.querySelector('.pm-pick-name span').textContent = chapter;
+      c.querySelector('.pm-pick-ph').textContent = chapter;
+      c.title = chapter;
+      grid.appendChild(c);
+      return c;
+    });
+    function selected() { var out = []; for (var k = 0; k < total; k++) if (picked[k]) out.push(k); return out; }
+    function render() {
+      cards.forEach(function (c, k) { c.classList.toggle('pm-pick-on', picked[k]); c.setAttribute('aria-checked', picked[k] ? 'true' : 'false'); });
+      var n = selected().length;
+      btnAll.textContent = ayT(n === total ? 'pmPickNone' : 'pmPickAll');
+      btnGo.textContent = ayT('pmPickGo').replace('{n}', n).replace('{s}', ayT(n > 1 ? 'pmPickMany' : 'pmPickOne')).replace('{f}', fmt);
+      btnGo.disabled = !n;
+    }
+    function renderStatus() {
+      status.textContent = (settled < total && !capErr) ? ayT('pmPickPrep').replace('{n}', settled).replace('{t}', total) : '';
+    }
+    var lastClicked = null;
+    function toggle(k, shift) {
+      var on = !picked[k];
+      if (shift && lastClicked !== null) { var lo = Math.min(lastClicked, k), hi = Math.max(lastClicked, k); for (var m = lo; m <= hi; m++) picked[m] = on; }
+      else picked[k] = on;
+      lastClicked = k;
+      render();
+    }
+    grid.addEventListener('click', function (e) { var c = e.target.closest('.pm-pick-card'); if (c) toggle(cards.indexOf(c), e.shiftKey); });
+    grid.addEventListener('keydown', function (e) {
+      var c = e.target.closest('.pm-pick-card');
+      if (c && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); toggle(cards.indexOf(c), e.shiftKey); }
+    });
+    btnAll.addEventListener('click', function () { var all = selected().length !== total; for (var k = 0; k < total; k++) picked[k] = all; render(); });
+    btnGo.addEventListener('click', go);
+    ov.querySelector('.pm-pick-cancel').addEventListener('click', cancel);
+    // Les touches du deck (fleches, P, E...) ne doivent pas agir sous la
+    // fenetre de choix, Echap la ferme. Une touche venue d'une carte atteint
+    // d'abord la grille (espace, Entree), puis s'arrete sur la fenetre.
+    function onKey(e) {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); return; }
+      if (!ov.contains(e.target)) e.stopPropagation();
+    }
+    ov.addEventListener('keydown', function (e) { e.stopPropagation(); });
+    document.addEventListener('keydown', onKey, true);
+    function close() {
+      if (closed) return; closed = true;
+      document.removeEventListener('keydown', onKey, true);
+      ov.remove();
+    }
+    function cancel() {
+      signal.aborted = true;
+      close();
+      capP.then(release, release);
+    }
+    function release() { pmExportBusy = false; }
+
+    render(); renderStatus();
+    pmLoadLib(kind).catch(function () { });
+    var all = []; for (var a = 0; a < total; a++) all.push(a);
+    var capP = pmCaptureOffscreen(null, {
+      only: all, signal: signal,
+      onSlide: function (k, cap) {
+        caps[k] = cap; settled++;
+        if (!closed) renderStatus();
+        if (cap) pmThumb(cap.img).then(function (url) {
+          var img = document.createElement('img'); img.alt = ''; img.src = url;
+          cards[k].querySelector('.pm-pick-thumb').appendChild(img);
+          cards[k].classList.add('pm-ready');
+        }).catch(function () { });
+        else { cards[k].classList.add('pm-fail'); cards[k].querySelector('.pm-pick-ph').textContent = ayT('pmPickFail'); }
+        if (notify) notify();
+      }
+    });
+    capP.then(function () { if (notify) notify(); }, function (err) {
+      capErr = err || new Error('capture');
+      if (window.console) console.warn('[perso] choix des slides', err);
+      if (!closed) { renderStatus(); status.textContent = ayT('pmError'); }
+      if (notify) notify();
+    });
+    // Apres le lancement de la capture : la copie hors ecran lit le DOM au
+    // moment de l'appel, elle ne contient donc pas cette fenetre.
+    document.body.appendChild(ov);
+    btnGo.focus();
+
+    async function go() {
+      var sel = selected();
+      if (!sel.length) return;
+      if (staticHref && sel.length === total && !(window.pmHasEdits && window.pmHasEdits())) {
+        signal.aborted = true;
+        close();
+        var dl = document.createElement('a'); dl.href = staticHref; dl.setAttribute('download', staticName || '');
+        document.body.appendChild(dl); dl.click(); dl.remove();
+        capP.then(release, release);
+        return;
+      }
+      close();
+      pmCardShow(kind);
+      try {
+        await new Promise(function (res, rej) {
+          notify = function () {
+            var have = sel.filter(function (k) { return k in caps; }).length;
+            pmCardTick(have, sel.length);
+            if (have === sel.length) res();
+            else if (capErr) rej(capErr);
+          };
+          notify();
+        });
+        var got = sel.map(function (k) { return caps[k]; }).filter(Boolean);
+        if (!got.length) throw new Error('aucune slide capturee');
+        var res = {
+          caps: got, vw: got[0].vw, vh: got[0].vh,
+          failedImages: got.reduce(function (acc, c) { return acc.concat(c.failedImages || []); }, []),
+          failedSlides: sel.filter(function (k) { return !caps[k]; }).map(function (k) { return slides[k].dataset.chapter || ('slide ' + (k + 1)); })
+        };
+        await pmSaveFile(kind, res);
+        track('deck_download', { format: kind, hidden_count: total - sel.length, picked: sel.length });
+        pmCardFinish(kind, pmDownloadExtra(res));
+      } catch (err) { if (window.console) console.warn('[perso] ' + kind, err); pmCardError(kind); }
+      notify = null;
+      signal.aborted = true;
+      capP.then(release, release);
+    }
   }
   // Single download/share entry = the Ayming-logo popover (engine). Expose the
   // generators + an "edited?" test so the popover serves the static deck when
@@ -2587,6 +2848,7 @@ window.addEventListener('load', function () {
   window.pmNotesOpen = openPresenter;
   window.pmExportPptx = pmExportPptx;
   window.pmExportPdf = pmExportPdf;
+  window.pmPickSlides = pmPickSlides;
   // Appele depuis le PARENT sur ifr.contentWindow.pmCapture (pmCaptureOffscreen) :
   // execute dans le contexte de l'iframe hors ecran, donc avec le document et le
   // window de CE clone, jamais celui du commercial.
