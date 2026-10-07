@@ -2035,6 +2035,14 @@ window.addEventListener('load', function () {
         wrap.innerHTML = text;
         var svg = wrap.querySelector('svg');
         if (!svg || !r.width || !r.height) continue;
+        // Illustrator exports name their classes .st0, .st1... in every file, and an
+        // inline <svg> elsewhere in the deck (a country map pasted into a slide) puts
+        // its own .stN rules in the page. Once inlined, this map's labels would match
+        // them too: on the Europe deck a white 11px stroke erased every label. A
+        // per-map prefix keeps both sets of rules to their own file.
+        var pfx = 'pm-map' + i + '-';
+        svg.querySelectorAll('style').forEach(function (st) { st.textContent = st.textContent.replace(/\.([A-Za-z_][\w-]*)/g, '.' + pfx + '$1'); });
+        svg.querySelectorAll('[class]').forEach(function (el) { el.setAttribute('class', el.getAttribute('class').trim().split(/\s+/).map(function (c) { return pfx + c; }).join(' ')); });
         svg.setAttribute('width', r.width);
         svg.setAttribute('height', r.height);
         // Fixed + viewport coordinates from the img's own box: the swap must not
