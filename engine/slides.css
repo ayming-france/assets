@@ -72,6 +72,16 @@
       --tint-green-wash-1: #e3f9ed;       /* dégradé de fond d'icône (bleu), arrivée */
       --tint-green-wash-2: #ecfdf5;       /* carte sylae, arrivée */
 
+      /* Couleurs KPI : le sens d'un indicateur, jamais une décoration. Valeurs du guide de
+         marque (Green 100 %, Red 100 %, Grey 75 %). « À surveiller » se marque en gris
+         avec une icône. Correspondance dans DESIGN.md. */
+      --kpi-up: #00B08B;                  /* hausse : barres, pastilles, flèches */
+      --kpi-up-text: #068367;             /* hausse écrite en texte sur blanc */
+      --kpi-down: #DC533A;                /* baisse */
+      --kpi-flat: #8E8F9B;                /* stable ou à surveiller */
+      --kpi-up-soft: rgba(0, 176, 139, 0.12);   /* fond pâle d'une hausse */
+      --kpi-down-soft: rgba(220, 83, 58, 0.12); /* fond pâle d'une baisse */
+
       /* Échelle d'espacement (DESIGN.md spacing.scale), nommée par sa valeur en px. */
       --space-4: 4px;
       --space-6: 6px;
