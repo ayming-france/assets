@@ -540,6 +540,9 @@ let brandBanner = null;
 let bannerCounter = null;
 (function injectBrandBanner() {
   try {
+    // The export copy (pmOffscreenClone) inherits the live page's banner : drop
+    // it so the engine starting again there builds one, not a second.
+    document.querySelectorAll('.brand-banner').forEach(function (b) { b.remove(); });
     const logoImg = document.querySelector('.nav-logo img, .company-logo img') || {};
     const logoSrc = logoImg.src || 'https://ayming-france.github.io/assets/logos/ayming-logo.png';
     const logoAlt = DECK_BRAND ? DECK_BRAND.alt : 'Ayming';
@@ -753,7 +756,15 @@ function goToSlide(i) { if (i < 0 || i >= totalSlides) return; let t = pmSeek(i,
 // Poste par l'editeur une fois son panneau construit : synchronise la ligne
 // active de la liste de slides a chaque navigation, meme au clavier.
 var pmSlidesPanelSync = null;
-function toggleFullscreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+// Safari before 16.4 only has the webkit-prefixed calls, and iPhone Safari has
+// none at all : the button then does nothing instead of throwing.
+function toggleFullscreen() {
+  var d = document, el = d.documentElement;
+  try {
+    if (!(d.fullscreenElement || d.webkitFullscreenElement)) { var go = el.requestFullscreen || el.webkitRequestFullscreen; if (go) Promise.resolve(go.call(el)).catch(function () { }); }
+    else { var out = d.exitFullscreen || d.webkitExitFullscreen; if (out) Promise.resolve(out.call(d)).catch(function () { }); }
+  } catch (e) { }
+}
 
 // Introduction slide counter animation
 function animateIntroCounters() {
@@ -1068,6 +1079,8 @@ updateSlide();
           if (window.pmPickSlides) { e.preventDefault(); window.pmPickSlides(f.ext, oks[i] ? f.file : null, title + '.' + f.ext); return; }
           const edited = window.pmHasEdits && window.pmHasEdits();
           if ((edited || !oks[i]) && window[f.fn]) { e.preventDefault(); window[f.fn](a); }
+          // no static file and the exporter not loaded yet: the link would save GitHub's 404 page
+          else if (!oks[i]) e.preventDefault();
           // else: the native <a download> serves the instant static deck
           else pop.classList.remove('visible');
         });
@@ -1135,7 +1148,7 @@ window.addEventListener('load', function () {
   // Un deck traduit sert chaque langue dans un sous-dossier du meme depot :
   // l'evenement porte le depot comme deck et la langue a part, pour que les
   // versions se comptent ensemble et se filtrent par langue.
-  var trackDeck = location.pathname.split('/').filter(Boolean)[0] || deckKey;
+  var trackDeck = location.pathname.split('/').filter(Boolean)[0] || 'deck';
   function track(event, detail) {
     // Cloning the live page for an offscreen export (pmOffscreenClone) also
     // clones whatever injectUmami already appended to <head> at runtime, the
@@ -1199,7 +1212,8 @@ window.addEventListener('load', function () {
   };
 
   var slides = document.querySelectorAll('.slide');
-  var deckKey = location.pathname.replace(/\//g, '') || 'deck';
+  // /slug/ et /slug/index.html sont le même deck : même clé de brouillons, versions et notes.
+  var deckKey = location.pathname.replace(/index\.html?$/, '').replace(/\//g, '') || 'deck';
   function slideIndex(el) { var s = el.closest('.slide'); return s ? Array.prototype.indexOf.call(slides, s) + 1 : 0; }
   // Human-readable slide label for analytics: the slide's heading, else its
   // chapter, else "slide N". Lets Umami show which slide, not just a number.
@@ -1252,7 +1266,11 @@ window.addEventListener('load', function () {
   }
 
   // ---- live state (auto-saved as draft; named saves are snapshots) ----
-  function blank() { return { text: {}, masked: [], opacity: {}, slidesHidden: [] }; }
+  function pmAttr(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function blank() { return { text: {}, masked: [], opacity: {}, slidesHidden: [], pub: {} }; }
+  // Empreinte du HTML publié sous chaque retouche (state.pub), prise au moment de la
+  // retouche : si le deck a changé ce bloc depuis, la retouche est signalée au rechargement.
+  function pmHash(t) { var h = 5381; t = String(t || ''); for (var i = 0; i < t.length; i++) h = (h * 33 + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
   var state = blank();
   // Le brouillon est gardé à chaque retouche mais n'est plus réappliqué seul à l'ouverture :
   // un masquage oublié cachait sinon une slide pour toujours, et les mises à jour du deck
@@ -1285,7 +1303,9 @@ window.addEventListener('load', function () {
   // lives in the URL and is rendered headlessly without re-implementing it.
   function pmEncode(st) { return btoa(unescape(encodeURIComponent(JSON.stringify(st)))); }
   function pmDecode(s) { return JSON.parse(decodeURIComponent(escape(atob(s)))); }
-  function pmLink() { return location.origin + location.pathname + '?pm=' + encodeURIComponent(pmEncode(toStored(state))); }
+  // Le lien ne porte pas state.pub : il ne sert qu'à signaler au commercial un texte
+  // mis à jour sous ses retouches, et chaque caractère allonge un lien qu'un client mail peut couper.
+  function pmLink() { var st = toStored(state); delete st.pub; return location.origin + location.pathname + '?pm=' + encodeURIComponent(pmEncode(st)); }
 
   var mode = null, selected = null;
   function deselect() { if (selected) { selected.style.outline = ''; selected = null; } document.getElementById('pm-style').style.display = 'none'; }
@@ -1300,7 +1320,7 @@ window.addEventListener('load', function () {
     // Snapshot the text as it was when first made editable, so each edit event
     // can report what it changed from -> to (truncated for analytics).
     if (el.dataset.pmOrig === undefined) el.dataset.pmOrig = textNorm(el);
-    el.addEventListener('input', function () { clearTimeout(t); t = setTimeout(function () { var k = elPath(el); if (el.innerHTML === pubHtml.get(el)) delete state.text[k]; else state.text[k] = el.innerHTML; autosave(); track('deck_field_edit', { field: fieldName(el), slide: slideIndex(el), title: slideTitle(el.closest('.slide')), before: (el.dataset.pmOrig || '').slice(0, 500), after: (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 500) }); }, 500); });
+    el.addEventListener('input', function () { clearTimeout(t); t = setTimeout(function () { var k = elPath(el); if (el.innerHTML === pubHtml.get(el)) { delete state.text[k]; delete state.pub[k]; } else { state.text[k] = el.innerHTML; state.pub[k] = pmHash(pubHtml.get(el)); } autosave(); track('deck_field_edit', { field: fieldName(el), slide: slideIndex(el), title: slideTitle(el.closest('.slide')), before: (el.dataset.pmOrig || '').slice(0, 500), after: (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 500) }); }, 500); });
     el.addEventListener('keydown', function (e) { e.stopPropagation(); });
   }
   function applyMode(m) {
@@ -1315,7 +1335,7 @@ window.addEventListener('load', function () {
     selected = el; el.style.outline = '2px solid ' + AY_TOKENS['gradient-green-end']; el.style.outlineOffset = '2px';
     document.getElementById('pm-style').style.display = 'block';
     document.getElementById('pm-selname').textContent = elName(el);
-    var cur = Math.round((parseFloat(getComputedStyle(el).opacity) || 1) * 100);
+    var op = parseFloat(getComputedStyle(el).opacity), cur = Math.round((isNaN(op) ? 1 : op) * 100);
     document.getElementById('pm-opacity').value = cur; document.getElementById('pm-opval').textContent = cur + '%';
     updateHideBtn();
   }
@@ -1328,6 +1348,10 @@ window.addEventListener('load', function () {
   // the visible cards (at their original width) and center the group. Restore on un-hide.
   function recenterRow(row) {
     if (!row) return;
+    // Une slide hors écran n'a pas de mise en page (largeur 0) : la mesure attend
+    // qu'elle s'affiche, sinon la grille gardait le trou de la carte masquée.
+    if (!row.offsetWidth) { row.dataset.pmRecenter = '1'; return; }
+    delete row.dataset.pmRecenter;
     var grid = getComputedStyle(row).display.indexOf('grid') >= 0;
     if (row.dataset.pmGTC === undefined) {
       row.dataset.pmGTC = row.style.gridTemplateColumns || '__none__';
@@ -1344,6 +1368,7 @@ window.addEventListener('load', function () {
   function restoreRow(row) {
     if (!row) return;
     var anyMasked = Array.prototype.some.call(row.children, function (c) { return c.style.display === 'none'; });
+    if (!anyMasked) delete row.dataset.pmRecenter;
     if (row.dataset.pmGTC === undefined) return;
     // une autre carte reste masquee : recalculer le nombre de colonnes, sinon la grille
     // reste a une colonne et les cartes reaffichees s'empilent
@@ -1353,6 +1378,10 @@ window.addEventListener('load', function () {
     delete row.dataset.pmGTC; delete row.dataset.pmJC2; delete row.dataset.pmCardW; delete row.dataset.pmCols;
   }
 
+  Array.prototype.forEach.call(slides, function (s) {
+    new MutationObserver(function () { if (s.classList.contains('active')) s.querySelectorAll('[data-pm-recenter]').forEach(recenterRow); })
+      .observe(s, { attributes: true, attributeFilter: ['class'] });
+  });
   function maskEl(el) { var k = elPath(el); el.dataset.pmPrev = el.style.display; el.style.display = 'none'; recenterRow(el.parentElement); if (state.masked.indexOf(k) < 0) state.masked.push(k); }
   function unmaskKey(k) { var el = resolve(k); if (el) { el.style.display = el.dataset.pmPrev || ''; restoreRow(el.parentElement); } state.masked = state.masked.filter(function (x) { return x !== k; }); }
 
@@ -1415,7 +1444,7 @@ window.addEventListener('load', function () {
       max_slide: _maxSlide + 1,
       slides_seen: slidesSeen,
       total_slides: slides.length,
-      pct_read: Math.round(100 * slidesSeen / slides.length),
+      pct_read: Math.round(100 * slidesSeen / Math.max(1, pmVisibleTotal())),
       seconds_total: total,
       top_slide: top + 1,
       top_seconds: topSecs,
@@ -1436,7 +1465,7 @@ window.addEventListener('load', function () {
     flushSlideTime();
     _curSlide = i; _curEnter = Date.now(); _curTitle = slideTitle(s);
     if (i > _maxSlide) _maxSlide = i;
-    if (i === slides.length - 1 && !_completed) { _completed = true; track('deck_completed', { slides: slides.length }); }
+    if (i === pmSeek(slides.length - 1, -1) && !_completed) { _completed = true; track('deck_completed', { slides: slides.length }); }
   }
   slides.forEach(function (s, i) { new MutationObserver(function () { if (s.classList.contains('active')) onSlideActive(s, i); }).observe(s, { attributes: true, attributeFilter: ['class'] }); });
   // Seed the tracker with the slide already active at load: the observers only
@@ -1530,7 +1559,7 @@ window.addEventListener('load', function () {
   function renderMasked() {
     var wrap = document.getElementById('pm-maskedwrap'), box = document.getElementById('pm-masked');
     box.innerHTML = ''; wrap.style.display = state.masked.length ? 'block' : 'none';
-    state.masked.forEach(function (k) { var el = resolve(k); var r = document.createElement('div'); r.className = 'pm-modrow'; r.innerHTML = '<span>' + ICON.eyeOff + ' ' + elName(el, k) + '</span><button class="pm-mini" data-k="' + k + '">Démasquer</button>'; box.appendChild(r); });
+    state.masked.forEach(function (k) { var el = resolve(k); var r = document.createElement('div'); r.className = 'pm-modrow'; r.innerHTML = '<span>' + ICON.eyeOff + ' ' + pmAttr(elName(el, k)) + '</span><button class="pm-mini" data-k="' + pmAttr(k) + '">Démasquer</button>'; box.appendChild(r); });
   }
   var list = document.getElementById('pm-slides');
   var sbulkHide = document.getElementById('pm-sbulk-hide'), sbulkShow = document.getElementById('pm-sbulk-show'), sbulkShowAll = document.getElementById('pm-sbulk-showall');
@@ -1591,30 +1620,56 @@ window.addEventListener('load', function () {
     Object.keys(o).forEach(function (name) {
       var r = document.createElement('div');
       r.className = 'pm-modrow' + (name === curVersion ? ' pm-vactive' : '');
-      r.innerHTML = '<span>' + ICON.save + ' <b class="pm-vname-txt"></b></span><span><button class="pm-mini" data-load="' + name + '">Charger</button> <button class="pm-mini" data-del="' + name + '">✕</button></span>';
+      r.innerHTML = '<span>' + ICON.save + ' <b class="pm-vname-txt"></b></span><span><button class="pm-mini" data-load="' + pmAttr(name) + '">Charger</button> <button class="pm-mini" data-del="' + pmAttr(name) + '">✕</button></span>';
       r.querySelector('.pm-vname-txt').textContent = name;
       box.appendChild(r);
     });
   }
 
-  function applyState(st) {
+  // Retourne les retouches posées sur un texte que le deck a changé depuis (le début du
+  // texte d'origine dans la clé, ou l'empreinte state.pub), pour que l'appelant le dise.
+  // opts.noSave : un lien ?pm= s'affiche sans écraser le brouillon du commercial.
+  function keyFp(k) { var a = k.indexOf('|'), b = a < 0 ? -1 : k.indexOf('|', a + 1); return b < 0 ? null : k.slice(b + 1); }
+  function applyState(st, opts) {
+    opts = opts || {};
     state = Object.assign(blank(), st || {});
     state.slidesHidden = (state.slidesHidden || []).map(function (k) { if (typeof k === 'number') return k; var sl = slideByKey(k); return sl ? Array.prototype.indexOf.call(slides, sl) : -1; }).filter(function (i) { return i >= 0; });
     // Chaque clé, même d'avant 2026-09-29, est résolue AVANT de poser le moindre texte puis
     // réécrite au format par nom : l'empreinte se calcule sur le texte d'origine, et une
     // retouche faite ensuite retombe sur la même clé. Une clé introuvable est abandonnée.
     var ref = {}; function at(k) { if (!(k in ref)) { var el = resolve(k); ref[k] = el ? { el: el, k: elPath(el) } : null; } return ref[k]; }
-    var tx = {}, op = {}, mk = [];
-    Object.keys(state.text).forEach(function (k) { var r = at(k); if (r) tx[r.k] = state.text[k]; });
+    var tx = {}, op = {}, mk = [], pb = {}, stale = [];
+    Object.keys(state.text).forEach(function (k) {
+      var r = at(k); if (!r) return; tx[r.k] = state.text[k];
+      if (state.pub[k] !== undefined) pb[r.k] = state.pub[k];
+      var fp = keyFp(k); if ((fp !== null && fp !== keyFp(r.k)) || (state.pub[k] !== undefined && (markPub(r.el), state.pub[k] !== pmHash(pubHtml.get(r.el))))) stale.push(r.el);
+    });
     Object.keys(state.opacity).forEach(function (k) { var r = at(k); if (r) op[r.k] = state.opacity[k]; });
     state.masked.forEach(function (k) { var r = at(k); if (r && mk.indexOf(r.k) < 0) mk.push(r.k); });
-    state.text = tx; state.opacity = op; state.masked = mk;
+    state.text = tx; state.opacity = op; state.masked = mk; state.pub = pb;
     Object.keys(ref).forEach(function (k) { var r = ref[k]; if (r && tx[r.k] !== undefined && r.el.dataset.pmOrig === undefined) r.el.dataset.pmOrig = textNorm(r.el); });
     Object.keys(state.text).forEach(function (k) { var el = resolve(k); if (!el) return; markPub(el); if (state.text[k] === pubHtml.get(el)) { delete state.text[k]; return; } el.innerHTML = state.text[k]; bindText(el); });
     Object.keys(state.opacity).forEach(function (k) { var el = resolve(k); if (el) { el.style.setProperty('animation', 'none', 'important'); el.style.setProperty('opacity', state.opacity[k] / 100, 'important'); } });
     state.masked.forEach(function (k) { var el = resolve(k); if (el && el.style.display !== 'none') { el.dataset.pmPrev = el.style.display; el.style.display = 'none'; recenterRow(el.parentElement); } });
     state.slidesHidden.forEach(function (i) { if (slides[i]) slides[i].dataset.pmHidden = '1'; });
-    renderMasked(); renderSlides(); autosave();
+    renderMasked(); renderSlides(); if (!opts.noSave) autosave();
+    // Compteur et slide courante suivent les slides masquées par l'état posé.
+    goToSlide(currentSlide);
+    return stale;
+  }
+  // Bandeau d'information, même place et même style que celui de restauration.
+  function pmNotice(msg) {
+    var old = document.getElementById('pm-restore'); if (old) old.remove();
+    var b = document.createElement('div'); b.id = 'pm-restore'; b.className = 'pm-restore';
+    b.innerHTML = '<span></span><button data-r="0">OK</button>';
+    b.querySelector('span').textContent = msg;
+    b.querySelector('button').addEventListener('click', function () { b.remove(); });
+    document.body.appendChild(b);
+  }
+  function noticeStale(stale) {
+    if (!stale || !stale.length) return;
+    var nums = stale.map(slideIndex).filter(function (n, i, a) { return n && a.indexOf(n) === i; }).sort(function (a, b) { return a - b; });
+    pmNotice(stale.length + (stale.length > 1 ? ' retouches portent' : ' retouche porte') + ' sur un texte que le deck a mis à jour depuis' + (nums.length ? ' (slide' + (nums.length > 1 ? 's ' : ' ') + nums.join(', ') + ')' : '') + ', à relire.');
   }
 
   // ---- notes (retours terrain saisis pendant un rendez-vous) ----
@@ -1936,7 +1991,7 @@ window.addEventListener('load', function () {
   });
   document.getElementById('pm-saves').addEventListener('click', function (e) {
     var l = e.target.closest('[data-load]'), d = e.target.closest('[data-del]');
-    if (l) { var o = getSaves(); if (o[l.dataset.load]) { applyState(JSON.parse(JSON.stringify(o[l.dataset.load]))); setVersion(l.dataset.load); track('deck_version_load', { name: l.dataset.load }); } }
+    if (l) { var o = getSaves(); if (o[l.dataset.load]) { var stl = applyState(JSON.parse(JSON.stringify(o[l.dataset.load]))); setVersion(l.dataset.load); noticeStale(stl); track('deck_version_load', { name: l.dataset.load }); } }
     else if (d) {
       var o2 = getSaves(); delete o2[d.dataset.del]; setSaves(o2);
       // Supprimer la version ne supprime pas les notes prises pour ce client :
@@ -2021,6 +2076,15 @@ window.addEventListener('load', function () {
   // its pin. Swapping the <img> for an inline <svg> during capture puts the label
   // back in the main document, which DOES see PM_LATO_FONTFACE_CSS. Restored right
   // after the capture so the live page keeps using the lighter <img>.
+  // A promise that never settles (a stalled download, html-to-image waiting on
+  // a resource that never answers) would leave the export card spinning and
+  // pmExportBusy stuck until a reload. Past the deadline it rejects like any
+  // other failure, so only that slide or that resource is lost.
+  function pmWithDeadline(p, ms, what) {
+    var t;
+    return Promise.race([p, new Promise(function (_, rej) { t = setTimeout(function () { rej(new Error('delai depasse : ' + what)); }, ms); })])
+      .finally(function () { clearTimeout(t); });
+  }
   async function pmInlineMaps(root) {
     if (!root) return function () { };
     var imgs = root.querySelectorAll('img[src*="/maps/"]'), restore = [];
@@ -2029,8 +2093,7 @@ window.addEventListener('load', function () {
       if (!/\.svg(\?|$)/i.test(img.src)) continue;
       try {
         var r = img.getBoundingClientRect();
-        var res = await fetch(img.src, { mode: 'cors' });
-        var text = await res.text();
+        var text = await pmWithDeadline(fetch(img.src, { mode: 'cors' }).then(function (res) { return res.text(); }), 8000, 'carte ' + img.src);
         var wrap = document.createElement('div');
         wrap.innerHTML = text;
         var svg = wrap.querySelector('svg');
@@ -2043,19 +2106,32 @@ window.addEventListener('load', function () {
         var pfx = 'pm-map' + i + '-';
         svg.querySelectorAll('style').forEach(function (st) { st.textContent = st.textContent.replace(/\.([A-Za-z_][\w-]*)/g, '.' + pfx + '$1'); });
         svg.querySelectorAll('[class]').forEach(function (el) { el.setAttribute('class', el.getAttribute('class').trim().split(/\s+/).map(function (c) { return pfx + c; }).join(' ')); });
-        svg.setAttribute('width', r.width);
-        svg.setAttribute('height', r.height);
-        // Fixed + viewport coordinates from the img's own box: the swap must not
-        // hand the flex/grid layout a second item to arrange, only draw over the
-        // exact rectangle the img already occupies.
-        svg.style.cssText = 'position:fixed;left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px;z-index:2;';
-        svg.className = img.className;
-        document.body.appendChild(svg);
-        img.style.display = 'none';
+        // Same for ids (SVGID_1_ gradients and clip paths): two inlined maps
+        // would otherwise both point url(#SVGID_1_) at the first one's.
+        svg.querySelectorAll('[id]').forEach(function (el) { el.id = pfx + el.id; });
+        svg.querySelectorAll('*').forEach(function (el) {
+          Array.prototype.forEach.call(el.attributes, function (a) {
+            var v = /href$/.test(a.name) ? a.value.replace(/^#/, '#' + pfx) : a.value.replace(/url\(\s*(['"]?)#/g, 'url($1#' + pfx);
+            if (v !== a.value) a.value = v;
+          });
+        });
+        svg.querySelectorAll('style').forEach(function (st) { st.textContent = st.textContent.replace(/url\(\s*(['"]?)#/g, 'url($1#' + pfx).replace(/#([A-Za-z_][\w-]*)\s*\{/g, '#' + pfx + '$1{'); });
+        // The svg takes the img's place IN the layout, at the img's own layout size
+        // (offsetWidth/Height, before any fitSlide scale) and margins, so the slide
+        // lays out exactly as on screen. An overlay over a hidden img broke both
+        // ways : display:none closed the gap and pulled the title onto the map,
+        // and html-to-image's copy of a visibility:hidden img either collapsed
+        // (Chromium, not decoded yet) or painted it black under the map (WebKit).
+        var w = img.offsetWidth, h = img.offsetHeight, cs = getComputedStyle(img);
+        if (!w || !h) continue;
+        svg.setAttribute('width', w);
+        svg.setAttribute('height', h);
+        svg.style.cssText = 'width:' + w + 'px;height:' + h + 'px;flex:none;margin:' + cs.margin + ';vertical-align:' + cs.verticalAlign + ';display:' + (cs.display === 'inline' ? 'inline-block' : cs.display) + ';';
+        img.replaceWith(svg);
         restore.push({ img: img, svg: svg });
       } catch (e) { }
     }
-    return function undo() { restore.forEach(function (x) { x.svg.remove(); x.img.style.display = ''; }); };
+    return function undo() { restore.forEach(function (x) { x.svg.replaceWith(x.img); }); };
   }
   // html-to-image rasterizes a slide by cloning it into an SVG
   // <foreignObject> and painting that as one big image. Measured on a
@@ -2089,7 +2165,9 @@ window.addEventListener('load', function () {
   })();
   async function pmInlineImages(root) {
     if (!root) return { undo: function () { }, failed: [] };
-    var imgs = root.querySelectorAll('img[src^="http"]'), restore = [], failed = [];
+    // Filtered on the resolved img.src, so a relative src (img/photo.jpg) is
+    // downscaled too ; data: and blob: sources are already inline.
+    var imgs = Array.prototype.filter.call(root.querySelectorAll('img'), function (im) { return /^https?:/.test(im.src); }), restore = [], failed = [];
     var failedKeys = {};
     // The intro carousel loops the same 5 photos twice, back to back, for a
     // seamless scroll : 10 <img> elements, 5 distinct URLs, each rendered pair
@@ -2118,11 +2196,12 @@ window.addEventListener('load', function () {
           // stall the button.
           var ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
           var timer = ac ? setTimeout(function () { ac.abort(); }, 8000) : null;
+          // The timer is cleared once the BODY has arrived : a server that sends
+          // its headers and then stalls would otherwise hang the export for good.
           return fetch(original, { mode: 'cors', signal: ac ? ac.signal : undefined }).then(function (res) {
-            if (timer) clearTimeout(timer);
             if (!res.ok) throw new Error('HTTP ' + res.status);
             return res.blob();
-          }).then(function (blob) {
+          }).finally(function () { if (timer) clearTimeout(timer); }).then(function (blob) {
             var url = URL.createObjectURL(blob);
             return new Promise(function (resolve, reject) {
               var im = new Image();
@@ -2313,7 +2392,10 @@ window.addEventListener('load', function () {
       state.slidesHidden = state.slidesHidden.filter(function (i) { return opts.only.indexOf(i) < 0; });
       visible = Array.prototype.slice.call(opts.only);
     } else {
-      for (var k = 0; k < slides.length; k++) if (state.slidesHidden.indexOf(k) < 0) visible.push(k);
+      // Lu dans le DOM, pas dans state : la copie hors ecran redemarre l'editeur
+      // a vide, seul data-pm-hidden y porte les slides masquees. Sinon goToSlide
+      // sautait la slide masquee et capturait la suivante deux fois.
+      for (var k = 0; k < slides.length; k++) if (!pmSlideHidden(k)) visible.push(k);
     }
     try {
       for (var j = 0; j < visible.length; j++) {
@@ -2362,7 +2444,7 @@ window.addEventListener('load', function () {
         // li{display:table-cell;width:1%} squeezed every list to one word wide
         // and its h1 text-shadow left gradient titles hollow.
         try {
-          img = await htmlToImage.toJpeg(document.body, { quality: 0.92, pixelRatio: 2, width: vw, height: vh, backgroundColor: AY_TOKENS['bg-white'], cacheBust: true, filter: pmFilter, fontEmbedCSS: window.PM_LATO_FONTFACE_CSS || '' });
+          img = await pmWithDeadline(htmlToImage.toJpeg(document.body, { quality: 0.92, pixelRatio: 2, width: vw, height: vh, backgroundColor: AY_TOKENS['bg-white'], cacheBust: true, filter: pmFilter, fontEmbedCSS: window.PM_LATO_FONTFACE_CSS || '' }), 60000, 'rendu de la slide');
         } catch (e) {
           slideErr = e;
         } finally {
@@ -2590,7 +2672,10 @@ window.addEventListener('load', function () {
       // Copie exacte du DOM actuel (edits de personnalisation, slides masquees
       // comprises, puisque cet etat vit deja dans le DOM) : le moteur redemarre
       // dedans, a une vraie taille 1920x1080.
-      ifr.srcdoc = '<!doctype html>' + document.documentElement.outerHTML;
+      // Sans loading="lazy" ni decoding="async" : la copie est hors ecran, WebKit n'y
+      // charge jamais une image differee (logos partenaires a 0 px, grille vide), et
+      // une image decodee a part manque a l'instantane que peint html-to-image.
+      ifr.srcdoc = '<!doctype html>' + document.documentElement.outerHTML.replace(/\s(loading=(["'])lazy|decoding=(["'])async)\2?\3?/g, '');
     });
   }
   async function pmCaptureOffscreen(progress, opts) {
@@ -2638,6 +2723,7 @@ window.addEventListener('load', function () {
     try {
       await pmLoadLib(kind);
       var res = await pmCaptureOffscreen(function (n, t) { pmCardTick(n, t); });
+      if (!res.caps.length) throw new Error('aucune slide capturee');
       await pmSaveFile(kind, res);
       track('deck_download', { format: kind, hidden_count: state.slidesHidden.length });
       pmCardFinish(kind, pmDownloadExtra(res));
@@ -3000,9 +3086,14 @@ window.addEventListener('load', function () {
   renderSlides(); renderSaves();
   // A "?pm=" link (shared by a rep, or fed to the export pipeline) wins over the
   // local auto-draft, so the deck shows exactly the personalized state encoded.
+  var pmParam = null;
+  try { pmParam = new URLSearchParams(location.search).get('pm'); } catch (e) { }
   try {
-    var pmParam = new URLSearchParams(location.search).get('pm');
-    if (pmParam) { applyState(pmDecode(pmParam)); }
+    if (pmParam) {
+      var pmSt = null;
+      try { pmSt = pmDecode(pmParam); } catch (e) { pmNotice('Ce lien personnalisé est incomplet, le deck s\'affiche tel que publié. Demandez le lien complet à votre interlocuteur Ayming.'); }
+      if (pmSt) applyState(pmSt, { noSave: true });
+    }
     else {
       // Le deck s'ouvre tel que publié. Un brouillon qui diffère de sa version enregistrée
       // est proposé dans un bandeau, jamais réappliqué sans le demander.
@@ -3015,7 +3106,7 @@ window.addEventListener('load', function () {
       else if (ds && isBlankState(ds)) { try { localStorage.removeItem('pm:draft:' + deckKey); } catch (x) { } }
       window.addEventListener('beforeunload', function (e) { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
     }
-  } catch (e) { }
+  } catch (e) { if (window.console) console.warn('[perso] restauration', e); }
   function offerRestore(ds, v) {
     var ts = 0; try { ts = +localStorage.getItem('pm:draftts:' + deckKey) || 0; } catch (e) { }
     var b = document.createElement('div'); b.id = 'pm-restore'; b.className = 'pm-restore';
@@ -3023,7 +3114,7 @@ window.addEventListener('load', function () {
     b.querySelector('span').textContent = 'Retouches non enregistrées' + (ts ? ' du ' + new Date(ts).toLocaleDateString('fr-FR') : '') + (v ? ' sur la version « ' + v + ' »' : '') + '.';
     b.addEventListener('click', function (e) {
       var r = e.target.closest('[data-r]'); if (!r) return;
-      if (r.dataset.r === '1') { applyState(ds); if (v && getSaves()[v]) setVersion(v); }
+      if (r.dataset.r === '1') { var stl = applyState(ds); if (v && getSaves()[v]) setVersion(v); b.remove(); noticeStale(stl); return; }
       else { try { localStorage.removeItem('pm:draft:' + deckKey); } catch (x) { } }
       b.remove();
     });
@@ -3483,7 +3574,7 @@ window.addEventListener('load', function () {
     + '.ay-tour-invite .ay-inv-go{font-family:inherit;font-size:13px;font-weight:700;border:0;border-radius:9px;padding:9px 16px;cursor:pointer;background:' + AY_TOKENS['gradient-blue-start'] + ';color:' + AY_TOKENS['tint-white'] + '}'
     + '.ay-tour-invite .ay-inv-x{position:absolute;top:8px;right:10px;border:0;background:none;cursor:pointer;font-size:20px;line-height:1;color:' + AY_TOKENS['ui-slate-muted'] + '}';
 
-  var loading = false, skinned = false;
+  var loading = false, skinned = false, waiting = [];
   function skin() {
     if (skinned) return;
     skinned = true;
@@ -3494,6 +3585,7 @@ window.addEventListener('load', function () {
   function load(cb) {
     skin();
     if (window.driver && window.driver.js) { cb(); return; }
+    waiting.push(cb);
     if (loading) return;
     loading = true;
     var css = document.createElement('link');
@@ -3501,8 +3593,8 @@ window.addEventListener('load', function () {
     document.head.appendChild(css);
     var js = document.createElement('script');
     js.src = BASE + 'driver.js.iife.js';
-    js.onload = function () { loading = false; cb(); };
-    js.onerror = function () { loading = false; };
+    js.onload = function () { loading = false; var w = waiting; waiting = []; w.forEach(function (f) { f(); }); };
+    js.onerror = function () { loading = false; waiting = []; if (window.console) console.warn('[tour] driver.js indisponible'); };
     document.head.appendChild(js);
   }
 
@@ -3865,17 +3957,22 @@ window.addEventListener('load', function () {
     timers.set(slide, []);
     slide.querySelectorAll('.ay-ghost').forEach(function (g) { g.remove(); });
   }
+  // Every value the counter writes is remembered in data-ay-shown. A text that
+  // no longer matches it was typed by the rep in the editor : that number is
+  // kept, on screen and in the export copy (which inherits the attribute).
+  function show(el, txt) { el.textContent = txt; el.dataset.ayShown = txt; }
   function countUp(el, from, to, delayS, durS, kind, slide) {
     el.dataset.cur = to;
-    if (reduce()) { el.textContent = fmt(to, kind); return; }
-    el.textContent = fmt(from, kind);
+    if (el.dataset.ayShown !== undefined && el.textContent !== el.dataset.ayShown) return;
+    if (reduce()) { show(el, fmt(to, kind)); return; }
+    show(el, fmt(from, kind));
     later(slide, delayS * 1000, function () {
       var t0 = performance.now(), dur = durS * 1000;
       (function step(now) {
         var p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
-        el.textContent = fmt(from + (to - from) * e, kind);
+        show(el, fmt(from + (to - from) * e, kind));
         if (p < 1 && slide.classList.contains('active')) requestAnimationFrame(step);
-        else el.textContent = fmt(to, kind);
+        else show(el, fmt(to, kind));
       })(t0);
     });
   }
