@@ -1999,7 +1999,12 @@ window.addEventListener('load', function () {
       if (curVersion === d.dataset.del) setVersion(''); else renderSaves();
     }
   });
-  document.getElementById('pm-vreset').addEventListener('click', function () { confirmDialog('Effacer toutes vos modifications sur ce deck ?', function () { localStorage.removeItem('pm:draft:' + deckKey); state = blank(); location.reload(); }); });
+  document.getElementById('pm-vreset').addEventListener('click', function () { confirmDialog('Effacer toutes vos modifications sur ce deck ?', function () {
+    try { localStorage.removeItem('pm:draft:' + deckKey); } catch (e) { }
+    state = blank();
+    // Sur un lien ?pm=, recharger reposerait le même état : on repart de l'adresse nue.
+    if (/[?&]pm=/.test(location.search)) location.replace(location.pathname); else location.reload();
+  }); });
 
   // Self-service personalized export, generated entirely in the browser (no
   // server, zero cost). We snapshot each live (edited) slide with html-to-image

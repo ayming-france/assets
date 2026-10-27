@@ -3258,6 +3258,14 @@
   .partner-tile .partner-name { transition: none; }
 }
 
+/* Mouvement réduit : les entrées des slides (fadeInUp et apparentées) se jouent en
+   un instant à leur état final, et les boucles s'arrêtent après un tour. Une durée
+   quasi nulle plutôt que animation:none, qui laisserait invisibles les éléments
+   dont l'état de départ est opacity:0. Les classes ay-* gardent leur règle de motion.css. */
+@media (prefers-reduced-motion: reduce) {
+  .slide.active *, .slide.active *::before, .slide.active *::after { animation-duration: .001s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; }
+}
+
 /* Le nom ne parait que si le logo n'a pas charge : une tuile reste lisible
    plutot que vide, et le partenaire ne disparait pas de la slide. */
 .partner-name { display: none; }
