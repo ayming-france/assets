@@ -2355,8 +2355,14 @@ window.addEventListener('load', function () {
         // refuse de charger (voir pmInlineImages) ne doit plus faire echouer les
         // 21 autres slides, seulement celle-ci, qui est alors omise du fichier.
         var img = null, slideErr = null;
+        // fontEmbedCSS hands html-to-image the base64 Lato directly, so it never
+        // walks the stylesheets to find fonts. That walk fetched each @import of
+        // slides.css (motion.css, mockups.css) relative to the PAGE instead of the
+        // stylesheet, got GitHub's 404 page and inserted its CSS into the copy:
+        // li{display:table-cell;width:1%} squeezed every list to one word wide
+        // and its h1 text-shadow left gradient titles hollow.
         try {
-          img = await htmlToImage.toJpeg(document.body, { quality: 0.92, pixelRatio: 2, width: vw, height: vh, backgroundColor: AY_TOKENS['bg-white'], cacheBust: true, filter: pmFilter });
+          img = await htmlToImage.toJpeg(document.body, { quality: 0.92, pixelRatio: 2, width: vw, height: vh, backgroundColor: AY_TOKENS['bg-white'], cacheBust: true, filter: pmFilter, fontEmbedCSS: window.PM_LATO_FONTFACE_CSS || '' });
         } catch (e) {
           slideErr = e;
         } finally {
