@@ -2058,6 +2058,11 @@ window.addEventListener('load', function () {
       if (node.id === 'pm-panel') return false;
       var ex = ['pdf-popover', 'pm-toast', 'pm-ovl', 'chapter-nav', 'nav-toggle', 'banner-controls', 'deck-help', 'deck-ink', 'deck-tools', 'driver-overlay', 'driver-popover', 'ay-tour-invite', 'pm-progress-card', 'deck-lang', 'pm-restore'];
       for (var i = 0; i < ex.length; i++) if (node.classList.contains(ex[i])) return false;
+      // Every slide but the one being captured is display:none and paints
+      // nothing, yet html-to-image would still clone it and copy the computed
+      // style of each of its nodes. Kept in, every capture paid for the whole
+      // deck, so a 45-slide export grew with the square of its length.
+      if (node.classList.contains('slide') && !node.classList.contains('active')) return false;
     }
     // The capture is exactly the viewport (vw x vh in pmCapture), so an <img>
     // whose box has no overlap with it cannot show up in the output no matter
