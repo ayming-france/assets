@@ -2367,7 +2367,11 @@ window.addEventListener('load', function () {
     // what cuts the title, wraps the table headers and overlaps the client stats.
     // PM_LATO_FONTFACE_CSS (loaded on demand, see pmExportPptx/pmExportPdf) is
     // already a base64 @font-face, so html-to-image just clones it, no fetch needed.
-    st.textContent = '*,*::before,*::after{animation-duration:.001s!important;animation-delay:0s!important;transition-duration:.001s!important}'
+    // Transitions are switched off, not shortened : a transition, however short,
+    // only advances on a painted frame, so the scale fitSlide() just set on a
+    // slide was still on its way from scale(1) when html-to-image cloned it,
+    // and the slide came out a few percent smaller than on screen.
+    st.textContent = '*,*::before,*::after{animation-duration:.001s!important;animation-delay:0s!important;transition:none!important}'
       + '*{pointer-events:none!important}'
       + '.testimonial-card-inner{transform:none!important;transform-style:flat!important}'
       + '.testimonial-front{transform:none!important;backface-visibility:visible!important;-webkit-backface-visibility:visible!important}'
