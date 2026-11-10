@@ -1501,7 +1501,7 @@ window.addEventListener('load', function () {
       '<div class="pm-oprow"><span class="pm-oplab">Opacité</span><input type="range" id="pm-opacity" min="0" max="100" value="100"><span id="pm-opval">100%</span></div></div>' +
       '<div id="pm-maskedwrap"><div class="pm-modhd">Éléments masqués</div><div id="pm-masked"></div></div>') +
     sec('slides', ICON.layers, 'Slides', '<span id="pm-count" class="pm-count"></span>',
-      '<div class="pm-sbulk"><button id="pm-sbulk-hide" class="pm-mini" disabled>Masquer</button><button id="pm-sbulk-show" class="pm-mini" disabled>Afficher</button><button id="pm-sbulk-showall" class="pm-mini">Tout afficher</button></div>' +
+      '<div class="pm-sbulk"><label class="pm-sall"><input type="checkbox" id="pm-sbulk-all" class="pm-schk"><span id="pm-sbulk-alllab">Tout sélectionner</span></label><button id="pm-sbulk-hide" class="pm-mini" disabled>Masquer</button><button id="pm-sbulk-show" class="pm-mini" disabled>Afficher</button></div>' +
       '<div id="pm-slides"></div>') +
     sec('versions', ICON.save, 'Versions', '',
       '<div class="pm-hint">Sauvegardez vos modifications sous un nom. Le deck se rouvre toujours tel que publié ; des retouches non enregistrées vous sont proposées à l\'ouverture suivante.</div>' +
@@ -1550,7 +1550,7 @@ window.addEventListener('load', function () {
     '#pm-panel .pm-vactive{background:' + AY_TOKENS['ui-mist-7'] + ';border-radius:8px;padding:3px 8px;margin:0 -8px}#pm-panel .pm-vactive .pm-vname-txt{color:' + AY_TOKENS['ui-blue-active'] + '}' +
     '#pm-panel .pm-vrow{display:flex;gap:8px;padding:0 16px 8px}#pm-panel #pm-vname{flex:1;border:1px solid ' + AY_TOKENS['ui-border'] + ';border-radius:8px;padding:7px 10px;font-size:12px}#pm-panel #pm-saves{padding:0 16px}#pm-panel .pm-reset{margin:8px 16px 0;color:' + AY_TOKENS['ui-red'] + ';border-color:' + AY_TOKENS['ui-red-border'] + '}' +
     '#pm-panel #pm-slides{display:flex;flex-direction:column;gap:1px;max-height:200px;overflow:auto;padding:0 8px}#pm-panel .pm-srow{display:flex;gap:8px;align-items:center;font-size:12px;padding:4px 8px;border-radius:7px;cursor:pointer}#pm-panel .pm-srow:hover{background:' + AY_TOKENS['ui-mist-5'] + '}#pm-panel .pm-srow.pm-active{background:' + AY_TOKENS['ui-mist-7'] + ';font-weight:600}#pm-panel .pm-srow.pm-hidden .pm-sname{opacity:.4;text-decoration:line-through}#pm-panel .pm-eye{cursor:pointer;display:inline-flex}#pm-panel .pm-schk{margin:0;cursor:pointer;flex:none}' +
-    '#pm-panel .pm-sbulk{display:flex;gap:6px;padding:4px 8px 8px}#pm-panel .pm-sbulk .pm-mini{padding:5px 9px;font-size:11px}#pm-panel .pm-sbulk .pm-mini:disabled{opacity:.4;cursor:not-allowed}' +
+    '#pm-panel .pm-sbulk{display:flex;gap:6px;align-items:center;padding:4px 8px 8px}#pm-panel .pm-sall{display:flex;align-items:center;gap:8px;margin:0 auto 0 8px;font-size:12px;cursor:pointer;white-space:nowrap}#pm-panel .pm-sbulk .pm-mini{padding:5px 9px;font-size:11px}#pm-panel .pm-sbulk .pm-mini:disabled{opacity:.4;cursor:not-allowed}' +
     '#pm-panel .pm-fixed{border-top:1px solid ' + AY_TOKENS['ui-mist-3'] + ';padding:12px 16px;background:' + AY_TOKENS['ui-mist-8'] + '}#pm-panel .pm-fxhd{display:flex;align-items:center;gap:9px;font-weight:700;font-size:13px;margin-bottom:9px}#pm-panel .pm-fixed .pm-row{padding:0}' +
     '#pm-panel .pm-log{background:' + AY_TOKENS['ui-log-bg'] + ';color:' + AY_TOKENS['ui-log-text'] + ';border-radius:10px;margin:0 16px;padding:9px;font-family:ui-monospace,monospace;font-size:11px;line-height:1.5;max-height:200px;overflow:auto}#pm-panel .pm-log-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid rgba(255,255,255,.06);padding:2px 0}' +
     '#pm-panel svg{vertical-align:-2px;flex:none}#pm-panel .pm-h svg{opacity:.85}#pm-panel .pm-modrow svg{margin-right:3px}#pm-panel .pm-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:' + AY_TOKENS['gradient-blue-start'] + ';margin-right:7px;vertical-align:1px}';
@@ -1562,11 +1562,16 @@ window.addEventListener('load', function () {
     state.masked.forEach(function (k) { var el = resolve(k); var r = document.createElement('div'); r.className = 'pm-modrow'; r.innerHTML = '<span>' + ICON.eyeOff + ' ' + pmAttr(elName(el, k)) + '</span><button class="pm-mini" data-k="' + pmAttr(k) + '">Démasquer</button>'; box.appendChild(r); });
   }
   var list = document.getElementById('pm-slides');
-  var sbulkHide = document.getElementById('pm-sbulk-hide'), sbulkShow = document.getElementById('pm-sbulk-show'), sbulkShowAll = document.getElementById('pm-sbulk-showall');
+  var sbulkHide = document.getElementById('pm-sbulk-hide'), sbulkShow = document.getElementById('pm-sbulk-show'), sbulkAll = document.getElementById('pm-sbulk-all');
   var sLastChecked = null; // pour l'etendue au clic Maj
   function updateCount() { var v = Array.prototype.filter.call(slides, function (s) { return s.dataset.pmHidden !== '1'; }).length; document.getElementById('pm-count').textContent = v + '/' + slides.length; }
   function getCheckedSlideIndices() { return Array.prototype.map.call(list.querySelectorAll('.pm-schk:checked'), function (c) { return +c.dataset.i; }); }
-  function updateBulkBar() { var n = getCheckedSlideIndices().length; sbulkHide.disabled = !n; sbulkShow.disabled = !n; }
+  // Masquer et Afficher sont contextuels : chacun ne s'allume que si au moins
+  // une slide cochee peut encore changer dans ce sens.
+  function updateBulkBar() {
+    var idxs = getCheckedSlideIndices(), n = idxs.length;
+    var anyHidden = idxs.some(function (i) { return slides[i].dataset.pmHidden === '1'; });
+    sbulkHide.disabled = !idxs.some(function (i) { return slides[i].dataset.pmHidden !== '1'; }); sbulkShow.disabled = !anyHidden; sbulkAll.checked = n > 0 && n === slides.length; document.getElementById('pm-sbulk-alllab').textContent = sbulkAll.checked ? 'Tout désélectionner' : 'Tout sélectionner'; sbulkAll.indeterminate = n > 0 && n < slides.length; }
   // Le numero affiche ET la ligne active viennent tous les deux d'une seule
   // source (pmDisplayIndex, currentSlide) : jamais de decalage avec le bandeau.
   function renderSlides() {
@@ -1595,6 +1600,10 @@ window.addEventListener('load', function () {
   function clearSelection() { Array.prototype.forEach.call(list.querySelectorAll('.pm-schk:checked'), function (c) { c.checked = false; }); sLastChecked = null; }
   function bulkSetHidden(hide) {
     var idxs = getCheckedSlideIndices(); if (!idxs.length) return;
+    // Un deck sans aucune slide visible n'a plus rien a montrer : si le lot
+    // les masquerait toutes, la slide affichee reste visible.
+    var visibleLeft = Array.prototype.filter.call(slides, function (s, i) { return s.dataset.pmHidden !== '1' && idxs.indexOf(i) === -1; }).length;
+    if (hide && !visibleLeft) idxs = idxs.filter(function (i) { return i !== currentSlide; });
     idxs.forEach(function (i) {
       slides[i].dataset.pmHidden = hide ? '1' : '';
       track(hide ? 'deck_slide_hidden' : 'deck_slide_shown', { slide: i + 1, title: slideTitle(slides[i]), chapter: slides[i].dataset.chapter || '' });
@@ -1605,16 +1614,13 @@ window.addEventListener('load', function () {
     var t = pmSeek(currentSlide, 1); if (t === -1) t = pmSeek(currentSlide, -1); if (t !== -1) currentSlide = t;
     updateSlide(); renderSlides(); autosave();
   }
-  function bulkShowAll() {
-    Array.prototype.forEach.call(slides, function (s) { s.dataset.pmHidden = ''; });
-    state.slidesHidden = [];
-    clearSelection();
-    track('deck_slide_shown', { slide: 'all' });
-    updateSlide(); renderSlides(); autosave();
-  }
   sbulkHide.addEventListener('click', function () { bulkSetHidden(true); });
   sbulkShow.addEventListener('click', function () { bulkSetHidden(false); });
-  sbulkShowAll.addEventListener('click', bulkShowAll);
+  sbulkAll.addEventListener('change', function () {
+    var on = sbulkAll.checked;
+    Array.prototype.forEach.call(list.querySelectorAll('.pm-schk'), function (c) { c.checked = on; });
+    sLastChecked = null; updateBulkBar();
+  });
   function renderSaves() {
     var box = document.getElementById('pm-saves'), o = getSaves(); box.innerHTML = '';
     Object.keys(o).forEach(function (name) {
