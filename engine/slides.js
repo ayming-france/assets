@@ -953,6 +953,10 @@ document.addEventListener('keydown', e => {
         ev.preventDefault();
         if (code === cur) { toggle(false); return; }
         try { sessionStorage.setItem('ay-lang-slide', String(currentSlide)); } catch (e) { }
+        // Sans « ?pm= », les slides et elements masques dans l'editeur ne vivent qu'en
+        // memoire et dans le brouillon de la langue quittee : on les passe a la page
+        // d'arrivee, qui les repose. Pas par l'URL, qui ferait du commercial un client.
+        try { if (!/[?&]pm=/.test(location.search) && window.pmCarry) { var cs = window.pmCarry(); if (cs) { sessionStorage.setItem('ay-lang-state', cs); window.__ayLangCarry = true; } } } catch (e) { }
         location.href = l.href.split('?')[0].split('#')[0] + carrySearch();
       });
       menu.appendChild(a);
@@ -2979,6 +2983,8 @@ window.addEventListener('load', function () {
   // execute dans le contexte de l'iframe hors ecran, donc avec le document et le
   // window de CE clone, jamais celui du commercial.
   window.pmCapture = pmCapture;
+  // Etat a emporter dans une autre langue : tout sauf les textes, ecrits dans la langue quittee.
+  window.pmCarry = function () { var st = toStored(state); st.text = {}; delete st.pub; return isBlankState(st) ? '' : JSON.stringify(st); };
   window.pmHasEdits = function () { return !!(Object.keys(state.text).length || state.masked.length || Object.keys(state.opacity).length || state.slidesHidden.length); };
   window.pmCopyLink = function () { openShareDialog(); };
   function openShareDialog() {
@@ -3119,12 +3125,17 @@ window.addEventListener('load', function () {
       // est proposé dans un bandeau, jamais réappliqué sans le demander.
       var dr = localStorage.getItem('pm:draft:' + deckKey), ds = dr ? JSON.parse(dr) : null, prevV = curVersion;
       setVersion('');
+      // Arrivee d'un changement de langue : les masquages de la langue quittee sont
+      // reposes tels quels et deviennent le brouillon de celle-ci, sans bandeau.
+      var carried = null;
+      try { carried = sessionStorage.getItem('ay-lang-state'); sessionStorage.removeItem('ay-lang-state'); carried = carried ? JSON.parse(carried) : null; } catch (x) { carried = null; }
+      if (carried && !isBlankState(carried)) { applyState(carried); ds = null; }
       var sv = getSaves()[prevV];
       // un texte identique à la page publiée ne compte pas comme retouche
       if (ds && ds.text) Object.keys(ds.text).forEach(function (k) { var el = resolve(k); if (el && el.innerHTML === ds.text[k]) delete ds.text[k]; });
       if (!isBlankState(ds) && !(sv && sameState(sv, ds))) offerRestore(ds, prevV);
       else if (ds && isBlankState(ds)) { try { localStorage.removeItem('pm:draft:' + deckKey); } catch (x) { } }
-      window.addEventListener('beforeunload', function (e) { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+      window.addEventListener('beforeunload', function (e) { if (window.__ayLangCarry && !Object.keys(state.text).length) return; if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
     }
   } catch (e) { if (window.console) console.warn('[perso] restauration', e); }
   function offerRestore(ds, v) {
