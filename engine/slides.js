@@ -890,9 +890,25 @@ document.addEventListener('keydown', e => {
     // Meme logique que pour la touche E : un client qui a recu un lien « ?pm= »
     // n'a pas a decouvrir les outils du commercial.
     var forClient = /[?&]pm=/.test(location.search);
-    hint.innerHTML = '<span>&#8592; &#8594; ' + ayT('kbdNav') + '</span><span>' + ayT('kbdFs') + '</span>'
-      + (forClient ? '' : '<span>' + ayT('kbdTools') + '</span>')
-      + '<span>' + ayT('kbdShare') + '</span>';
+    // Beaucoup de lecteurs cliquent sur ces rappels : chacun fait donc aussi ce
+    // que fait sa touche. ← recule, → et le mot « naviguer » avancent.
+    hint.innerHTML = '<span><b data-act="prev">&#8592;</b> <b data-act="next">&#8594; ' + ayT('kbdNav') + '</b></span>'
+      + '<span data-act="fs">' + ayT('kbdFs') + '</span>'
+      + (forClient ? '' : '<span data-act="tools">' + ayT('kbdTools') + '</span>')
+      + '<span data-act="share">' + ayT('kbdShare') + '</span>';
+    hint.addEventListener('click', function (ev) {
+      var el = ev.target.closest && ev.target.closest('[data-act]');
+      if (!el) return;
+      ev.preventDefault();
+      // Sans cela le clic remonte au document, qui referme aussitot le menu de partage.
+      ev.stopPropagation();
+      var act = el.getAttribute('data-act');
+      if (act === 'prev') prevSlide();
+      else if (act === 'next') nextSlide();
+      else if (act === 'fs') toggleFullscreen();
+      else if (act === 'tools') document.dispatchEvent(new CustomEvent('ay-tools-toggle'));
+      else if (act === 'share') { var pp = document.querySelector('.pdf-popover'); if (pp) pp.classList.toggle('visible'); }
+    });
     document.body.appendChild(hint);
   } catch (e) { /* never let the hint break the deck */ }
 })();

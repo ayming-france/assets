@@ -2958,6 +2958,14 @@
   border-left: 1px solid rgba(0, 61, 121, 0.15);
   padding-left: 14px;
 }
+/* Chaque rappel est aussi un bouton ; la pastille autour reste traversante. */
+.deck-help [data-act] {
+  font-weight: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: color 0.15s;
+}
+.deck-help [data-act]:hover { color: var(--blue-accent); }
 :fullscreen .deck-help,
 :-webkit-full-screen .deck-help { display: none; }
 /* Selecteur de langue, dans la pastille d'aide quand le deck declare ses
