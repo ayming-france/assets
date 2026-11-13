@@ -86,6 +86,8 @@ var AY_STRINGS = {
   fr: {
     confidential: 'CONFIDENTIEL · Document propriété exclusive d’Ayming',
     kbdNav: 'Naviguer',
+    kbdPrev: 'Slide précédente (←)',
+    kbdNext: 'Slide suivante (→ ou espace)',
     kbdFs: 'Plein écran (F)',
     kbdTools: 'Outils (T)',
     kbdShare: 'Partager (P)',
@@ -115,6 +117,8 @@ var AY_STRINGS = {
   es: {
     confidential: 'CONFIDENCIAL · Documento propiedad exclusiva de Ayming',
     kbdNav: 'Navegar',
+    kbdPrev: 'Diapositiva anterior (←)',
+    kbdNext: 'Diapositiva siguiente (→ o espacio)',
     kbdFs: 'Pantalla completa (F)',
     kbdTools: 'Herramientas (T)',
     kbdShare: 'Compartir (P)',
@@ -144,6 +148,8 @@ var AY_STRINGS = {
   en: {
     confidential: 'CONFIDENTIAL · Document the exclusive property of Ayming',
     kbdNav: 'Navigate',
+    kbdPrev: 'Previous slide (←)',
+    kbdNext: 'Next slide (→ or space)',
     kbdFs: 'Full screen (F)',
     kbdTools: 'Tools (T)',
     kbdShare: 'Share (P)',
@@ -893,7 +899,7 @@ document.addEventListener('keydown', e => {
     // Beaucoup de lecteurs cliquent sur ces rappels : chacun fait donc aussi ce
     // que fait sa touche. ← recule, → avance. Le bandeau du bas porte deja ces
     // fleches, mais pas sur la couverture, ou le lecteur est justement bloque.
-    hint.innerHTML = '<span aria-label="' + ayT('kbdNav') + '"><b data-act="prev">&#8592;</b> <b data-act="next">&#8594;</b></span>'
+    hint.innerHTML = '<span aria-label="' + ayT('kbdNav') + '"><b data-act="prev" title="' + ayT('kbdPrev') + '">&#8592;</b> <b data-act="next" title="' + ayT('kbdNext') + '">&#8594;</b></span>'
       + '<span data-act="fs">' + ayT('kbdFs') + '</span>'
       + (forClient ? '' : '<span data-act="tools">' + ayT('kbdTools') + '</span>')
       + '<span data-act="share">' + ayT('kbdShare') + '</span>';
