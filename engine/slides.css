@@ -2966,6 +2966,8 @@
   transition: color 0.15s;
 }
 .deck-help [data-act]:hover { color: var(--blue-accent); }
+/* Les fleches sont petites : on elargit la zone de clic sans bouger le texte. */
+.deck-help b[data-act] { padding: 4px 3px; margin: 0 -3px; }
 :fullscreen .deck-help,
 :-webkit-full-screen .deck-help { display: none; }
 /* Selecteur de langue, dans la pastille d'aide quand le deck declare ses

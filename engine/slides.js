@@ -85,10 +85,10 @@ var AY_TOKENS = {
 var AY_STRINGS = {
   fr: {
     confidential: 'CONFIDENTIEL · Document propriété exclusive d’Ayming',
-    kbdNav: 'naviguer',
-    kbdFs: 'F plein écran',
-    kbdTools: 'T outils',
-    kbdShare: 'P partager',
+    kbdNav: 'Naviguer',
+    kbdFs: 'Plein écran (F)',
+    kbdTools: 'Outils (T)',
+    kbdShare: 'Partager (P)',
     langSwitch: 'Langue du document',
     pmPdfTitle: 'Préparation de votre PDF',
     pmPptxTitle: 'Préparation de votre PowerPoint',
@@ -114,10 +114,10 @@ var AY_STRINGS = {
   },
   es: {
     confidential: 'CONFIDENCIAL · Documento propiedad exclusiva de Ayming',
-    kbdNav: 'navegar',
-    kbdFs: 'F pantalla completa',
-    kbdTools: 'T herramientas',
-    kbdShare: 'P compartir',
+    kbdNav: 'Navegar',
+    kbdFs: 'Pantalla completa (F)',
+    kbdTools: 'Herramientas (T)',
+    kbdShare: 'Compartir (P)',
     langSwitch: 'Idioma del documento',
     pmPdfTitle: 'Preparando su PDF',
     pmPptxTitle: 'Preparando su PowerPoint',
@@ -143,10 +143,10 @@ var AY_STRINGS = {
   },
   en: {
     confidential: 'CONFIDENTIAL · Document the exclusive property of Ayming',
-    kbdNav: 'navigate',
-    kbdFs: 'F full screen',
-    kbdTools: 'T tools',
-    kbdShare: 'P share',
+    kbdNav: 'Navigate',
+    kbdFs: 'Full screen (F)',
+    kbdTools: 'Tools (T)',
+    kbdShare: 'Share (P)',
     langSwitch: 'Document language',
     pmPdfTitle: 'Preparing your PDF',
     pmPptxTitle: 'Preparing your PowerPoint',
@@ -891,8 +891,9 @@ document.addEventListener('keydown', e => {
     // n'a pas a decouvrir les outils du commercial.
     var forClient = /[?&]pm=/.test(location.search);
     // Beaucoup de lecteurs cliquent sur ces rappels : chacun fait donc aussi ce
-    // que fait sa touche. ← recule, → et le mot « naviguer » avancent.
-    hint.innerHTML = '<span><b data-act="prev">&#8592;</b> <b data-act="next">&#8594; ' + ayT('kbdNav') + '</b></span>'
+    // que fait sa touche. ← recule, → avance. Le bandeau du bas porte deja ces
+    // fleches, mais pas sur la couverture, ou le lecteur est justement bloque.
+    hint.innerHTML = '<span aria-label="' + ayT('kbdNav') + '"><b data-act="prev">&#8592;</b> <b data-act="next">&#8594;</b></span>'
       + '<span data-act="fs">' + ayT('kbdFs') + '</span>'
       + (forClient ? '' : '<span data-act="tools">' + ayT('kbdTools') + '</span>')
       + '<span data-act="share">' + ayT('kbdShare') + '</span>';
