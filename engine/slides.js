@@ -2059,7 +2059,14 @@ window.addEventListener('load', function () {
   // worst outcome, since the success toast sends them off to paste whatever the
   // clipboard held before. So the write reports back, execCommand is the
   // fallback, and the caller says the truth either way. Always a Promise.
+  // The link goes on the clipboard twice: as HTML, an <a> whose text is the deck
+  // title, so Outlook, Gmail or Teams paste one short titled link instead of the
+  // long ?pm= address over two lines (field feedback, November 2026); and as
+  // plain text, the bare URL, for anything that does not take formatting.
   function copyLink(link) {
+    var label = (document.title || link).trim();
+    var esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+    var html = '<a href="' + esc(link) + '">' + esc(label) + '</a>';
     function legacy() {
       try {
         var ta = document.createElement('textarea');
@@ -2068,15 +2075,29 @@ window.addEventListener('load', function () {
         ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
         document.body.appendChild(ta);
         ta.select();
+        var onCopy = function (e) {
+          try { e.clipboardData.setData('text/html', html); e.clipboardData.setData('text/plain', link); e.preventDefault(); } catch (x) { }
+        };
+        document.addEventListener('copy', onCopy);
         var ok = document.execCommand('copy');
+        document.removeEventListener('copy', onCopy);
         ta.remove();
         return ok;
       } catch (e) { return false; }
     }
+    function plain() {
+      if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(link).then(function () { return true; }, legacy);
+      return legacy();
+    }
     try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        return navigator.clipboard.writeText(link).then(function () { return true; }, legacy);
+      if (navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) {
+        var item = new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([link], { type: 'text/plain' })
+        });
+        return navigator.clipboard.write([item]).then(function () { return true; }, plain);
       }
+      return Promise.resolve(plain());
     } catch (e) { }
     return Promise.resolve(legacy());
   }
