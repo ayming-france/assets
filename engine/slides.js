@@ -2063,12 +2063,14 @@ window.addEventListener('load', function () {
   // title, so Outlook, Gmail or Teams paste one short titled link instead of the
   // long ?pm= address over two lines (field feedback, November 2026); and as
   // plain text, the bare URL, for anything that does not take formatting.
-  // The visible text reads "<subject> | Ayming", the ayming.fr link format: the
-  // subject is the page title up to its first " - " or " · ", which drops the
-  // "- Ayming" or client suffix.
+  // The visible text reads "<subject> | Ayming France", the ayming.fr link format:
+  // the subject is the page title up to its first " - " or " · ", which drops the
+  // "- Ayming" or client suffix, and the brand follows the deck's language.
   function shareLabel() {
     var subject = (document.title || '').split(/\s+[-·–|]\s+/)[0].trim();
-    return subject && subject !== 'Ayming' ? subject + ' | Ayming' : 'Ayming';
+    var lang = (document.documentElement.lang || 'fr').slice(0, 2).toLowerCase();
+    var brand = { fr: 'Ayming France', es: 'Ayming España' }[lang] || 'Ayming';
+    return subject && !/^Ayming$/i.test(subject) ? subject + ' | ' + brand : brand;
   }
   function copyLink(link) {
     var label = shareLabel();
